@@ -1,56 +1,46 @@
-import type { Capacity, Need, SatisfactionPath } from './types'
+import type { Capacity, Need, Expression } from './types'
 
-type RawExample = {
+export type RawExample = {
   id: number
   category: string
   naturalLanguage: string
   type: 'capacity' | 'need'
-  structured: {
-    capacityType?: string
-    satisfactionPaths?: Array<{ requires: string; [key: string]: unknown }>
-    attributes?: Record<string, unknown>
-    constraints?: Record<string, unknown>
-    [key: string]: unknown
-  }
-  shouldMatchWith: string[]
-  notes: string
+  expressions: Array<{ text: string; priority?: number }>
+  constraints?: Record<string, unknown>
+  shouldMatchWith?: string[]
+  notes?: string
 }
 
-export function convertToCapacity(example: RawExample): Capacity | null {
+export type EmbeddingsStore = Record<string, number[]>
+
+export function convertToCapacity(example: RawExample, embedding?: number[]): Capacity | null {
   if (example.type !== 'capacity') return null
-  if (!example.structured.capacityType) return null
+  if (!example.expressions || example.expressions.length === 0) return null
 
   return {
     id: String(example.id),
-    capacityType: example.structured.capacityType,
-    attributes: example.structured.attributes,
-    constraints: example.structured.constraints as Capacity['constraints'],
+    expressions: example.expressions as Expression[],
+    constraints: example.constraints as Capacity['constraints'],
+    embedding,
   }
 }
 
-export function convertToNeed(example: RawExample): Need | null {
+export function convertToNeed(example: RawExample, embedding?: number[]): Need | null {
   if (example.type !== 'need') return null
-
-  const paths = example.structured.satisfactionPaths
-  if (!paths || paths.length === 0) return null
-
-  const satisfactionPaths: SatisfactionPath[] = paths.map((p) => ({
-    type: 'direct' as const,
-    requires: p.requires,
-    attributes: Object.fromEntries(
-      Object.entries(p).filter(([k]) => k !== 'requires')
-    ),
-  }))
+  if (!example.expressions || example.expressions.length === 0) return null
 
   return {
     id: String(example.id),
-    satisfactionPaths,
-    attributes: example.structured.attributes,
-    constraints: example.structured.constraints as Need['constraints'],
+    expressions: example.expressions as Expression[],
+    constraints: example.constraints as Need['constraints'],
+    embedding,
   }
 }
 
-export function convertExamples(examples: RawExample[]): {
+export function convertExamples(
+  examples: RawExample[],
+  embeddings: EmbeddingsStore = {}
+): {
   capacities: Capacity[]
   needs: Need[]
   byId: Map<string, { original: RawExample; converted: Capacity | Need }>
@@ -60,17 +50,20 @@ export function convertExamples(examples: RawExample[]): {
   const byId = new Map<string, { original: RawExample; converted: Capacity | Need }>()
 
   for (const example of examples) {
+    const id = String(example.id)
+    const embedding = embeddings[id]
+
     if (example.type === 'capacity') {
-      const capacity = convertToCapacity(example)
+      const capacity = convertToCapacity(example, embedding)
       if (capacity) {
         capacities.push(capacity)
-        byId.set(String(example.id), { original: example, converted: capacity })
+        byId.set(id, { original: example, converted: capacity })
       }
     } else {
-      const need = convertToNeed(example)
+      const need = convertToNeed(example, embedding)
       if (need) {
         needs.push(need)
-        byId.set(String(example.id), { original: example, converted: need })
+        byId.set(id, { original: example, converted: need })
       }
     }
   }
@@ -78,7 +71,7 @@ export function convertExamples(examples: RawExample[]): {
   return { capacities, needs, byId }
 }
 
-// Known matching pairs based on consecutive IDs and compatible types
+// Known matching pairs based on consecutive IDs and compatible expressions
 export const KNOWN_PAIRS: Array<{ needId: number; capacityId: number; reason: string }> = [
   { needId: 2, capacityId: 1, reason: 'flour need ↔ flour capacity' },
   { needId: 4, capacityId: 3, reason: 'lawnmower need ↔ lawnmower capacity' },

@@ -1,24 +1,39 @@
 import { Matcher } from './matcher'
-import { convertExamples } from './example-converter'
+import { convertExamples, type EmbeddingsStore } from './example-converter'
 import examples from '../data/matching-examples.json'
+import embeddingsData from '../data/embeddings.json'
+
+const embeddings = embeddingsData as EmbeddingsStore
 
 type MatchData = {
-  capacities: Array<{ id: string; type: string; category: string; label: string }>
-  needs: Array<{ id: string; requires: string[]; category: string; label: string }>
-  matches: Array<{ needId: string; capacityId: string; score: number }>
+  capacities: Array<{ id: string; expressions: string[]; category: string; label: string }>
+  needs: Array<{ id: string; expressions: string[]; category: string; label: string }>
+  matches: Array<{
+    needId: string
+    capacityId: string
+    score: number
+    breakdown: {
+      time?: number
+      space?: number
+      quantity?: number
+      similarity?: number
+      priorityWeight?: number
+    }
+  }>
 }
 
 export function generateMatchData(): MatchData {
-  const matcher = new Matcher()
-  const { capacities, needs, byId } = convertExamples(examples as any)
+  // Use low threshold to get all potential matches; UI slider filters client-side
+  const matcher = new Matcher({ similarityThreshold: 0.5 })
+  const { capacities, needs, byId } = convertExamples(examples as any, embeddings)
 
   const capacityData = capacities.map((c) => {
     const original = byId.get(c.id)?.original
     return {
       id: c.id,
-      type: c.capacityType,
+      expressions: c.expressions.map(e => e.text),
       category: original?.category ?? 'unknown',
-      label: original?.naturalLanguage?.slice(0, 50) ?? c.capacityType,
+      label: original?.naturalLanguage?.slice(0, 50) ?? c.expressions[0]?.text ?? 'capacity',
     }
   })
 
@@ -26,9 +41,9 @@ export function generateMatchData(): MatchData {
     const original = byId.get(n.id)?.original
     return {
       id: n.id,
-      requires: n.satisfactionPaths.map((p) => (p.type === 'direct' ? p.requires : 'composite')),
+      expressions: n.expressions.map(e => e.text),
       category: original?.category ?? 'unknown',
-      label: original?.naturalLanguage?.slice(0, 50) ?? 'need',
+      label: original?.naturalLanguage?.slice(0, 50) ?? n.expressions[0]?.text ?? 'need',
     }
   })
 
@@ -40,6 +55,7 @@ export function generateMatchData(): MatchData {
         needId: result.needId,
         capacityId: result.capacityId,
         score: result.feasibilityScore,
+        breakdown: result.breakdown,
       })
     }
   }
@@ -133,6 +149,10 @@ export function generateHTML(data: MatchData): string {
     .details { background: #0f3460; padding: 15px; border-radius: 8px; font-size: 0.85em; }
     .details p { margin: 5px 0; }
     .details .label { color: #888; }
+    .slider-container { background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .slider-container label { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .slider-container input[type="range"] { width: 100%; cursor: pointer; }
+    .slider-value { font-weight: bold; color: #4CAF50; }
     #tooltip {
       position: fixed;
       background: #0f3460;
@@ -172,6 +192,20 @@ export function generateHTML(data: MatchData): string {
         <div class="stat">
           <div class="stat-value">${((data.matches.length / Math.max(data.needs.length, 1)) * 100).toFixed(0)}%</div>
           <div class="stat-label">Match Rate</div>
+        </div>
+      </div>
+
+      <h2>Threshold</h2>
+      <div class="slider-container">
+        <label>
+          <span>Similarity threshold</span>
+          <span class="slider-value" id="threshold-value">60%</span>
+        </label>
+        <input type="range" id="threshold-slider" min="0" max="100" value="60" step="1">
+        <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #666; margin-top: 4px;">
+          <span>0%</span>
+          <span>50%</span>
+          <span>100%</span>
         </div>
       </div>
 
@@ -343,6 +377,8 @@ export function generateHTML(data: MatchData): string {
       path.setAttribute('fill', 'none');
       path.setAttribute('stroke', color);
       path.setAttribute('stroke-width', Math.max(1, match.score * 3));
+      const similarity = match.breakdown.similarity ?? 1;
+      path.setAttribute('opacity', String(similarity * similarity));
       path.setAttribute('class', 'chord');
       path.setAttribute('data-cap', match.capacityId);
       path.setAttribute('data-need', match.needId);
@@ -354,7 +390,7 @@ export function generateHTML(data: MatchData): string {
     });
 
     function showTooltip(e, item, type) {
-      const label = item.label || (type === 'capacity' ? item.type : item.requires?.join(', '));
+      const label = item.label || item.expressions?.join(', ');
       tooltip.innerHTML = \`
         <strong>\${type === 'capacity' ? 'Capacity' : 'Need'} #\${item.id}</strong><br>
         <span style="color: \${categoryColors[item.category]}">\${item.category.replace(/_/g, ' ')}</span><br>
@@ -368,20 +404,29 @@ export function generateHTML(data: MatchData): string {
         <p><span class="label">Type:</span> \${type}</p>
         <p><span class="label">ID:</span> #\${item.id}</p>
         <p><span class="label">Category:</span> \${item.category.replace(/_/g, ' ')}</p>
-        <p><span class="label">\${type === 'capacity' ? 'Offers' : 'Requires'}:</span> \${type === 'capacity' ? item.type : item.requires?.join(', ')}</p>
+        <p><span class="label">Expressions:</span> \${item.expressions?.join(', ')}</p>
         <p style="margin-top: 10px; font-style: italic;">\${item.label}</p>
       \`;
     }
 
     function showMatchTooltip(e, match, cap, need) {
+      const b = match.breakdown || {};
+      const breakdownItems = [];
+      if (b.similarity !== undefined) breakdownItems.push(\`Similarity: \${(b.similarity * 100).toFixed(0)}%\`);
+      if (b.priorityWeight !== undefined) breakdownItems.push(\`Priority: \${(b.priorityWeight * 100).toFixed(0)}%\`);
+      if (b.time !== undefined) breakdownItems.push(\`Time: \${(b.time * 100).toFixed(0)}%\`);
+      if (b.space !== undefined) breakdownItems.push(\`Space: \${(b.space * 100).toFixed(0)}%\`);
+      if (b.quantity !== undefined) breakdownItems.push(\`Quantity: \${(b.quantity * 100).toFixed(0)}%\`);
+
       tooltip.innerHTML = \`
         <strong>Match</strong> <span style="color: #4CAF50">\${(match.score * 100).toFixed(0)}%</span><br>
+        \${breakdownItems.length > 0 ? \`<div style="font-size: 10px; color: #888; margin-top: 4px;">\${breakdownItems.join(' | ')}</div>\` : ''}
         <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
           <strong style="color: \${categoryColors[cap.category]}">Capacity #\${cap.id}</strong><br>
           <span style="color: #aaa">\${cap.category.replace(/_/g, ' ')}</span><br>
           \${cap.label}
         </div>
-        <div style="text-align: center; margin: 4px 0; color: #4CAF50;">↕</div>
+        <div style="text-align: center; margin: 4px 0; color: #4CAF50;">|</div>
         <div style="padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
           <strong style="color: \${categoryColors[need.category]}">Need #\${need.id}</strong><br>
           <span style="color: #aaa">\${need.category.replace(/_/g, ' ')}</span><br>
@@ -396,16 +441,26 @@ export function generateHTML(data: MatchData): string {
         <p style="text-align: center; font-size: 1.2em; margin-bottom: 15px;">
           <strong>Match Score:</strong> <span style="color: #4CAF50">\${(match.score * 100).toFixed(0)}%</span>
         </p>
+        \${breakdownItems.length > 0 ? \`
+        <div style="background: rgba(76,175,80,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+          <p style="margin: 0 0 8px 0; color: #888; font-size: 0.9em;"><strong>Score Breakdown</strong></p>
+          \${b.similarity !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Similarity:</span> \${(b.similarity * 100).toFixed(0)}%</p>\` : ''}
+          \${b.priorityWeight !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Priority:</span> \${(b.priorityWeight * 100).toFixed(0)}%</p>\` : ''}
+          \${b.time !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Time:</span> \${(b.time * 100).toFixed(0)}%</p>\` : ''}
+          \${b.space !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Space:</span> \${(b.space * 100).toFixed(0)}%</p>\` : ''}
+          \${b.quantity !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Quantity:</span> \${(b.quantity * 100).toFixed(0)}%</p>\` : ''}
+        </div>
+        \` : ''}
         <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; margin-bottom: 10px;">
           <p style="margin: 0 0 5px 0;"><strong style="color: \${categoryColors[cap.category]}">Capacity #\${cap.id}</strong></p>
           <p style="margin: 0 0 5px 0;"><span class="label">Category:</span> \${cap.category.replace(/_/g, ' ')}</p>
-          <p style="margin: 0 0 5px 0;"><span class="label">Offers:</span> \${cap.type}</p>
+          <p style="margin: 0 0 5px 0;"><span class="label">Expressions:</span> \${cap.expressions?.join(', ')}</p>
           <p style="margin: 0; font-style: italic; color: #ccc;">\${cap.label}</p>
         </div>
         <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
           <p style="margin: 0 0 5px 0;"><strong style="color: \${categoryColors[need.category]}">Need #\${need.id}</strong></p>
           <p style="margin: 0 0 5px 0;"><span class="label">Category:</span> \${need.category.replace(/_/g, ' ')}</p>
-          <p style="margin: 0 0 5px 0;"><span class="label">Requires:</span> \${need.requires?.join(', ')}</p>
+          <p style="margin: 0 0 5px 0;"><span class="label">Expressions:</span> \${need.expressions?.join(', ')}</p>
           <p style="margin: 0; font-style: italic; color: #ccc;">\${need.label}</p>
         </div>
       \`;
@@ -414,6 +469,28 @@ export function generateHTML(data: MatchData): string {
     function hideTooltip() {
       tooltip.style.opacity = 0;
     }
+
+    // Threshold slider
+    const slider = document.getElementById('threshold-slider');
+    const thresholdValue = document.getElementById('threshold-value');
+
+    function updateThreshold(value) {
+      const threshold = value / 100;
+      thresholdValue.textContent = value + '%';
+
+      document.querySelectorAll('.chord').forEach(chord => {
+        const capId = chord.getAttribute('data-cap');
+        const needId = chord.getAttribute('data-need');
+        const match = data.matches.find(m => m.capacityId === capId && m.needId === needId);
+        if (match) {
+          const similarity = match.breakdown.similarity ?? 1;
+          chord.style.display = similarity >= threshold ? '' : 'none';
+        }
+      });
+    }
+
+    slider.addEventListener('input', (e) => updateThreshold(e.target.value));
+    updateThreshold(60); // Apply initial threshold
   </script>
 </body>
 </html>`;

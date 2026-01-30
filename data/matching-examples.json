@@ -4,15 +4,32 @@
     "category": "simple_direct",
     "naturalLanguage": "I have 5kg of organic flour available this weekend",
     "type": "capacity",
-    "structured": {
-      "capacityType": "flour",
-      "attributes": { "organic": true },
-      "constraints": {
-        "quantity": { "amount": 5, "unit": "kg" },
-        "time": { "availableFrom": "2024-01-27", "availableTo": "2024-01-28" }
+    "expressions": [
+      {
+        "text": "5kg of organic flour"
+      },
+      {
+        "text": "organic flour"
+      },
+      {
+        "text": "flour"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 5,
+        "unit": "kg"
+      },
+      "time": {
+        "availableFrom": "2024-01-27",
+        "availableTo": "2024-01-28"
       }
     },
-    "shouldMatchWith": ["needs for flour", "recipes requiring flour", "bakers looking for ingredients"],
+    "shouldMatchWith": [
+      "needs for flour",
+      "recipes requiring flour",
+      "bakers looking for ingredients"
+    ],
     "notes": "Simple capacity with quantity and time constraints"
   },
   {
@@ -20,13 +37,25 @@
     "category": "simple_direct",
     "naturalLanguage": "Looking for 2kg of flour for baking bread",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "flour" }],
-      "constraints": {
-        "quantity": { "amount": 2, "unit": "kg" }
+    "expressions": [
+      {
+        "text": "2kg of flour"
+      },
+      {
+        "text": "flour"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 2,
+        "unit": "kg"
       }
     },
-    "shouldMatchWith": ["flour capacities", "bakery supplies", "grocery offerings"],
+    "shouldMatchWith": [
+      "flour capacities",
+      "bakery supplies",
+      "grocery offerings"
+    ],
     "notes": "Simple need that would match with the organic flour capacity above"
   },
   {
@@ -34,11 +63,18 @@
     "category": "simple_direct",
     "naturalLanguage": "I have a working lawnmower I can lend out",
     "type": "capacity",
-    "structured": {
-      "capacityType": "lawnmower",
-      "attributes": { "condition": "working", "loanType": "lend" }
-    },
-    "shouldMatchWith": ["people needing to mow lawn", "garden maintenance needs"],
+    "expressions": [
+      {
+        "text": "a working lawnmower"
+      },
+      {
+        "text": "lawnmower"
+      }
+    ],
+    "shouldMatchWith": [
+      "people needing to mow lawn",
+      "garden maintenance needs"
+    ],
     "notes": "Tool lending capacity"
   },
   {
@@ -46,14 +82,25 @@
     "category": "simple_direct",
     "naturalLanguage": "Need to borrow a lawnmower for Saturday afternoon",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "lawnmower" }],
-      "constraints": {
-        "time": { "dayOfWeek": "Saturday", "timeOfDay": "afternoon" },
-        "acquisitionType": "borrow"
+    "expressions": [
+      {
+        "text": "borrow a lawnmower for Saturday afternoon"
+      },
+      {
+        "text": "lawnmower"
       }
+    ],
+    "constraints": {
+      "time": {
+        "dayOfWeek": "Saturday",
+        "timeOfDay": "afternoon"
+      },
+      "acquisitionType": "borrow"
     },
-    "shouldMatchWith": ["lawnmower lending capacities", "garden tool shares"],
+    "shouldMatchWith": [
+      "lawnmower lending capacities",
+      "garden tool shares"
+    ],
     "notes": "Tool borrowing need with time constraint"
   },
   {
@@ -61,15 +108,22 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I'm a professional piano teacher with 15 years experience",
     "type": "capacity",
-    "structured": {
-      "capacityType": "teacher",
-      "attributes": {
-        "subject": "piano",
-        "level": "professional",
-        "experience": { "years": 15 }
+    "expressions": [
+      {
+        "text": "professional piano teacher with 15 years experience"
+      },
+      {
+        "text": "professional piano teacher"
+      },
+      {
+        "text": "teacher"
       }
-    },
-    "shouldMatchWith": ["piano students", "people wanting to learn piano", "music lesson seekers"],
+    ],
+    "shouldMatchWith": [
+      "piano students",
+      "people wanting to learn piano",
+      "music lesson seekers"
+    ],
     "notes": "Asymmetric: teacher matches with student needs, not other teachers"
   },
   {
@@ -77,14 +131,21 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Looking for piano lessons for my 8-year-old beginner",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "teacher", "subject": "piano" }],
-      "attributes": {
-        "studentAge": 8,
-        "studentLevel": "beginner"
+    "expressions": [
+      {
+        "text": "piano lessons"
+      },
+      {
+        "text": "piano teacher"
+      },
+      {
+        "text": "teacher"
       }
-    },
-    "shouldMatchWith": ["piano teachers", "music instructors teaching piano"],
+    ],
+    "shouldMatchWith": [
+      "piano teachers",
+      "music instructors teaching piano"
+    ],
     "notes": "Student need matches with teacher capacity"
   },
   {
@@ -92,13 +153,23 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I have a spare room and can host travelers visiting the SF bay area",
     "type": "capacity",
-    "structured": {
-      "capacityType": "host",
-      "constraints": {
-        "location": { "area": "SF Bay Area" }
+    "expressions": [
+      {
+        "text": "a spare room and can host travelers visiting the SF bay area"
+      },
+      {
+        "text": "host"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "area": "SF Bay Area"
       }
     },
-    "shouldMatchWith": ["travelers needing accommodation", "guests visiting SF"],
+    "shouldMatchWith": [
+      "travelers needing accommodation",
+      "guests visiting SF"
+    ],
     "notes": "Asymmetric: host matches with guest needs, not other hosts"
   },
   {
@@ -106,15 +177,21 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Experienced running coach looking for athletes to train for marathons",
     "type": "capacity",
-    "structured": {
-      "capacityType": "coach",
-      "attributes": {
-        "experience": "experienced",
-        "sport": "running",
-        "focus": "marathon"
+    "expressions": [
+      {
+        "text": "Experienced running coach looking for athletes to train for marathons"
+      },
+      {
+        "text": "experienced coach"
+      },
+      {
+        "text": "coach"
       }
-    },
-    "shouldMatchWith": ["runners training for marathons", "athletes needing coaching"],
+    ],
+    "shouldMatchWith": [
+      "runners training for marathons",
+      "athletes needing coaching"
+    ],
     "notes": "Coach capacity matches with athlete/trainee needs"
   },
   {
@@ -122,14 +199,28 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I want to buy a used bicycle, preferably under $200",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "bicycle", "condition": "used" }],
-      "constraints": {
-        "price": { "max": 200, "currency": "USD" }
+    "expressions": [
+      {
+        "text": "I want to buy a used bicycle, preferably under $200"
       },
-      "role": "buyer"
+      {
+        "text": "used bicycle"
+      },
+      {
+        "text": "bicycle"
+      }
+    ],
+    "constraints": {
+      "price": {
+        "max": 200,
+        "currency": "USD"
+      }
     },
-    "shouldMatchWith": ["bicycle sellers", "used bike listings", "people selling bikes under $200"],
+    "shouldMatchWith": [
+      "bicycle sellers",
+      "used bike listings",
+      "people selling bikes under $200"
+    ],
     "notes": "Buyer matches with seller, not other buyers"
   },
   {
@@ -137,19 +228,28 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Selling my Trek mountain bike, asking $175",
     "type": "capacity",
-    "structured": {
-      "capacityType": "bicycle",
-      "attributes": {
-        "brand": "Trek",
-        "type": "mountain",
-        "condition": "used"
+    "expressions": [
+      {
+        "text": "Selling my Trek mountain bike, asking $175"
       },
-      "constraints": {
-        "price": { "amount": 175, "currency": "USD" }
+      {
+        "text": "mountain bicycle"
       },
-      "role": "seller"
+      {
+        "text": "bicycle"
+      }
+    ],
+    "constraints": {
+      "price": {
+        "amount": 175,
+        "currency": "USD"
+      }
     },
-    "shouldMatchWith": ["bicycle buyers", "people looking for mountain bikes", "buyers with budget >= $175"],
+    "shouldMatchWith": [
+      "bicycle buyers",
+      "people looking for mountain bikes",
+      "buyers with budget >= $175"
+    ],
     "notes": "Seller matches with buyer needs"
   },
   {
@@ -157,18 +257,26 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Looking for a roommate to share my 2BR apartment, $900/month",
     "type": "capacity",
-    "structured": {
-      "capacityType": "room",
-      "attributes": {
-        "apartmentType": "2BR",
-        "arrangement": "shared"
+    "expressions": [
+      {
+        "text": "a roommate to share my 2BR apartment, $900/month"
       },
-      "constraints": {
-        "price": { "amount": 900, "currency": "USD", "period": "month" }
-      },
-      "role": "host"
+      {
+        "text": "room"
+      }
+    ],
+    "constraints": {
+      "price": {
+        "amount": 900,
+        "currency": "USD",
+        "period": "month"
+      }
     },
-    "shouldMatchWith": ["people seeking rooms", "roommate seekers", "housing needs around $900/month"],
+    "shouldMatchWith": [
+      "people seeking rooms",
+      "roommate seekers",
+      "housing needs around $900/month"
+    ],
     "notes": "Room offerer matches with room seekers"
   },
   {
@@ -176,14 +284,26 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Need a room in a shared apartment, budget up to $1000/month",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "room", "arrangement": "shared" }],
-      "constraints": {
-        "price": { "max": 1000, "currency": "USD", "period": "month" }
+    "expressions": [
+      {
+        "text": "room in a shared apartment, budget up to $1000/month"
       },
-      "role": "seeker"
+      {
+        "text": "room"
+      }
+    ],
+    "constraints": {
+      "price": {
+        "max": 1000,
+        "currency": "USD",
+        "period": "month"
+      }
     },
-    "shouldMatchWith": ["room offerings", "roommate hosts", "shared housing capacities"],
+    "shouldMatchWith": [
+      "room offerings",
+      "roommate hosts",
+      "shared housing capacities"
+    ],
     "notes": "Room seeker matches with hosts offering rooms"
   },
   {
@@ -191,17 +311,33 @@
     "category": "compositional",
     "naturalLanguage": "I need a photographer and a makeup artist for my wedding on June 15th",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "photographer", "specialty": "wedding" },
-        { "requires": "makeup_artist", "specialty": "wedding" }
-      ],
-      "constraints": {
-        "time": { "date": "2024-06-15" }
+    "expressions": [
+      {
+        "text": "a photographer and a makeup artist"
       },
-      "composition": "all_required"
+      {
+        "text": "wedding photographer"
+      },
+      {
+        "text": "photographer"
+      },
+      {
+        "text": "wedding makeup artist"
+      },
+      {
+        "text": "makeup artist"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "date": "2024-06-15"
+      }
     },
-    "shouldMatchWith": ["wedding photographers available June 15", "makeup artists available June 15", "wedding service packages"],
+    "shouldMatchWith": [
+      "wedding photographers available June 15",
+      "makeup artists available June 15",
+      "wedding service packages"
+    ],
     "notes": "Compositional need requiring multiple services"
   },
   {
@@ -209,14 +345,26 @@
     "category": "compositional",
     "naturalLanguage": "Planning a dinner party, need someone who can cook Italian food and also handle decorations",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "chef", "cuisine": "Italian" },
-        { "requires": "decorator", "eventType": "dinner_party" }
-      ],
-      "composition": "all_required"
-    },
-    "shouldMatchWith": ["Italian chefs", "event decorators", "caterers with decoration services", "party planners"],
+    "expressions": [
+      {
+        "text": "Planning a dinner party"
+      },
+      {
+        "text": "Italian chef"
+      },
+      {
+        "text": "chef"
+      },
+      {
+        "text": "decorator"
+      }
+    ],
+    "shouldMatchWith": [
+      "Italian chefs",
+      "event decorators",
+      "caterers with decoration services",
+      "party planners"
+    ],
     "notes": "Could be satisfied by one person with both skills or two separate people"
   },
   {
@@ -224,14 +372,25 @@
     "category": "compositional",
     "naturalLanguage": "Looking for either a ride to the airport or help with luggage",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "ride", "destination": "airport" },
-        { "requires": "porter", "task": "luggage_help" }
-      ],
-      "composition": "any_one"
-    },
-    "shouldMatchWith": ["airport rides", "luggage assistance", "airport shuttle services"],
+    "expressions": [
+      {
+        "text": "either a ride to the airport or help with luggage"
+      },
+      {
+        "text": "ride"
+      },
+      {
+        "text": "porter luggage help"
+      },
+      {
+        "text": "porter"
+      }
+    ],
+    "shouldMatchWith": [
+      "airport rides",
+      "luggage assistance",
+      "airport shuttle services"
+    ],
     "notes": "Disjunctive need - either option satisfies"
   },
   {
@@ -239,15 +398,30 @@
     "category": "compositional",
     "naturalLanguage": "I can offer a complete home renovation package: plumbing, electrical, and painting",
     "type": "capacity",
-    "structured": {
-      "capacityType": "renovation_package",
-      "subCapacities": [
-        { "type": "plumber" },
-        { "type": "electrician" },
-        { "type": "painter" }
-      ]
-    },
-    "shouldMatchWith": ["home renovation needs", "people needing plumbing", "electrical work needs", "painting jobs", "full house remodels"],
+    "expressions": [
+      {
+        "text": "offer a complete home renovation package: plumbing"
+      },
+      {
+        "text": "renovation package"
+      },
+      {
+        "text": "plumber"
+      },
+      {
+        "text": "electrician"
+      },
+      {
+        "text": "painter"
+      }
+    ],
+    "shouldMatchWith": [
+      "home renovation needs",
+      "people needing plumbing",
+      "electrical work needs",
+      "painting jobs",
+      "full house remodels"
+    ],
     "notes": "Bundled capacity that can satisfy individual or combined needs"
   },
   {
@@ -255,19 +429,34 @@
     "category": "time_constrained",
     "naturalLanguage": "I'm available for freelance web development Mon-Wed, 9am-5pm EST",
     "type": "capacity",
-    "structured": {
-      "capacityType": "web_developer",
-      "attributes": { "arrangement": "freelance" },
-      "constraints": {
-        "time": {
-          "recurring": true,
-          "days": ["Monday", "Tuesday", "Wednesday"],
-          "hours": { "start": "09:00", "end": "17:00" },
-          "timezone": "EST"
-        }
+    "expressions": [
+      {
+        "text": "available for freelance web development Mon-Wed, 9am-5pm EST"
+      },
+      {
+        "text": "web developer"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "recurring": true,
+        "days": [
+          "Monday",
+          "Tuesday",
+          "Wednesday"
+        ],
+        "hours": {
+          "start": "09:00",
+          "end": "17:00"
+        },
+        "timezone": "EST"
       }
     },
-    "shouldMatchWith": ["web development projects", "part-time dev needs", "projects needing weekday availability"],
+    "shouldMatchWith": [
+      "web development projects",
+      "part-time dev needs",
+      "projects needing weekday availability"
+    ],
     "notes": "Recurring time constraint"
   },
   {
@@ -275,13 +464,27 @@
     "category": "time_constrained",
     "naturalLanguage": "Need an emergency plumber right now, pipe burst!",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "plumber", "specialty": "emergency" }],
-      "constraints": {
-        "time": { "urgency": "immediate" }
+    "expressions": [
+      {
+        "text": "emergency plumber right now, pipe burst!"
+      },
+      {
+        "text": "emergency plumber"
+      },
+      {
+        "text": "plumber"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "urgency": "immediate"
       }
     },
-    "shouldMatchWith": ["emergency plumbers", "24/7 plumbing services", "plumbers available now"],
+    "shouldMatchWith": [
+      "emergency plumbers",
+      "24/7 plumbing services",
+      "plumbers available now"
+    ],
     "notes": "Urgent time constraint"
   },
   {
@@ -289,17 +492,35 @@
     "category": "time_constrained",
     "naturalLanguage": "I can babysit weekday evenings after 6pm",
     "type": "capacity",
-    "structured": {
-      "capacityType": "babysitter",
-      "constraints": {
-        "time": {
-          "recurring": true,
-          "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          "hours": { "start": "18:00", "end": "23:59" }
+    "expressions": [
+      {
+        "text": "babysit weekday evenings after 6pm"
+      },
+      {
+        "text": "babysitter"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "recurring": true,
+        "days": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday"
+        ],
+        "hours": {
+          "start": "18:00",
+          "end": "23:59"
         }
       }
     },
-    "shouldMatchWith": ["parents needing evening childcare", "date night babysitting needs", "weeknight childcare"],
+    "shouldMatchWith": [
+      "parents needing evening childcare",
+      "date night babysitting needs",
+      "weeknight childcare"
+    ],
     "notes": "Evening availability constraint"
   },
   {
@@ -307,16 +528,29 @@
     "category": "time_constrained",
     "naturalLanguage": "Looking for someone to walk my dog twice daily for the next 2 weeks while I'm traveling",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "dog_walker" }],
-      "constraints": {
-        "time": {
-          "duration": { "weeks": 2 },
-          "frequency": { "perDay": 2 }
+    "expressions": [
+      {
+        "text": "someone to walk my dog twice daily for the next 2 weeks"
+      },
+      {
+        "text": "dog walker"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "duration": {
+          "weeks": 2
+        },
+        "frequency": {
+          "perDay": 2
         }
       }
     },
-    "shouldMatchWith": ["dog walkers", "pet sitters", "people available for recurring dog walks"],
+    "shouldMatchWith": [
+      "dog walkers",
+      "pet sitters",
+      "people available for recurring dog walks"
+    ],
     "notes": "Duration and frequency constraints"
   },
   {
@@ -324,17 +558,27 @@
     "category": "location_constrained",
     "naturalLanguage": "I can tutor math in-person anywhere in Manhattan",
     "type": "capacity",
-    "structured": {
-      "capacityType": "tutor",
-      "attributes": { "subject": "math", "mode": "in-person" },
-      "constraints": {
-        "location": {
-          "area": "Manhattan",
-          "willTravel": true
-        }
+    "expressions": [
+      {
+        "text": "tutor math in-person anywhere in Manhattan"
+      },
+      {
+        "text": "math tutor"
+      },
+      {
+        "text": "tutor"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "area": "Manhattan",
+        "willTravel": true
       }
     },
-    "shouldMatchWith": ["math tutoring needs in Manhattan", "students in NYC needing math help"],
+    "shouldMatchWith": [
+      "math tutoring needs in Manhattan",
+      "students in NYC needing math help"
+    ],
     "notes": "Geographic constraint with travel willingness"
   },
   {
@@ -342,17 +586,26 @@
     "category": "location_constrained",
     "naturalLanguage": "Need a yoga instructor who can come to my home in Brooklyn Heights",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "yoga_instructor", "mode": "in-home" }],
-      "constraints": {
-        "location": {
-          "neighborhood": "Brooklyn Heights",
-          "city": "Brooklyn",
-          "requiresTravel": true
-        }
+    "expressions": [
+      {
+        "text": "yoga instructor"
+      },
+      {
+        "text": "in-home yoga instructor"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "neighborhood": "Brooklyn Heights",
+        "city": "Brooklyn",
+        "requiresTravel": true
       }
     },
-    "shouldMatchWith": ["mobile yoga instructors", "yoga teachers serving Brooklyn", "in-home fitness instructors"],
+    "shouldMatchWith": [
+      "mobile yoga instructors",
+      "yoga teachers serving Brooklyn",
+      "in-home fitness instructors"
+    ],
     "notes": "Specific neighborhood requirement"
   },
   {
@@ -360,16 +613,25 @@
     "category": "location_constrained",
     "naturalLanguage": "I offer remote graphic design services, timezone-flexible",
     "type": "capacity",
-    "structured": {
-      "capacityType": "graphic_designer",
-      "constraints": {
-        "location": {
-          "mode": "remote",
-          "timezoneFlexibility": "any"
-        }
+    "expressions": [
+      {
+        "text": "remote graphic design services, timezone-flexible"
+      },
+      {
+        "text": "graphic designer"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "mode": "remote",
+        "timezoneFlexibility": "any"
       }
     },
-    "shouldMatchWith": ["remote design projects", "graphic design needs worldwide", "logo design requests"],
+    "shouldMatchWith": [
+      "remote design projects",
+      "graphic design needs worldwide",
+      "logo design requests"
+    ],
     "notes": "Remote work with timezone flexibility"
   },
   {
@@ -377,16 +639,25 @@
     "category": "location_constrained",
     "naturalLanguage": "Looking for a moving company that services the Bay Area to LA route",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "moving_company" }],
-      "constraints": {
-        "location": {
-          "origin": "Bay Area",
-          "destination": "Los Angeles"
-        }
+    "expressions": [
+      {
+        "text": "a moving company that services the Bay Area to LA route"
+      },
+      {
+        "text": "moving company"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "origin": "Bay Area",
+        "destination": "Los Angeles"
       }
     },
-    "shouldMatchWith": ["moving companies serving California", "Bay Area movers", "long-distance movers"],
+    "shouldMatchWith": [
+      "moving companies serving California",
+      "Bay Area movers",
+      "long-distance movers"
+    ],
     "notes": "Route-based location constraint"
   },
   {
@@ -394,15 +665,22 @@
     "category": "skill_based",
     "naturalLanguage": "I'm a certified electrician with 10 years experience in residential and commercial",
     "type": "capacity",
-    "structured": {
-      "capacityType": "electrician",
-      "attributes": {
-        "certified": true,
-        "experience": { "years": 10 },
-        "specialties": ["residential", "commercial"]
+    "expressions": [
+      {
+        "text": "certified electrician with 10 years experience in residential and commercial"
+      },
+      {
+        "text": "certified electrician"
+      },
+      {
+        "text": "electrician"
       }
-    },
-    "shouldMatchWith": ["electrical work needs", "home rewiring projects", "commercial electrical installations"],
+    ],
+    "shouldMatchWith": [
+      "electrical work needs",
+      "home rewiring projects",
+      "commercial electrical installations"
+    ],
     "notes": "Skill-based capacity with certifications"
   },
   {
@@ -410,17 +688,27 @@
     "category": "skill_based",
     "naturalLanguage": "Need someone who knows React, TypeScript, and has AWS experience for a 3-month contract",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "developer",
-        "skills": ["React", "TypeScript", "AWS"]
-      }],
-      "constraints": {
-        "time": { "duration": { "months": 3 } },
-        "arrangement": "contract"
+    "expressions": [
+      {
+        "text": "someone who knows React"
+      },
+      {
+        "text": "developer"
       }
+    ],
+    "constraints": {
+      "time": {
+        "duration": {
+          "months": 3
+        }
+      },
+      "arrangement": "contract"
     },
-    "shouldMatchWith": ["React developers", "TypeScript developers with AWS", "frontend developers with cloud experience"],
+    "shouldMatchWith": [
+      "React developers",
+      "TypeScript developers with AWS",
+      "frontend developers with cloud experience"
+    ],
     "notes": "Multiple skill requirements"
   },
   {
@@ -428,16 +716,19 @@
     "category": "skill_based",
     "naturalLanguage": "I speak fluent Spanish and English, available for translation work",
     "type": "capacity",
-    "structured": {
-      "capacityType": "translator",
-      "attributes": {
-        "languages": [
-          { "language": "Spanish", "level": "fluent" },
-          { "language": "English", "level": "fluent" }
-        ]
+    "expressions": [
+      {
+        "text": "fluent Spanish and English"
+      },
+      {
+        "text": "translator"
       }
-    },
-    "shouldMatchWith": ["Spanish translation needs", "English to Spanish translation", "bilingual document needs"],
+    ],
+    "shouldMatchWith": [
+      "Spanish translation needs",
+      "English to Spanish translation",
+      "bilingual document needs"
+    ],
     "notes": "Language skill capacity"
   },
   {
@@ -445,17 +736,22 @@
     "category": "skill_based",
     "naturalLanguage": "Looking for someone to help me learn conversational Japanese",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "language_teacher",
-        "language": "Japanese",
-        "focus": "conversational"
-      }],
-      "attributes": {
-        "level": "beginner"
+    "expressions": [
+      {
+        "text": "someone to help me learn conversational Japanese"
+      },
+      {
+        "text": "Japanese language teacher"
+      },
+      {
+        "text": "language teacher"
       }
-    },
-    "shouldMatchWith": ["Japanese tutors", "native Japanese speakers offering lessons", "language exchange Japanese speakers"],
+    ],
+    "shouldMatchWith": [
+      "Japanese tutors",
+      "native Japanese speakers offering lessons",
+      "language exchange Japanese speakers"
+    ],
     "notes": "Language learning need"
   },
   {
@@ -463,14 +759,25 @@
     "category": "quantity_unit",
     "naturalLanguage": "I have 50 folding chairs available for event rental",
     "type": "capacity",
-    "structured": {
-      "capacityType": "folding_chairs",
-      "attributes": { "rentalType": "event" },
-      "constraints": {
-        "quantity": { "amount": 50, "unit": "chairs" }
+    "expressions": [
+      {
+        "text": "50 folding chairs"
+      },
+      {
+        "text": "folding chairs"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 50,
+        "unit": "chairs"
       }
     },
-    "shouldMatchWith": ["event chair rentals", "party chair needs", "wedding seating needs under 50"],
+    "shouldMatchWith": [
+      "event chair rentals",
+      "party chair needs",
+      "wedding seating needs under 50"
+    ],
     "notes": "Quantity-based capacity"
   },
   {
@@ -478,14 +785,28 @@
     "category": "quantity_unit",
     "naturalLanguage": "Need to rent 30 tables for a corporate event next Friday",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "tables", "type": "rental" }],
-      "constraints": {
-        "quantity": { "amount": 30, "unit": "tables" },
-        "time": { "date": "next Friday" }
+    "expressions": [
+      {
+        "text": "rent 30 tables for a corporate event next Friday"
+      },
+      {
+        "text": "tables"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 30,
+        "unit": "tables"
+      },
+      "time": {
+        "date": "next Friday"
       }
     },
-    "shouldMatchWith": ["table rental services", "event furniture providers", "capacities with 30+ tables"],
+    "shouldMatchWith": [
+      "table rental services",
+      "event furniture providers",
+      "capacities with 30+ tables"
+    ],
     "notes": "Quantity need with time constraint"
   },
   {
@@ -493,13 +814,25 @@
     "category": "quantity_unit",
     "naturalLanguage": "I can provide catering for up to 100 people",
     "type": "capacity",
-    "structured": {
-      "capacityType": "caterer",
-      "constraints": {
-        "quantity": { "max": 100, "unit": "people" }
+    "expressions": [
+      {
+        "text": "provide catering for up to 100 people"
+      },
+      {
+        "text": "caterer"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "max": 100,
+        "unit": "people"
       }
     },
-    "shouldMatchWith": ["catering needs for events under 100 people", "party food needs", "corporate lunch catering"],
+    "shouldMatchWith": [
+      "catering needs for events under 100 people",
+      "party food needs",
+      "corporate lunch catering"
+    ],
     "notes": "Maximum capacity constraint"
   },
   {
@@ -507,14 +840,28 @@
     "category": "quantity_unit",
     "naturalLanguage": "Looking for bulk organic vegetables, minimum 20kg weekly",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "vegetables", "attributes": { "organic": true } }],
-      "constraints": {
-        "quantity": { "min": 20, "unit": "kg" },
-        "time": { "frequency": "weekly" }
+    "expressions": [
+      {
+        "text": "bulk organic vegetables, minimum 20kg weekly"
+      },
+      {
+        "text": "vegetables"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "min": 20,
+        "unit": "kg"
+      },
+      "time": {
+        "frequency": "weekly"
       }
     },
-    "shouldMatchWith": ["organic farmers", "bulk vegetable suppliers", "farm shares"],
+    "shouldMatchWith": [
+      "organic farmers",
+      "bulk vegetable suppliers",
+      "farm shares"
+    ],
     "notes": "Minimum quantity with recurring schedule"
   },
   {
@@ -522,14 +869,31 @@
     "category": "edge_case",
     "naturalLanguage": "I have a truck and I'm bored on weekends",
     "type": "capacity",
-    "structured": {
-      "capacityType": "vehicle",
-      "attributes": { "type": "truck" },
-      "constraints": {
-        "time": { "days": ["Saturday", "Sunday"] }
+    "expressions": [
+      {
+        "text": "a truck and I'm bored on weekends"
+      },
+      {
+        "text": "truck vehicle"
+      },
+      {
+        "text": "vehicle"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "days": [
+          "Saturday",
+          "Sunday"
+        ]
       }
     },
-    "shouldMatchWith": ["moving help needs", "large item transport", "hauling needs", "furniture pickup"],
+    "shouldMatchWith": [
+      "moving help needs",
+      "large item transport",
+      "hauling needs",
+      "furniture pickup"
+    ],
     "notes": "Implicit capacity - truck implies potential moving/hauling help"
   },
   {
@@ -537,18 +901,26 @@
     "category": "edge_case",
     "naturalLanguage": "My grandmother needs help but I don't know exactly what kind",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "eldercare" },
-        { "requires": "companion" },
-        { "requires": "home_helper" }
-      ],
-      "attributes": {
-        "specificity": "low"
+    "expressions": [
+      {
+        "text": "My grandmother needs help but I don't know exactly what kind"
       },
-      "composition": "exploratory"
-    },
-    "shouldMatchWith": ["eldercare services", "companion services", "home health aides", "senior helpers"],
+      {
+        "text": "eldercare"
+      },
+      {
+        "text": "companion"
+      },
+      {
+        "text": "home helper"
+      }
+    ],
+    "shouldMatchWith": [
+      "eldercare services",
+      "companion services",
+      "home health aides",
+      "senior helpers"
+    ],
     "notes": "Vague need requiring clarification or broad matching"
   },
   {
@@ -556,17 +928,24 @@
     "category": "edge_case",
     "naturalLanguage": "Free couch, must pick up today",
     "type": "capacity",
-    "structured": {
-      "capacityType": "couch",
-      "attributes": {
-        "price": 0,
-        "requiresPickup": true
+    "expressions": [
+      {
+        "text": "Free couch, must pick up today"
       },
-      "constraints": {
-        "time": { "deadline": "today" }
+      {
+        "text": "couch"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "deadline": "today"
       }
     },
-    "shouldMatchWith": ["furniture seekers", "people with trucks available today", "thrift seekers"],
+    "shouldMatchWith": [
+      "furniture seekers",
+      "people with trucks available today",
+      "thrift seekers"
+    ],
     "notes": "Urgent giveaway with pickup constraint"
   },
   {
@@ -574,14 +953,23 @@
     "category": "edge_case",
     "naturalLanguage": "I need someone but not sure if I need a therapist or a life coach",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "therapist" },
-        { "requires": "life_coach" }
-      ],
-      "composition": "uncertain"
-    },
-    "shouldMatchWith": ["therapists", "life coaches", "counselors", "mental health professionals"],
+    "expressions": [
+      {
+        "text": "someone but not sure if I need a therapist or a life coach"
+      },
+      {
+        "text": "therapist"
+      },
+      {
+        "text": "life coach"
+      }
+    ],
+    "shouldMatchWith": [
+      "therapists",
+      "life coaches",
+      "counselors",
+      "mental health professionals"
+    ],
     "notes": "Ambiguous need between similar services"
   },
   {
@@ -589,14 +977,20 @@
     "category": "edge_case",
     "naturalLanguage": "I can help with whatever you need, I'm pretty handy",
     "type": "capacity",
-    "structured": {
-      "capacityType": "handyperson",
-      "attributes": {
-        "specificity": "general",
-        "skills": ["general_repair", "maintenance"]
+    "expressions": [
+      {
+        "text": "help with whatever you need, I'm pretty handy"
+      },
+      {
+        "text": "handyperson"
       }
-    },
-    "shouldMatchWith": ["small repair needs", "home maintenance tasks", "odd jobs", "general help requests"],
+    ],
+    "shouldMatchWith": [
+      "small repair needs",
+      "home maintenance tasks",
+      "odd jobs",
+      "general help requests"
+    ],
     "notes": "Vague capacity that could match many needs"
   },
   {
@@ -604,14 +998,19 @@
     "category": "simple_direct",
     "naturalLanguage": "I have fresh eggs from my backyard chickens",
     "type": "capacity",
-    "structured": {
-      "capacityType": "eggs",
-      "attributes": {
-        "source": "backyard_chickens",
-        "freshness": "fresh"
+    "expressions": [
+      {
+        "text": "fresh eggs from my backyard chickens"
+      },
+      {
+        "text": "eggs"
       }
-    },
-    "shouldMatchWith": ["egg buyers", "bakers needing eggs", "people seeking farm-fresh eggs"],
+    ],
+    "shouldMatchWith": [
+      "egg buyers",
+      "bakers needing eggs",
+      "people seeking farm-fresh eggs"
+    ],
     "notes": "Farm product capacity"
   },
   {
@@ -619,13 +1018,24 @@
     "category": "simple_direct",
     "naturalLanguage": "Looking for farm-fresh eggs, tired of supermarket ones",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "eggs", "attributes": { "source": "farm" } }],
-      "constraints": {
-        "exclude": { "source": "supermarket" }
+    "expressions": [
+      {
+        "text": "farm-fresh eggs, tired of supermarket ones"
+      },
+      {
+        "text": "eggs"
+      }
+    ],
+    "constraints": {
+      "exclude": {
+        "source": "supermarket"
       }
     },
-    "shouldMatchWith": ["backyard chicken owners", "local farmers with eggs", "farm stands"],
+    "shouldMatchWith": [
+      "backyard chicken owners",
+      "local farmers with eggs",
+      "farm stands"
+    ],
     "notes": "Need with negative constraint"
   },
   {
@@ -633,11 +1043,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Looking for a mentor in product management",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "mentor", "field": "product_management" }],
-      "role": "mentee"
-    },
-    "shouldMatchWith": ["product managers offering mentorship", "PM mentors", "senior PMs"],
+    "expressions": [
+      {
+        "text": "a mentor in product management"
+      },
+      {
+        "text": "mentor"
+      }
+    ],
+    "shouldMatchWith": [
+      "product managers offering mentorship",
+      "PM mentors",
+      "senior PMs"
+    ],
     "notes": "Mentee seeks mentor relationship"
   },
   {
@@ -645,15 +1063,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Senior PM happy to mentor early-career product folks",
     "type": "capacity",
-    "structured": {
-      "capacityType": "mentor",
-      "attributes": {
-        "field": "product_management",
-        "seniority": "senior"
+    "expressions": [
+      {
+        "text": "Senior PM happy to mentor early-career product folks"
       },
-      "role": "mentor"
-    },
-    "shouldMatchWith": ["PM mentorship seekers", "early-career product managers", "aspiring PMs"],
+      {
+        "text": "mentor"
+      }
+    ],
+    "shouldMatchWith": [
+      "PM mentorship seekers",
+      "early-career product managers",
+      "aspiring PMs"
+    ],
     "notes": "Mentor offering matches with mentee needs"
   },
   {
@@ -661,17 +1083,24 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I'm a landlord with a 1BR apartment available in Austin",
     "type": "capacity",
-    "structured": {
-      "capacityType": "apartment",
-      "attributes": {
-        "bedrooms": 1,
-        "role": "landlord"
+    "expressions": [
+      {
+        "text": "landlord with a 1BR apartment"
       },
-      "constraints": {
-        "location": { "city": "Austin" }
+      {
+        "text": "apartment"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "city": "Austin"
       }
     },
-    "shouldMatchWith": ["apartment seekers in Austin", "renters looking for 1BR", "people moving to Austin"],
+    "shouldMatchWith": [
+      "apartment seekers in Austin",
+      "renters looking for 1BR",
+      "people moving to Austin"
+    ],
     "notes": "Landlord matches with tenant needs"
   },
   {
@@ -679,15 +1108,29 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Looking to rent a 1-2BR apartment in Austin, budget $1500",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "apartment", "bedrooms": { "min": 1, "max": 2 } }],
-      "constraints": {
-        "location": { "city": "Austin" },
-        "price": { "max": 1500, "currency": "USD", "period": "month" }
+    "expressions": [
+      {
+        "text": "Looking to rent a 1-2BR apartment in Austin, budget $1500"
       },
-      "role": "tenant"
+      {
+        "text": "apartment"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "city": "Austin"
+      },
+      "price": {
+        "max": 1500,
+        "currency": "USD",
+        "period": "month"
+      }
     },
-    "shouldMatchWith": ["Austin landlords", "1BR apartments in Austin", "2BR apartments under $1500"],
+    "shouldMatchWith": [
+      "Austin landlords",
+      "1BR apartments in Austin",
+      "2BR apartments under $1500"
+    ],
     "notes": "Tenant need with bedroom range"
   },
   {
@@ -695,19 +1138,31 @@
     "category": "compositional",
     "naturalLanguage": "I need a band for my wedding - drums, bass, guitar, and vocals minimum",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "musician", "instrument": "drums" },
-        { "requires": "musician", "instrument": "bass" },
-        { "requires": "musician", "instrument": "guitar" },
-        { "requires": "musician", "type": "vocalist" }
-      ],
-      "constraints": {
-        "eventType": "wedding"
+    "expressions": [
+      {
+        "text": "a band"
       },
-      "composition": "all_required"
+      {
+        "text": "drums musician"
+      },
+      {
+        "text": "musician"
+      },
+      {
+        "text": "bass musician"
+      },
+      {
+        "text": "guitar musician"
+      }
+    ],
+    "constraints": {
+      "eventType": "wedding"
     },
-    "shouldMatchWith": ["wedding bands", "individual musicians available same date", "cover bands"],
+    "shouldMatchWith": [
+      "wedding bands",
+      "individual musicians available same date",
+      "cover bands"
+    ],
     "notes": "Could match one band or four individuals"
   },
   {
@@ -715,14 +1170,25 @@
     "category": "compositional",
     "naturalLanguage": "Starting a podcast, need either audio engineering help or a complete production package",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "audio_engineer" },
-        { "requires": "podcast_producer", "type": "full_service" }
-      ],
-      "composition": "any_one"
-    },
-    "shouldMatchWith": ["audio engineers", "podcast production services", "audio producers"],
+    "expressions": [
+      {
+        "text": "Starting a podcast"
+      },
+      {
+        "text": "audio engineer"
+      },
+      {
+        "text": "full service podcast producer"
+      },
+      {
+        "text": "podcast producer"
+      }
+    ],
+    "shouldMatchWith": [
+      "audio engineers",
+      "podcast production services",
+      "audio producers"
+    ],
     "notes": "Alternative satisfaction paths"
   },
   {
@@ -730,15 +1196,29 @@
     "category": "compositional",
     "naturalLanguage": "I do full-stack web development: frontend, backend, and database design",
     "type": "capacity",
-    "structured": {
-      "capacityType": "full_stack_developer",
-      "subCapacities": [
-        { "type": "frontend_developer" },
-        { "type": "backend_developer" },
-        { "type": "database_designer" }
-      ]
-    },
-    "shouldMatchWith": ["full-stack needs", "frontend projects", "backend projects", "database design needs"],
+    "expressions": [
+      {
+        "text": "full-stack web development: frontend"
+      },
+      {
+        "text": "full stack developer"
+      },
+      {
+        "text": "frontend developer"
+      },
+      {
+        "text": "backend developer"
+      },
+      {
+        "text": "database designer"
+      }
+    ],
+    "shouldMatchWith": [
+      "full-stack needs",
+      "frontend projects",
+      "backend projects",
+      "database design needs"
+    ],
     "notes": "Bundled skills that can satisfy individual or combined needs"
   },
   {
@@ -746,16 +1226,27 @@
     "category": "time_constrained",
     "naturalLanguage": "I'm only in town for the next 3 days but can help with anything",
     "type": "capacity",
-    "structured": {
-      "capacityType": "general_help",
-      "constraints": {
-        "time": {
-          "availableFrom": "now",
-          "duration": { "days": 3 }
+    "expressions": [
+      {
+        "text": "only in town for the next 3 days but can help with anything"
+      },
+      {
+        "text": "general help"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "availableFrom": "now",
+        "duration": {
+          "days": 3
         }
       }
     },
-    "shouldMatchWith": ["short-term help needs", "one-time tasks", "immediate assistance needs"],
+    "shouldMatchWith": [
+      "short-term help needs",
+      "one-time tasks",
+      "immediate assistance needs"
+    ],
     "notes": "Short availability window"
   },
   {
@@ -763,16 +1254,27 @@
     "category": "time_constrained",
     "naturalLanguage": "Need a house sitter for 3 weeks in July",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "house_sitter" }],
-      "constraints": {
-        "time": {
-          "month": "July",
-          "duration": { "weeks": 3 }
+    "expressions": [
+      {
+        "text": "house sitter for 3 weeks in July"
+      },
+      {
+        "text": "house sitter"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "month": "July",
+        "duration": {
+          "weeks": 3
         }
       }
     },
-    "shouldMatchWith": ["house sitters available in July", "pet sitters with house sitting", "trusted home caretakers"],
+    "shouldMatchWith": [
+      "house sitters available in July",
+      "pet sitters with house sitting",
+      "trusted home caretakers"
+    ],
     "notes": "Specific month and duration"
   },
   {
@@ -780,16 +1282,27 @@
     "category": "time_constrained",
     "naturalLanguage": "Available for last-minute gigs - I can be ready in an hour",
     "type": "capacity",
-    "structured": {
-      "capacityType": "flexible_worker",
-      "constraints": {
-        "time": {
-          "responseTime": { "hours": 1 },
-          "flexibility": "high"
-        }
+    "expressions": [
+      {
+        "text": "Available for last-minute gigs - I can be ready in an hour"
+      },
+      {
+        "text": "flexible worker"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "responseTime": {
+          "hours": 1
+        },
+        "flexibility": "high"
       }
     },
-    "shouldMatchWith": ["urgent staffing needs", "last-minute event help", "emergency coverage"],
+    "shouldMatchWith": [
+      "urgent staffing needs",
+      "last-minute event help",
+      "emergency coverage"
+    ],
     "notes": "High flexibility, quick response time"
   },
   {
@@ -797,16 +1310,25 @@
     "category": "location_constrained",
     "naturalLanguage": "I can only work from home, but I'm great at customer service",
     "type": "capacity",
-    "structured": {
-      "capacityType": "customer_service_rep",
-      "constraints": {
-        "location": {
-          "mode": "remote",
-          "requirement": "strict"
-        }
+    "expressions": [
+      {
+        "text": "only work from home, but I'm great at customer service"
+      },
+      {
+        "text": "customer service rep"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "mode": "remote",
+        "requirement": "strict"
       }
     },
-    "shouldMatchWith": ["remote customer service jobs", "work from home positions", "virtual assistant needs"],
+    "shouldMatchWith": [
+      "remote customer service jobs",
+      "work from home positions",
+      "virtual assistant needs"
+    ],
     "notes": "Strict remote-only constraint"
   },
   {
@@ -814,17 +1336,26 @@
     "category": "location_constrained",
     "naturalLanguage": "Need someone on-site in our Chicago office 3 days a week",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "employee" }],
-      "constraints": {
-        "location": {
-          "city": "Chicago",
-          "mode": "hybrid",
-          "onsiteDays": 3
-        }
+    "expressions": [
+      {
+        "text": "someone on-site in our Chicago office 3 days a week"
+      },
+      {
+        "text": "employee"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "city": "Chicago",
+        "mode": "hybrid",
+        "onsiteDays": 3
       }
     },
-    "shouldMatchWith": ["Chicago-based workers", "people willing to commute to Chicago", "hybrid workers near Chicago"],
+    "shouldMatchWith": [
+      "Chicago-based workers",
+      "people willing to commute to Chicago",
+      "hybrid workers near Chicago"
+    ],
     "notes": "Hybrid work requirement"
   },
   {
@@ -832,17 +1363,28 @@
     "category": "location_constrained",
     "naturalLanguage": "Mobile pet grooming service covering all of Orange County",
     "type": "capacity",
-    "structured": {
-      "capacityType": "pet_groomer",
-      "attributes": { "mode": "mobile" },
-      "constraints": {
-        "location": {
-          "serviceArea": "Orange County",
-          "willTravel": true
-        }
+    "expressions": [
+      {
+        "text": "Mobile pet grooming service covering all of Orange County"
+      },
+      {
+        "text": "mobile pet groomer"
+      },
+      {
+        "text": "pet groomer"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "serviceArea": "Orange County",
+        "willTravel": true
       }
     },
-    "shouldMatchWith": ["pet grooming needs in Orange County", "at-home pet grooming requests", "mobile grooming appointments"],
+    "shouldMatchWith": [
+      "pet grooming needs in Orange County",
+      "at-home pet grooming requests",
+      "mobile grooming appointments"
+    ],
     "notes": "Mobile service with defined service area"
   },
   {
@@ -850,14 +1392,22 @@
     "category": "skill_based",
     "naturalLanguage": "I'm a certified yoga instructor specializing in prenatal yoga",
     "type": "capacity",
-    "structured": {
-      "capacityType": "yoga_instructor",
-      "attributes": {
-        "certified": true,
-        "specialization": "prenatal"
+    "expressions": [
+      {
+        "text": "certified yoga instructor specializing in prenatal yoga"
+      },
+      {
+        "text": "certified prenatal yoga instructor"
+      },
+      {
+        "text": "yoga instructor"
       }
-    },
-    "shouldMatchWith": ["pregnant people seeking yoga", "prenatal fitness needs", "gentle yoga seekers"],
+    ],
+    "shouldMatchWith": [
+      "pregnant people seeking yoga",
+      "prenatal fitness needs",
+      "gentle yoga seekers"
+    ],
     "notes": "Specialized certification"
   },
   {
@@ -865,14 +1415,22 @@
     "category": "skill_based",
     "naturalLanguage": "Looking for someone who can teach me woodworking basics",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "instructor",
-        "skill": "woodworking",
-        "level": "basics"
-      }]
-    },
-    "shouldMatchWith": ["woodworking instructors", "carpenters offering classes", "maker space teachers"],
+    "expressions": [
+      {
+        "text": "someone who can teach me woodworking basics"
+      },
+      {
+        "text": "woodworking instructor"
+      },
+      {
+        "text": "instructor"
+      }
+    ],
+    "shouldMatchWith": [
+      "woodworking instructors",
+      "carpenters offering classes",
+      "maker space teachers"
+    ],
     "notes": "Skill learning need at beginner level"
   },
   {
@@ -880,14 +1438,19 @@
     "category": "skill_based",
     "naturalLanguage": "Expert in Salesforce administration and can help with migrations",
     "type": "capacity",
-    "structured": {
-      "capacityType": "salesforce_admin",
-      "attributes": {
-        "level": "expert",
-        "skills": ["administration", "migrations"]
+    "expressions": [
+      {
+        "text": "Expert in Salesforce administration"
+      },
+      {
+        "text": "salesforce admin"
       }
-    },
-    "shouldMatchWith": ["Salesforce migration projects", "CRM admin needs", "Salesforce consulting requests"],
+    ],
+    "shouldMatchWith": [
+      "Salesforce migration projects",
+      "CRM admin needs",
+      "Salesforce consulting requests"
+    ],
     "notes": "Specific software expertise"
   },
   {
@@ -895,14 +1458,19 @@
     "category": "skill_based",
     "naturalLanguage": "I need someone who understands both Figma and CSS to help translate designs to code",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "developer",
-        "skills": ["Figma", "CSS"],
-        "taskType": "design_to_code"
-      }]
-    },
-    "shouldMatchWith": ["frontend developers with design experience", "design-savvy developers", "Figma-to-code specialists"],
+    "expressions": [
+      {
+        "text": "someone who understands both Figma"
+      },
+      {
+        "text": "developer"
+      }
+    ],
+    "shouldMatchWith": [
+      "frontend developers with design experience",
+      "design-savvy developers",
+      "Figma-to-code specialists"
+    ],
     "notes": "Cross-discipline skill requirement"
   },
   {
@@ -910,14 +1478,25 @@
     "category": "quantity_unit",
     "naturalLanguage": "I can drive 4 passengers in my SUV",
     "type": "capacity",
-    "structured": {
-      "capacityType": "driver",
-      "attributes": { "vehicleType": "SUV" },
-      "constraints": {
-        "quantity": { "max": 4, "unit": "passengers" }
+    "expressions": [
+      {
+        "text": "drive 4 passengers in my SUV"
+      },
+      {
+        "text": "driver"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "max": 4,
+        "unit": "passengers"
       }
     },
-    "shouldMatchWith": ["ride needs for 1-4 people", "airport runs", "group transport needs under 5 people"],
+    "shouldMatchWith": [
+      "ride needs for 1-4 people",
+      "airport runs",
+      "group transport needs under 5 people"
+    ],
     "notes": "Passenger capacity"
   },
   {
@@ -925,14 +1504,27 @@
     "category": "quantity_unit",
     "naturalLanguage": "Need transportation for a group of 12 to the conference",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "transport" }],
-      "constraints": {
-        "quantity": { "amount": 12, "unit": "passengers" },
-        "destination": "conference"
+    "expressions": [
+      {
+        "text": "transportation for a group of 12 to the conference"
+      },
+      {
+        "text": "transport"
       }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 12,
+        "unit": "passengers"
+      },
+      "destination": "conference"
     },
-    "shouldMatchWith": ["van services", "multiple drivers coordinated", "shuttle services", "bus rentals"],
+    "shouldMatchWith": [
+      "van services",
+      "multiple drivers coordinated",
+      "shuttle services",
+      "bus rentals"
+    ],
     "notes": "Large group transport need - may require multiple capacities"
   },
   {
@@ -940,14 +1532,28 @@
     "category": "quantity_unit",
     "naturalLanguage": "I have 1000 sq ft of warehouse space available for storage",
     "type": "capacity",
-    "structured": {
-      "capacityType": "storage_space",
-      "attributes": { "type": "warehouse" },
-      "constraints": {
-        "quantity": { "amount": 1000, "unit": "sq_ft" }
+    "expressions": [
+      {
+        "text": "1000 sq ft of warehouse space"
+      },
+      {
+        "text": "warehouse storage space"
+      },
+      {
+        "text": "storage space"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 1000,
+        "unit": "sq_ft"
       }
     },
-    "shouldMatchWith": ["storage needs under 1000 sq ft", "warehouse space seekers", "business storage needs"],
+    "shouldMatchWith": [
+      "storage needs under 1000 sq ft",
+      "warehouse space seekers",
+      "business storage needs"
+    ],
     "notes": "Space quantity capacity"
   },
   {
@@ -955,14 +1561,30 @@
     "category": "quantity_unit",
     "naturalLanguage": "Looking for storage for about 50 boxes during my renovation",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "storage_space" }],
-      "constraints": {
-        "quantity": { "amount": 50, "unit": "boxes", "approximate": true },
-        "time": { "reason": "renovation", "duration": "temporary" }
+    "expressions": [
+      {
+        "text": "storage for about 50 boxes during my renovation"
+      },
+      {
+        "text": "storage space"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 50,
+        "unit": "boxes",
+        "approximate": true
+      },
+      "time": {
+        "reason": "renovation",
+        "duration": "temporary"
       }
     },
-    "shouldMatchWith": ["storage units", "garage space available", "temporary storage options"],
+    "shouldMatchWith": [
+      "storage units",
+      "garage space available",
+      "temporary storage options"
+    ],
     "notes": "Approximate quantity with temporary duration"
   },
   {
@@ -970,16 +1592,19 @@
     "category": "edge_case",
     "naturalLanguage": "I'll trade piano lessons for Spanish lessons",
     "type": "capacity",
-    "structured": {
-      "capacityType": "piano_teacher",
-      "exchangeFor": {
-        "requires": "spanish_teacher"
+    "expressions": [
+      {
+        "text": "I'll trade piano lessons for Spanish lessons"
       },
-      "attributes": {
-        "exchangeType": "barter"
+      {
+        "text": "piano teacher"
       }
-    },
-    "shouldMatchWith": ["Spanish speakers wanting piano lessons", "barter arrangements", "skill exchange seekers"],
+    ],
+    "shouldMatchWith": [
+      "Spanish speakers wanting piano lessons",
+      "barter arrangements",
+      "skill exchange seekers"
+    ],
     "notes": "Barter/exchange arrangement - both capacity and need in one"
   },
   {
@@ -987,14 +1612,19 @@
     "category": "edge_case",
     "naturalLanguage": "I could probably help with some coding stuff I guess",
     "type": "capacity",
-    "structured": {
-      "capacityType": "developer",
-      "attributes": {
-        "confidence": "low",
-        "specificity": "vague"
+    "expressions": [
+      {
+        "text": "I could probably help with some coding stuff I guess"
+      },
+      {
+        "text": "developer"
       }
-    },
-    "shouldMatchWith": ["beginner-friendly coding tasks", "simple scripting needs", "tech help for non-technical people"],
+    ],
+    "shouldMatchWith": [
+      "beginner-friendly coding tasks",
+      "simple scripting needs",
+      "tech help for non-technical people"
+    ],
     "notes": "Low confidence, vague capacity"
   },
   {
@@ -1002,15 +1632,23 @@
     "category": "edge_case",
     "naturalLanguage": "URGENT!!! Need help ASAP won't say what but it pays well",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "unknown" }],
-      "constraints": {
-        "time": { "urgency": "high" },
-        "compensation": { "quality": "good" }
+    "expressions": [
+      {
+        "text": "URGENT!!! Need help ASAP won't say what but it pays well"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "urgency": "high"
       },
-      "flags": ["vague", "potentially_suspicious"]
+      "compensation": {
+        "quality": "good"
+      }
     },
-    "shouldMatchWith": ["general helpers", "flexible workers"],
+    "shouldMatchWith": [
+      "general helpers",
+      "flexible workers"
+    ],
     "notes": "Suspicious vague request - system might flag for clarification"
   },
   {
@@ -1018,14 +1656,28 @@
     "category": "edge_case",
     "naturalLanguage": "I have an extra ticket to the concert tonight if anyone wants it",
     "type": "capacity",
-    "structured": {
-      "capacityType": "concert_ticket",
-      "constraints": {
-        "quantity": { "amount": 1, "unit": "ticket" },
-        "time": { "date": "tonight" }
+    "expressions": [
+      {
+        "text": "an extra ticket to the concert tonight if anyone wants it"
+      },
+      {
+        "text": "concert ticket"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 1,
+        "unit": "ticket"
+      },
+      "time": {
+        "date": "tonight"
       }
     },
-    "shouldMatchWith": ["people looking for concert tickets", "last-minute event seekers", "music fans"],
+    "shouldMatchWith": [
+      "people looking for concert tickets",
+      "last-minute event seekers",
+      "music fans"
+    ],
     "notes": "Time-sensitive giveaway/sale"
   },
   {
@@ -1033,13 +1685,24 @@
     "category": "simple_direct",
     "naturalLanguage": "I have a 3D printer and can print small objects",
     "type": "capacity",
-    "structured": {
-      "capacityType": "3d_printing_service",
-      "constraints": {
-        "size": { "category": "small" }
+    "expressions": [
+      {
+        "text": "a 3D printer and can print small objects"
+      },
+      {
+        "text": "3d printing service"
+      }
+    ],
+    "constraints": {
+      "size": {
+        "category": "small"
       }
     },
-    "shouldMatchWith": ["3D printing needs", "prototype printing", "custom small parts"],
+    "shouldMatchWith": [
+      "3D printing needs",
+      "prototype printing",
+      "custom small parts"
+    ],
     "notes": "Equipment-based service capacity"
   },
   {
@@ -1047,14 +1710,19 @@
     "category": "simple_direct",
     "naturalLanguage": "Need to get a custom phone case 3D printed",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "3d_printing_service" }],
-      "attributes": {
-        "item": "phone_case",
-        "type": "custom"
+    "expressions": [
+      {
+        "text": "get a custom phone case 3D printed"
+      },
+      {
+        "text": "3d printing service"
       }
-    },
-    "shouldMatchWith": ["3D printing services", "custom case makers", "makerspaces"],
+    ],
+    "shouldMatchWith": [
+      "3D printing services",
+      "custom case makers",
+      "makerspaces"
+    ],
     "notes": "Specific 3D printing need"
   },
   {
@@ -1062,14 +1730,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I have an investment opportunity in sustainable tech",
     "type": "capacity",
-    "structured": {
-      "capacityType": "investment_opportunity",
-      "attributes": {
-        "sector": "sustainable_tech"
+    "expressions": [
+      {
+        "text": "an investment opportunity in sustainable tech"
       },
-      "role": "fundraiser"
-    },
-    "shouldMatchWith": ["investors interested in sustainability", "impact investors", "tech investors"],
+      {
+        "text": "investment opportunity"
+      }
+    ],
+    "shouldMatchWith": [
+      "investors interested in sustainability",
+      "impact investors",
+      "tech investors"
+    ],
     "notes": "Fundraiser matches with investor"
   },
   {
@@ -1077,15 +1750,22 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Angel investor looking for early-stage sustainable tech startups",
     "type": "capacity",
-    "structured": {
-      "capacityType": "investor",
-      "attributes": {
-        "type": "angel",
-        "stage": "early",
-        "focus": "sustainable_tech"
+    "expressions": [
+      {
+        "text": "Angel investor looking for early-stage sustainable tech startups"
+      },
+      {
+        "text": "angel investor"
+      },
+      {
+        "text": "investor"
       }
-    },
-    "shouldMatchWith": ["sustainable tech startups seeking funding", "green tech founders", "cleantech opportunities"],
+    ],
+    "shouldMatchWith": [
+      "sustainable tech startups seeking funding",
+      "green tech founders",
+      "cleantech opportunities"
+    ],
     "notes": "Investor capacity matches with fundraising needs"
   },
   {
@@ -1093,17 +1773,29 @@
     "category": "compositional",
     "naturalLanguage": "I need help moving: packing, loading, transporting, and unpacking",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "packer" },
-        { "requires": "mover", "task": "loading" },
-        { "requires": "transport", "type": "moving_truck" },
-        { "requires": "mover", "task": "unpacking" }
-      ],
-      "composition": "all_required",
-      "sequence": "ordered"
-    },
-    "shouldMatchWith": ["full-service movers", "moving companies", "individual moving helpers", "truck rentals"],
+    "expressions": [
+      {
+        "text": "help moving: packing, loading, transporting, and unpacking"
+      },
+      {
+        "text": "packer"
+      },
+      {
+        "text": "mover loading"
+      },
+      {
+        "text": "mover"
+      },
+      {
+        "text": "moving truck transport"
+      }
+    ],
+    "shouldMatchWith": [
+      "full-service movers",
+      "moving companies",
+      "individual moving helpers",
+      "truck rentals"
+    ],
     "notes": "Sequential compositional need"
   },
   {
@@ -1111,15 +1803,29 @@
     "category": "compositional",
     "naturalLanguage": "I can handle all your social media: strategy, content creation, and community management",
     "type": "capacity",
-    "structured": {
-      "capacityType": "social_media_manager",
-      "subCapacities": [
-        { "type": "social_media_strategist" },
-        { "type": "content_creator" },
-        { "type": "community_manager" }
-      ]
-    },
-    "shouldMatchWith": ["social media needs", "content creation requests", "community management", "digital marketing"],
+    "expressions": [
+      {
+        "text": "handle all your social media: strategy"
+      },
+      {
+        "text": "social media manager"
+      },
+      {
+        "text": "social media strategist"
+      },
+      {
+        "text": "content creator"
+      },
+      {
+        "text": "community manager"
+      }
+    ],
+    "shouldMatchWith": [
+      "social media needs",
+      "content creation requests",
+      "community management",
+      "digital marketing"
+    ],
     "notes": "Full-service capacity covering multiple related areas"
   },
   {
@@ -1127,16 +1833,28 @@
     "category": "time_constrained",
     "naturalLanguage": "I only work night shifts, available 10pm to 6am",
     "type": "capacity",
-    "structured": {
-      "capacityType": "night_worker",
-      "constraints": {
-        "time": {
-          "hours": { "start": "22:00", "end": "06:00" },
-          "requirement": "strict"
-        }
+    "expressions": [
+      {
+        "text": "I only work night shifts"
+      },
+      {
+        "text": "night worker"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "hours": {
+          "start": "22:00",
+          "end": "06:00"
+        },
+        "requirement": "strict"
       }
     },
-    "shouldMatchWith": ["overnight security needs", "night shift positions", "24-hour service coverage"],
+    "shouldMatchWith": [
+      "overnight security needs",
+      "night shift positions",
+      "24-hour service coverage"
+    ],
     "notes": "Night shift only availability"
   },
   {
@@ -1144,17 +1862,29 @@
     "category": "time_constrained",
     "naturalLanguage": "Need someone to cover reception desk 12pm-1pm daily during lunch",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "receptionist" }],
-      "constraints": {
-        "time": {
-          "recurring": true,
-          "hours": { "start": "12:00", "end": "13:00" },
-          "frequency": "daily"
-        }
+    "expressions": [
+      {
+        "text": "someone to cover reception desk 12pm-1pm daily during lunch"
+      },
+      {
+        "text": "receptionist"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "recurring": true,
+        "hours": {
+          "start": "12:00",
+          "end": "13:00"
+        },
+        "frequency": "daily"
       }
     },
-    "shouldMatchWith": ["part-time receptionists", "lunch cover workers", "flexible office workers"],
+    "shouldMatchWith": [
+      "part-time receptionists",
+      "lunch cover workers",
+      "flexible office workers"
+    ],
     "notes": "Short recurring time slot"
   },
   {
@@ -1162,19 +1892,25 @@
     "category": "location_constrained",
     "naturalLanguage": "I have a fully equipped photography studio in downtown Portland",
     "type": "capacity",
-    "structured": {
-      "capacityType": "photography_studio",
-      "attributes": {
-        "equipped": "fully"
+    "expressions": [
+      {
+        "text": "a fully equipped photography studio in downtown Portland"
       },
-      "constraints": {
-        "location": {
-          "area": "downtown",
-          "city": "Portland"
-        }
+      {
+        "text": "photography studio"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "area": "downtown",
+        "city": "Portland"
       }
     },
-    "shouldMatchWith": ["photographers needing studio space", "product photography needs", "portrait session requests in Portland"],
+    "shouldMatchWith": [
+      "photographers needing studio space",
+      "product photography needs",
+      "portrait session requests in Portland"
+    ],
     "notes": "Fixed location capacity"
   },
   {
@@ -1182,14 +1918,28 @@
     "category": "location_constrained",
     "naturalLanguage": "Looking for a venue in the Portland area that can host 200 people",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "venue" }],
-      "constraints": {
-        "location": { "area": "Portland" },
-        "quantity": { "capacity": 200, "unit": "people" }
+    "expressions": [
+      {
+        "text": "a venue in the Portland area that can host 200 people"
+      },
+      {
+        "text": "venue"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "area": "Portland"
+      },
+      "quantity": {
+        "capacity": 200,
+        "unit": "people"
       }
     },
-    "shouldMatchWith": ["event venues in Portland", "banquet halls", "conference centers with 200+ capacity"],
+    "shouldMatchWith": [
+      "event venues in Portland",
+      "banquet halls",
+      "conference centers with 200+ capacity"
+    ],
     "notes": "Venue need with location and capacity"
   },
   {
@@ -1197,14 +1947,20 @@
     "category": "skill_based",
     "naturalLanguage": "I'm a licensed plumber who also does HVAC work",
     "type": "capacity",
-    "structured": {
-      "capacityType": "tradesperson",
-      "attributes": {
-        "licenses": ["plumbing"],
-        "skills": ["plumbing", "HVAC"]
+    "expressions": [
+      {
+        "text": "licensed plumber who also does HVAC work"
+      },
+      {
+        "text": "tradesperson"
       }
-    },
-    "shouldMatchWith": ["plumbing needs", "HVAC needs", "home repair projects", "new construction"],
+    ],
+    "shouldMatchWith": [
+      "plumbing needs",
+      "HVAC needs",
+      "home repair projects",
+      "new construction"
+    ],
     "notes": "Multi-trade licensed professional"
   },
   {
@@ -1212,14 +1968,19 @@
     "category": "skill_based",
     "naturalLanguage": "Need someone comfortable working with children who have special needs",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "caregiver",
-        "specialization": "special_needs",
-        "clientType": "children"
-      }]
-    },
-    "shouldMatchWith": ["special needs caregivers", "trained childcare workers", "therapeutic aides"],
+    "expressions": [
+      {
+        "text": "someone comfortable working with children who have special needs"
+      },
+      {
+        "text": "caregiver"
+      }
+    ],
+    "shouldMatchWith": [
+      "special needs caregivers",
+      "trained childcare workers",
+      "therapeutic aides"
+    ],
     "notes": "Specialized care requirement"
   },
   {
@@ -1227,15 +1988,28 @@
     "category": "quantity_unit",
     "naturalLanguage": "I bake 50 cupcakes every week and have extras to sell",
     "type": "capacity",
-    "structured": {
-      "capacityType": "cupcakes",
-      "constraints": {
-        "quantity": { "amount": 50, "unit": "cupcakes" },
-        "time": { "frequency": "weekly" }
+    "expressions": [
+      {
+        "text": "50 cupcakes every week and have extras to sell"
       },
-      "attributes": { "availability": "surplus" }
+      {
+        "text": "cupcakes"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 50,
+        "unit": "cupcakes"
+      },
+      "time": {
+        "frequency": "weekly"
+      }
     },
-    "shouldMatchWith": ["cupcake buyers", "event dessert needs", "office treat orders"],
+    "shouldMatchWith": [
+      "cupcake buyers",
+      "event dessert needs",
+      "office treat orders"
+    ],
     "notes": "Recurring surplus capacity"
   },
   {
@@ -1243,15 +2017,29 @@
     "category": "quantity_unit",
     "naturalLanguage": "Need 200 cupcakes for a birthday party next Saturday",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "cupcakes" }],
-      "constraints": {
-        "quantity": { "amount": 200, "unit": "cupcakes" },
-        "time": { "dayOfWeek": "Saturday", "relative": "next" }
+    "expressions": [
+      {
+        "text": "200 cupcakes for a birthday party next Saturday"
       },
-      "attributes": { "occasion": "birthday" }
+      {
+        "text": "cupcakes"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 200,
+        "unit": "cupcakes"
+      },
+      "time": {
+        "dayOfWeek": "Saturday",
+        "relative": "next"
+      }
     },
-    "shouldMatchWith": ["bakeries", "home bakers with large capacity", "cupcake caterers"],
+    "shouldMatchWith": [
+      "bakeries",
+      "home bakers with large capacity",
+      "cupcake caterers"
+    ],
     "notes": "Large quantity need - may exceed single capacity"
   },
   {
@@ -1259,15 +2047,19 @@
     "category": "edge_case",
     "naturalLanguage": "I used to be a nurse but my license expired",
     "type": "capacity",
-    "structured": {
-      "capacityType": "healthcare_worker",
-      "attributes": {
-        "profession": "nurse",
-        "licensed": false,
-        "experience": true
+    "expressions": [
+      {
+        "text": "I used to be a nurse but my license expired"
+      },
+      {
+        "text": "healthcare worker"
       }
-    },
-    "shouldMatchWith": ["non-clinical caregiving needs", "health education", "medical office admin"],
+    ],
+    "shouldMatchWith": [
+      "non-clinical caregiving needs",
+      "health education",
+      "medical office admin"
+    ],
     "notes": "Expired credential - limited matching"
   },
   {
@@ -1275,14 +2067,22 @@
     "category": "edge_case",
     "naturalLanguage": "I need someone to take care of my plants while I travel but also my fish but they're in different locations",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "plant_sitter", "location": "location_A" },
-        { "requires": "fish_sitter", "location": "location_B" }
-      ],
-      "composition": "all_required"
-    },
-    "shouldMatchWith": ["pet sitters willing to visit multiple locations", "plant care services", "fish care services"],
+    "expressions": [
+      {
+        "text": "someone to take care of my plants"
+      },
+      {
+        "text": "plant sitter"
+      },
+      {
+        "text": "fish sitter"
+      }
+    ],
+    "shouldMatchWith": [
+      "pet sitters willing to visit multiple locations",
+      "plant care services",
+      "fish care services"
+    ],
     "notes": "Multiple location compositional need"
   },
   {
@@ -1290,15 +2090,19 @@
     "category": "edge_case",
     "naturalLanguage": "Offering free advice on anything, I've done a lot in my life",
     "type": "capacity",
-    "structured": {
-      "capacityType": "advisor",
-      "attributes": {
-        "price": 0,
-        "scope": "general",
-        "specificity": "low"
+    "expressions": [
+      {
+        "text": "Offering free advice on anything, I've done a lot in my life"
+      },
+      {
+        "text": "advisor"
       }
-    },
-    "shouldMatchWith": ["people seeking general life advice", "mentorship seekers", "those needing perspective"],
+    ],
+    "shouldMatchWith": [
+      "people seeking general life advice",
+      "mentorship seekers",
+      "those needing perspective"
+    ],
     "notes": "Very broad, free capacity"
   },
   {
@@ -1306,13 +2110,18 @@
     "category": "simple_direct",
     "naturalLanguage": "I have sourdough starter to share",
     "type": "capacity",
-    "structured": {
-      "capacityType": "sourdough_starter",
-      "attributes": {
-        "sharing": true
+    "expressions": [
+      {
+        "text": "sourdough starter to share"
+      },
+      {
+        "text": "sourdough starter"
       }
-    },
-    "shouldMatchWith": ["bakers wanting to start sourdough", "fermentation enthusiasts"],
+    ],
+    "shouldMatchWith": [
+      "bakers wanting to start sourdough",
+      "fermentation enthusiasts"
+    ],
     "notes": "Shareable food item"
   },
   {
@@ -1320,10 +2129,18 @@
     "category": "simple_direct",
     "naturalLanguage": "Anyone have sourdough starter they can spare?",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "sourdough_starter" }]
-    },
-    "shouldMatchWith": ["sourdough bakers with extra starter", "bakeries"],
+    "expressions": [
+      {
+        "text": "sourdough starter they can spare?"
+      },
+      {
+        "text": "sourdough starter"
+      }
+    ],
+    "shouldMatchWith": [
+      "sourdough bakers with extra starter",
+      "bakeries"
+    ],
     "notes": "Simple need matching"
   },
   {
@@ -1331,14 +2148,24 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I'm a foster parent with capacity for 2 more children",
     "type": "capacity",
-    "structured": {
-      "capacityType": "foster_home",
-      "constraints": {
-        "quantity": { "amount": 2, "unit": "children" }
+    "expressions": [
+      {
+        "text": "foster parent with capacity for 2 more children"
       },
-      "role": "foster_parent"
+      {
+        "text": "foster home"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 2,
+        "unit": "children"
+      }
     },
-    "shouldMatchWith": ["children needing foster placement", "foster care agencies"],
+    "shouldMatchWith": [
+      "children needing foster placement",
+      "foster care agencies"
+    ],
     "notes": "Foster care capacity"
   },
   {
@@ -1346,11 +2173,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Casting director looking for actors for a commercial shoot",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "actor", "projectType": "commercial" }],
-      "role": "casting_director"
-    },
-    "shouldMatchWith": ["commercial actors", "acting talent", "models"],
+    "expressions": [
+      {
+        "text": "Casting director looking for actors for a commercial shoot"
+      },
+      {
+        "text": "actor"
+      }
+    ],
+    "shouldMatchWith": [
+      "commercial actors",
+      "acting talent",
+      "models"
+    ],
     "notes": "Casting matches with talent"
   },
   {
@@ -1358,14 +2193,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Actor seeking representation, experienced in film and TV",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "talent_agent" }],
-      "attributes": {
-        "experience": ["film", "TV"]
+    "expressions": [
+      {
+        "text": "Actor seeking representation, experienced in film and TV"
       },
-      "role": "actor"
-    },
-    "shouldMatchWith": ["talent agents", "talent managers", "casting directors"],
+      {
+        "text": "talent agent"
+      }
+    ],
+    "shouldMatchWith": [
+      "talent agents",
+      "talent managers",
+      "casting directors"
+    ],
     "notes": "Actor seeking agent matches with agents seeking talent"
   },
   {
@@ -1373,19 +2213,34 @@
     "category": "compositional",
     "naturalLanguage": "Planning a film shoot - need location, equipment, crew, and catering all for the same day",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "film_location" },
-        { "requires": "film_equipment" },
-        { "requires": "film_crew" },
-        { "requires": "caterer" }
-      ],
-      "composition": "all_required",
-      "constraints": {
-        "time": { "synchronization": "same_day" }
+    "expressions": [
+      {
+        "text": "Planning a film shoot - need location"
+      },
+      {
+        "text": "film location"
+      },
+      {
+        "text": "film equipment"
+      },
+      {
+        "text": "film crew"
+      },
+      {
+        "text": "caterer"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "synchronization": "same_day"
       }
     },
-    "shouldMatchWith": ["film production services", "location scouts", "equipment rentals", "film caterers"],
+    "shouldMatchWith": [
+      "film production services",
+      "location scouts",
+      "equipment rentals",
+      "film caterers"
+    ],
     "notes": "Complex production need with timing synchronization"
   },
   {
@@ -1393,16 +2248,27 @@
     "category": "time_constrained",
     "naturalLanguage": "I'm retiring in 6 months and looking for someone to take over my business",
     "type": "capacity",
-    "structured": {
-      "capacityType": "business_transfer",
-      "constraints": {
-        "time": {
-          "deadline": { "months": 6 },
-          "type": "transition"
-        }
+    "expressions": [
+      {
+        "text": "retiring in 6 months"
+      },
+      {
+        "text": "business transfer"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "deadline": {
+          "months": 6
+        },
+        "type": "transition"
       }
     },
-    "shouldMatchWith": ["business buyers", "entrepreneurs seeking established businesses", "people wanting to buy a business"],
+    "shouldMatchWith": [
+      "business buyers",
+      "entrepreneurs seeking established businesses",
+      "people wanting to buy a business"
+    ],
     "notes": "Business succession with timeline"
   },
   {
@@ -1410,16 +2276,28 @@
     "category": "time_constrained",
     "naturalLanguage": "Need a same-day courier for an urgent document delivery",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "courier", "type": "document" }],
-      "constraints": {
-        "time": {
-          "deadline": "same_day",
-          "urgency": "high"
-        }
+    "expressions": [
+      {
+        "text": "same-day courier for an urgent document delivery"
+      },
+      {
+        "text": "document courier"
+      },
+      {
+        "text": "courier"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "deadline": "same_day",
+        "urgency": "high"
       }
     },
-    "shouldMatchWith": ["same-day couriers", "bike messengers", "delivery services with rush option"],
+    "shouldMatchWith": [
+      "same-day couriers",
+      "bike messengers",
+      "delivery services with rush option"
+    ],
     "notes": "Urgent same-day service need"
   },
   {
@@ -1427,19 +2305,28 @@
     "category": "location_constrained",
     "naturalLanguage": "I have a beachfront property available for events in Malibu",
     "type": "capacity",
-    "structured": {
-      "capacityType": "event_venue",
-      "attributes": {
-        "type": "beachfront"
+    "expressions": [
+      {
+        "text": "a beachfront property"
       },
-      "constraints": {
-        "location": {
-          "city": "Malibu",
-          "setting": "beach"
-        }
+      {
+        "text": "beachfront event venue"
+      },
+      {
+        "text": "event venue"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "city": "Malibu",
+        "setting": "beach"
       }
     },
-    "shouldMatchWith": ["beach wedding planners", "outdoor event organizers", "Malibu event needs"],
+    "shouldMatchWith": [
+      "beach wedding planners",
+      "outdoor event organizers",
+      "Malibu event needs"
+    ],
     "notes": "Premium location capacity"
   },
   {
@@ -1447,15 +2334,22 @@
     "category": "skill_based",
     "naturalLanguage": "Experienced grant writer specializing in nonprofit arts funding",
     "type": "capacity",
-    "structured": {
-      "capacityType": "grant_writer",
-      "attributes": {
-        "experience": "experienced",
-        "specialty": "arts",
-        "sector": "nonprofit"
+    "expressions": [
+      {
+        "text": "Experienced grant writer specializing in nonprofit arts funding"
+      },
+      {
+        "text": "experienced arts grant writer"
+      },
+      {
+        "text": "grant writer"
       }
-    },
-    "shouldMatchWith": ["arts nonprofits seeking grants", "theater companies needing funding help", "arts organizations"],
+    ],
+    "shouldMatchWith": [
+      "arts nonprofits seeking grants",
+      "theater companies needing funding help",
+      "arts organizations"
+    ],
     "notes": "Specialized professional service"
   },
   {
@@ -1463,16 +2357,19 @@
     "category": "skill_based",
     "naturalLanguage": "Our nonprofit needs help writing a NEA grant application",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "grant_writer",
-        "grantType": "NEA"
-      }],
-      "attributes": {
-        "organizationType": "nonprofit"
+    "expressions": [
+      {
+        "text": "help writing a NEA grant application"
+      },
+      {
+        "text": "grant writer"
       }
-    },
-    "shouldMatchWith": ["NEA grant writers", "arts grant specialists", "nonprofit grant consultants"],
+    ],
+    "shouldMatchWith": [
+      "NEA grant writers",
+      "arts grant specialists",
+      "nonprofit grant consultants"
+    ],
     "notes": "Specific grant type need"
   },
   {
@@ -1480,14 +2377,28 @@
     "category": "quantity_unit",
     "naturalLanguage": "I have 6 hours of studio recording time I'm not using this month",
     "type": "capacity",
-    "structured": {
-      "capacityType": "studio_time",
-      "constraints": {
-        "quantity": { "amount": 6, "unit": "hours" },
-        "time": { "expiration": "end_of_month" }
+    "expressions": [
+      {
+        "text": "6 hours of studio recording time I'm not using this month"
+      },
+      {
+        "text": "studio time"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 6,
+        "unit": "hours"
+      },
+      "time": {
+        "expiration": "end_of_month"
       }
     },
-    "shouldMatchWith": ["musicians needing recording", "podcast producers", "voiceover artists"],
+    "shouldMatchWith": [
+      "musicians needing recording",
+      "podcast producers",
+      "voiceover artists"
+    ],
     "notes": "Time-based capacity with expiration"
   },
   {
@@ -1495,13 +2406,26 @@
     "category": "quantity_unit",
     "naturalLanguage": "Need about 10 hours of professional recording studio time",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "studio_time", "quality": "professional" }],
-      "constraints": {
-        "quantity": { "amount": 10, "unit": "hours", "approximate": true }
+    "expressions": [
+      {
+        "text": "about 10 hours of professional recording studio time"
+      },
+      {
+        "text": "studio time"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 10,
+        "unit": "hours",
+        "approximate": true
       }
     },
-    "shouldMatchWith": ["recording studios", "studio time sellers", "home studios"],
+    "shouldMatchWith": [
+      "recording studios",
+      "studio time sellers",
+      "home studios"
+    ],
     "notes": "May need to combine multiple capacities"
   },
   {
@@ -1509,14 +2433,19 @@
     "category": "edge_case",
     "naturalLanguage": "I inherited my grandfather's woodworking tools but don't know how to use them",
     "type": "capacity",
-    "structured": {
-      "capacityType": "woodworking_tools",
-      "attributes": {
-        "knowledge": "none",
-        "ownership": true
+    "expressions": [
+      {
+        "text": "I inherited my grandfather's woodworking tools"
+      },
+      {
+        "text": "woodworking tools"
       }
-    },
-    "shouldMatchWith": ["woodworkers needing tools", "woodworking instructors who could teach in exchange", "tool restorers"],
+    ],
+    "shouldMatchWith": [
+      "woodworkers needing tools",
+      "woodworking instructors who could teach in exchange",
+      "tool restorers"
+    ],
     "notes": "Has tools but no skills - interesting matching opportunity"
   },
   {
@@ -1524,18 +2453,26 @@
     "category": "edge_case",
     "naturalLanguage": "I need someone who won't judge me",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "therapist" },
-        { "requires": "support_group" },
-        { "requires": "friend" }
-      ],
-      "attributes": {
-        "quality": "non-judgmental",
-        "specificity": "emotional"
+    "expressions": [
+      {
+        "text": "someone who won't judge me"
+      },
+      {
+        "text": "therapist"
+      },
+      {
+        "text": "support group"
+      },
+      {
+        "text": "friend"
       }
-    },
-    "shouldMatchWith": ["therapists", "support groups", "peer counselors", "compassionate listeners"],
+    ],
+    "shouldMatchWith": [
+      "therapists",
+      "support groups",
+      "peer counselors",
+      "compassionate listeners"
+    ],
     "notes": "Emotional need with multiple potential satisfaction paths"
   },
   {
@@ -1543,20 +2480,30 @@
     "category": "edge_case",
     "naturalLanguage": "ISO something fun to do this weekend, not picky",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "activity" },
-        { "requires": "event" },
-        { "requires": "companion" }
-      ],
-      "constraints": {
-        "time": { "timeframe": "this_weekend" }
+    "expressions": [
+      {
+        "text": "ISO something fun to do"
       },
-      "attributes": {
-        "specificity": "very_low"
+      {
+        "text": "activity"
+      },
+      {
+        "text": "event"
+      },
+      {
+        "text": "companion"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "timeframe": "this_weekend"
       }
     },
-    "shouldMatchWith": ["events this weekend", "activity partners", "local happenings"],
+    "shouldMatchWith": [
+      "events this weekend",
+      "activity partners",
+      "local happenings"
+    ],
     "notes": "Very open-ended need"
   },
   {
@@ -1564,16 +2511,25 @@
     "category": "simple_direct",
     "naturalLanguage": "I grow microgreens and have fresh batches every week",
     "type": "capacity",
-    "structured": {
-      "capacityType": "microgreens",
-      "attributes": {
-        "freshness": "fresh"
+    "expressions": [
+      {
+        "text": "microgreens and have fresh batches every week"
       },
-      "constraints": {
-        "time": { "frequency": "weekly" }
+      {
+        "text": "microgreens"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "frequency": "weekly"
       }
     },
-    "shouldMatchWith": ["restaurants needing microgreens", "health food enthusiasts", "chefs", "farmers market customers"],
+    "shouldMatchWith": [
+      "restaurants needing microgreens",
+      "health food enthusiasts",
+      "chefs",
+      "farmers market customers"
+    ],
     "notes": "Recurring agricultural capacity"
   },
   {
@@ -1581,14 +2537,22 @@
     "category": "asymmetric_type",
     "naturalLanguage": "I'm a birth doula supporting families through pregnancy and delivery",
     "type": "capacity",
-    "structured": {
-      "capacityType": "doula",
-      "attributes": {
-        "type": "birth",
-        "services": ["pregnancy_support", "delivery_support"]
+    "expressions": [
+      {
+        "text": "birth doula supporting families through pregnancy"
+      },
+      {
+        "text": "birth doula"
+      },
+      {
+        "text": "doula"
       }
-    },
-    "shouldMatchWith": ["expectant parents", "pregnant people seeking support", "families planning births"],
+    ],
+    "shouldMatchWith": [
+      "expectant parents",
+      "pregnant people seeking support",
+      "families planning births"
+    ],
     "notes": "Support role matches with those needing support"
   },
   {
@@ -1596,13 +2560,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Expecting our first baby and looking for a doula",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "doula" }],
-      "attributes": {
-        "firstBaby": true
+    "expressions": [
+      {
+        "text": "Expecting our first baby and looking for a doula"
+      },
+      {
+        "text": "doula"
       }
-    },
-    "shouldMatchWith": ["birth doulas", "postpartum doulas", "birthing centers with doula services"],
+    ],
+    "shouldMatchWith": [
+      "birth doulas",
+      "postpartum doulas",
+      "birthing centers with doula services"
+    ],
     "notes": "First-time parent need"
   },
   {
@@ -1610,16 +2580,30 @@
     "category": "compositional",
     "naturalLanguage": "Setting up a new office - need furniture, IT setup, cleaning service, and plants",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "office_furniture" },
-        { "requires": "it_services", "type": "setup" },
-        { "requires": "cleaning_service" },
-        { "requires": "plant_service", "type": "office" }
-      ],
-      "composition": "all_required"
-    },
-    "shouldMatchWith": ["office setup services", "furniture vendors", "IT consultants", "cleaning companies", "interior plant services"],
+    "expressions": [
+      {
+        "text": "Setting up a new office - need furniture"
+      },
+      {
+        "text": "office furniture"
+      },
+      {
+        "text": "setup it services"
+      },
+      {
+        "text": "it services"
+      },
+      {
+        "text": "cleaning service"
+      }
+    ],
+    "shouldMatchWith": [
+      "office setup services",
+      "furniture vendors",
+      "IT consultants",
+      "cleaning companies",
+      "interior plant services"
+    ],
     "notes": "New office setup bundle"
   },
   {
@@ -1627,16 +2611,26 @@
     "category": "time_constrained",
     "naturalLanguage": "Available for seasonal work during the summer months only",
     "type": "capacity",
-    "structured": {
-      "capacityType": "seasonal_worker",
-      "constraints": {
-        "time": {
-          "season": "summer",
-          "type": "seasonal"
-        }
+    "expressions": [
+      {
+        "text": "Available for seasonal work during the summer months only"
+      },
+      {
+        "text": "seasonal worker"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "season": "summer",
+        "type": "seasonal"
       }
     },
-    "shouldMatchWith": ["summer camp jobs", "seasonal hospitality work", "farm work", "outdoor recreation jobs"],
+    "shouldMatchWith": [
+      "summer camp jobs",
+      "seasonal hospitality work",
+      "farm work",
+      "outdoor recreation jobs"
+    ],
     "notes": "Seasonal availability"
   },
   {
@@ -1644,16 +2638,25 @@
     "category": "location_constrained",
     "naturalLanguage": "I have a food truck and can travel anywhere in the tri-state area",
     "type": "capacity",
-    "structured": {
-      "capacityType": "food_truck",
-      "constraints": {
-        "location": {
-          "area": "tri-state",
-          "mobile": true
-        }
+    "expressions": [
+      {
+        "text": "a food truck and can travel anywhere in the tri-state area"
+      },
+      {
+        "text": "food truck"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "area": "tri-state",
+        "mobile": true
       }
     },
-    "shouldMatchWith": ["food truck event needs", "catering requests in tri-state", "festival organizers"],
+    "shouldMatchWith": [
+      "food truck event needs",
+      "catering requests in tri-state",
+      "festival organizers"
+    ],
     "notes": "Mobile food service with regional coverage"
   },
   {
@@ -1661,14 +2664,19 @@
     "category": "skill_based",
     "naturalLanguage": "ASL interpreter available for events and medical appointments",
     "type": "capacity",
-    "structured": {
-      "capacityType": "interpreter",
-      "attributes": {
-        "language": "ASL",
-        "contexts": ["events", "medical"]
+    "expressions": [
+      {
+        "text": "ASL interpreter"
+      },
+      {
+        "text": "interpreter"
       }
-    },
-    "shouldMatchWith": ["deaf community members needing interpretation", "medical facilities", "event organizers needing ASL"],
+    ],
+    "shouldMatchWith": [
+      "deaf community members needing interpretation",
+      "medical facilities",
+      "event organizers needing ASL"
+    ],
     "notes": "Specialized language service"
   },
   {
@@ -1676,16 +2684,24 @@
     "category": "skill_based",
     "naturalLanguage": "Need an ASL interpreter for my doctor's appointment Thursday at 2pm",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "interpreter", "language": "ASL", "context": "medical" }],
-      "constraints": {
-        "time": {
-          "dayOfWeek": "Thursday",
-          "time": "14:00"
-        }
+    "expressions": [
+      {
+        "text": "ASL interpreter"
+      },
+      {
+        "text": "interpreter"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "dayOfWeek": "Thursday",
+        "time": "14:00"
       }
     },
-    "shouldMatchWith": ["ASL interpreters available Thursday", "medical interpreters"],
+    "shouldMatchWith": [
+      "ASL interpreters available Thursday",
+      "medical interpreters"
+    ],
     "notes": "Specific appointment interpretation need"
   },
   {
@@ -1693,13 +2709,25 @@
     "category": "quantity_unit",
     "naturalLanguage": "I can process up to 500 payroll entries per month",
     "type": "capacity",
-    "structured": {
-      "capacityType": "payroll_service",
-      "constraints": {
-        "quantity": { "max": 500, "unit": "entries", "period": "month" }
+    "expressions": [
+      {
+        "text": "process up to 500 payroll entries per month"
+      },
+      {
+        "text": "payroll service"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "max": 500,
+        "unit": "entries",
+        "period": "month"
       }
     },
-    "shouldMatchWith": ["small businesses needing payroll", "companies under 500 employees"],
+    "shouldMatchWith": [
+      "small businesses needing payroll",
+      "companies under 500 employees"
+    ],
     "notes": "Processing capacity with ceiling"
   },
   {
@@ -1707,14 +2735,22 @@
     "category": "edge_case",
     "naturalLanguage": "I'm not sure if I need a lawyer or an accountant for this situation",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "lawyer" },
-        { "requires": "accountant" }
-      ],
-      "composition": "uncertain"
-    },
-    "shouldMatchWith": ["professionals who do both", "initial consultations", "legal-tax advisors"],
+    "expressions": [
+      {
+        "text": "not sure if I need a lawyer or an accountant for this situation"
+      },
+      {
+        "text": "lawyer"
+      },
+      {
+        "text": "accountant"
+      }
+    ],
+    "shouldMatchWith": [
+      "professionals who do both",
+      "initial consultations",
+      "legal-tax advisors"
+    ],
     "notes": "Unclear professional need"
   },
   {
@@ -1722,17 +2758,27 @@
     "category": "edge_case",
     "naturalLanguage": "Selling everything as I'm leaving the country next week",
     "type": "capacity",
-    "structured": {
-      "capacityType": "estate_sale",
-      "attributes": {
-        "urgency": "high",
-        "scope": "everything"
+    "expressions": [
+      {
+        "text": "Selling everything as I'm leaving the country next week"
       },
-      "constraints": {
-        "time": { "deadline": { "weeks": 1 } }
+      {
+        "text": "estate sale"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "deadline": {
+          "weeks": 1
+        }
       }
     },
-    "shouldMatchWith": ["estate sale buyers", "bulk buyers", "thrift seekers", "resellers"],
+    "shouldMatchWith": [
+      "estate sale buyers",
+      "bulk buyers",
+      "thrift seekers",
+      "resellers"
+    ],
     "notes": "Urgent liquidation"
   },
   {
@@ -1740,14 +2786,22 @@
     "category": "simple_direct",
     "naturalLanguage": "I make custom leather bags and wallets",
     "type": "capacity",
-    "structured": {
-      "capacityType": "leather_goods",
-      "attributes": {
-        "items": ["bags", "wallets"],
-        "type": "custom"
+    "expressions": [
+      {
+        "text": "custom leather bags and wallets"
+      },
+      {
+        "text": "custom leather goods"
+      },
+      {
+        "text": "leather goods"
       }
-    },
-    "shouldMatchWith": ["custom bag seekers", "leather goods buyers", "gift shoppers"],
+    ],
+    "shouldMatchWith": [
+      "custom bag seekers",
+      "leather goods buyers",
+      "gift shoppers"
+    ],
     "notes": "Artisan craft capacity"
   },
   {
@@ -1755,13 +2809,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Personal chef available for private dinners and weekly meal prep",
     "type": "capacity",
-    "structured": {
-      "capacityType": "personal_chef",
-      "attributes": {
-        "services": ["private_dinners", "meal_prep"]
+    "expressions": [
+      {
+        "text": "Personal chef"
+      },
+      {
+        "text": "personal chef"
       }
-    },
-    "shouldMatchWith": ["people seeking personal chefs", "meal prep needs", "dinner party hosts"],
+    ],
+    "shouldMatchWith": [
+      "people seeking personal chefs",
+      "meal prep needs",
+      "dinner party hosts"
+    ],
     "notes": "Personal service capacity"
   },
   {
@@ -1769,19 +2829,24 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Looking for a personal chef for weekly healthy meal prep",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "personal_chef",
-        "service": "meal_prep"
-      }],
-      "attributes": {
-        "dietaryFocus": "healthy"
+    "expressions": [
+      {
+        "text": "a personal chef for weekly healthy meal prep"
       },
-      "constraints": {
-        "time": { "frequency": "weekly" }
+      {
+        "text": "personal chef"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "frequency": "weekly"
       }
     },
-    "shouldMatchWith": ["personal chefs", "meal prep services", "healthy food services"],
+    "shouldMatchWith": [
+      "personal chefs",
+      "meal prep services",
+      "healthy food services"
+    ],
     "notes": "Recurring personal chef need"
   },
   {
@@ -1789,16 +2854,28 @@
     "category": "compositional",
     "naturalLanguage": "I can do video production end-to-end: scripting, filming, editing, and color grading",
     "type": "capacity",
-    "structured": {
-      "capacityType": "video_producer",
-      "subCapacities": [
-        { "type": "scriptwriter" },
-        { "type": "videographer" },
-        { "type": "video_editor" },
-        { "type": "colorist" }
-      ]
-    },
-    "shouldMatchWith": ["video production needs", "content creators needing video help", "commercial video projects"],
+    "expressions": [
+      {
+        "text": "do video production end-to-end: scripting"
+      },
+      {
+        "text": "video producer"
+      },
+      {
+        "text": "scriptwriter"
+      },
+      {
+        "text": "videographer"
+      },
+      {
+        "text": "video editor"
+      }
+    ],
+    "shouldMatchWith": [
+      "video production needs",
+      "content creators needing video help",
+      "commercial video projects"
+    ],
     "notes": "Full-service video production"
   },
   {
@@ -1806,17 +2883,28 @@
     "category": "time_constrained",
     "naturalLanguage": "I need someone to cover my bar shift this Friday 8pm-2am",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "bartender" }],
-      "constraints": {
-        "time": {
-          "date": "this Friday",
-          "hours": { "start": "20:00", "end": "02:00" }
-        },
-        "type": "shift_coverage"
+    "expressions": [
+      {
+        "text": "someone to cover my bar shift this Friday 8pm-2am"
+      },
+      {
+        "text": "bartender"
       }
+    ],
+    "constraints": {
+      "time": {
+        "date": "this Friday",
+        "hours": {
+          "start": "20:00",
+          "end": "02:00"
+        }
+      },
+      "type": "shift_coverage"
     },
-    "shouldMatchWith": ["available bartenders", "bar staff seeking extra shifts"],
+    "shouldMatchWith": [
+      "available bartenders",
+      "bar staff seeking extra shifts"
+    ],
     "notes": "Shift coverage need"
   },
   {
@@ -1824,16 +2912,28 @@
     "category": "location_constrained",
     "naturalLanguage": "I can pick up and deliver items within a 10-mile radius of downtown Denver",
     "type": "capacity",
-    "structured": {
-      "capacityType": "delivery_service",
-      "constraints": {
-        "location": {
-          "center": "downtown Denver",
-          "radius": { "amount": 10, "unit": "miles" }
+    "expressions": [
+      {
+        "text": "pick up and deliver items within a 10-mile radius of downtown Denver"
+      },
+      {
+        "text": "delivery service"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "center": "downtown Denver",
+        "radius": {
+          "amount": 10,
+          "unit": "miles"
         }
       }
     },
-    "shouldMatchWith": ["delivery needs in Denver", "local pickup requests", "small business deliveries"],
+    "shouldMatchWith": [
+      "delivery needs in Denver",
+      "local pickup requests",
+      "small business deliveries"
+    ],
     "notes": "Radius-based service area"
   },
   {
@@ -1841,14 +2941,22 @@
     "category": "skill_based",
     "naturalLanguage": "Certified arborist specializing in tree health assessment and removal",
     "type": "capacity",
-    "structured": {
-      "capacityType": "arborist",
-      "attributes": {
-        "certified": true,
-        "services": ["health_assessment", "removal"]
+    "expressions": [
+      {
+        "text": "Certified arborist specializing in tree health assessment"
+      },
+      {
+        "text": "certified arborist"
+      },
+      {
+        "text": "arborist"
       }
-    },
-    "shouldMatchWith": ["tree removal needs", "tree health concerns", "landscaping projects"],
+    ],
+    "shouldMatchWith": [
+      "tree removal needs",
+      "tree health concerns",
+      "landscaping projects"
+    ],
     "notes": "Specialized outdoor service"
   },
   {
@@ -1856,16 +2964,25 @@
     "category": "quantity_unit",
     "naturalLanguage": "I can host up to 8 dinner guests at my home restaurant experience",
     "type": "capacity",
-    "structured": {
-      "capacityType": "supper_club",
-      "constraints": {
-        "quantity": { "max": 8, "unit": "guests" }
+    "expressions": [
+      {
+        "text": "host up to 8 dinner guests at my home restaurant experience"
       },
-      "attributes": {
-        "setting": "home"
+      {
+        "text": "supper club"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "max": 8,
+        "unit": "guests"
       }
     },
-    "shouldMatchWith": ["intimate dining seekers", "small group dinner needs", "culinary experience seekers"],
+    "shouldMatchWith": [
+      "intimate dining seekers",
+      "small group dinner needs",
+      "culinary experience seekers"
+    ],
     "notes": "Limited capacity dining experience"
   },
   {
@@ -1873,14 +2990,19 @@
     "category": "edge_case",
     "naturalLanguage": "We're a band looking for another band to split a bill with for a show",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "band" }],
-      "attributes": {
-        "arrangement": "bill_split"
+    "expressions": [
+      {
+        "text": "We're a band looking for another band to split a bill with for a show"
       },
-      "role": "co-headliner"
-    },
-    "shouldMatchWith": ["bands seeking shows", "musicians looking to play", "bands with complementary styles"],
+      {
+        "text": "band"
+      }
+    ],
+    "shouldMatchWith": [
+      "bands seeking shows",
+      "musicians looking to play",
+      "bands with complementary styles"
+    ],
     "notes": "Peer-to-peer matching - both are bands"
   },
   {
@@ -1888,14 +3010,20 @@
     "category": "edge_case",
     "naturalLanguage": "I have skills but no idea what to do with my life",
     "type": "capacity",
-    "structured": {
-      "capacityType": "general_skills",
-      "attributes": {
-        "specificity": "low",
-        "direction": "seeking"
+    "expressions": [
+      {
+        "text": "skills but no idea what to do with my life"
+      },
+      {
+        "text": "general skills"
       }
-    },
-    "shouldMatchWith": ["career counselors", "mentors", "skill assessment services", "volunteering opportunities"],
+    ],
+    "shouldMatchWith": [
+      "career counselors",
+      "mentors",
+      "skill assessment services",
+      "volunteering opportunities"
+    ],
     "notes": "Existential capacity - needs guidance matching"
   },
   {
@@ -1903,14 +3031,22 @@
     "category": "simple_direct",
     "naturalLanguage": "Professional resume and LinkedIn profile writing services",
     "type": "capacity",
-    "structured": {
-      "capacityType": "resume_writer",
-      "attributes": {
-        "services": ["resume", "LinkedIn"],
-        "level": "professional"
+    "expressions": [
+      {
+        "text": "Professional resume and LinkedIn profile writing services"
+      },
+      {
+        "text": "professional resume writer"
+      },
+      {
+        "text": "resume writer"
       }
-    },
-    "shouldMatchWith": ["job seekers", "career changers", "people updating their resume"],
+    ],
+    "shouldMatchWith": [
+      "job seekers",
+      "career changers",
+      "people updating their resume"
+    ],
     "notes": "Professional service capacity"
   },
   {
@@ -1918,10 +3054,19 @@
     "category": "simple_direct",
     "naturalLanguage": "Need help updating my resume for tech jobs",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "resume_writer", "industry": "tech" }]
-    },
-    "shouldMatchWith": ["resume writers with tech experience", "tech career coaches", "ATS optimization services"],
+    "expressions": [
+      {
+        "text": "help updating my resume for tech jobs"
+      },
+      {
+        "text": "resume writer"
+      }
+    ],
+    "shouldMatchWith": [
+      "resume writers with tech experience",
+      "tech career coaches",
+      "ATS optimization services"
+    ],
     "notes": "Industry-specific resume help"
   },
   {
@@ -1929,13 +3074,22 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Fitness coach specializing in postpartum recovery",
     "type": "capacity",
-    "structured": {
-      "capacityType": "fitness_coach",
-      "attributes": {
-        "specialization": "postpartum"
+    "expressions": [
+      {
+        "text": "Fitness coach specializing in postpartum recovery"
+      },
+      {
+        "text": "postpartum fitness coach"
+      },
+      {
+        "text": "fitness coach"
       }
-    },
-    "shouldMatchWith": ["new mothers seeking fitness help", "postpartum exercise needs", "postnatal recovery"],
+    ],
+    "shouldMatchWith": [
+      "new mothers seeking fitness help",
+      "postpartum exercise needs",
+      "postnatal recovery"
+    ],
     "notes": "Specialized coaching"
   },
   {
@@ -1943,15 +3097,28 @@
     "category": "compositional",
     "naturalLanguage": "I can provide complete childcare: supervision, tutoring help, and meal preparation",
     "type": "capacity",
-    "structured": {
-      "capacityType": "nanny",
-      "subCapacities": [
-        { "type": "childcare_supervision" },
-        { "type": "homework_help" },
-        { "type": "meal_prep" }
-      ]
-    },
-    "shouldMatchWith": ["families needing full-time nanny", "after-school care needs", "working parent support"],
+    "expressions": [
+      {
+        "text": "provide complete childcare: supervision"
+      },
+      {
+        "text": "nanny"
+      },
+      {
+        "text": "childcare supervision"
+      },
+      {
+        "text": "homework help"
+      },
+      {
+        "text": "meal prep"
+      }
+    ],
+    "shouldMatchWith": [
+      "families needing full-time nanny",
+      "after-school care needs",
+      "working parent support"
+    ],
     "notes": "Full-service childcare"
   },
   {
@@ -1959,15 +3126,26 @@
     "category": "time_constrained",
     "naturalLanguage": "I can only commit to projects that are under 2 weeks",
     "type": "capacity",
-    "structured": {
-      "capacityType": "short_term_worker",
-      "constraints": {
-        "time": {
-          "maxDuration": { "weeks": 2 }
+    "expressions": [
+      {
+        "text": "only commit to projects that are under 2 weeks"
+      },
+      {
+        "text": "short term worker"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "maxDuration": {
+          "weeks": 2
         }
       }
     },
-    "shouldMatchWith": ["short-term projects", "sprint work", "temporary help needs"],
+    "shouldMatchWith": [
+      "short-term projects",
+      "sprint work",
+      "temporary help needs"
+    ],
     "notes": "Duration ceiling constraint"
   },
   {
@@ -1975,19 +3153,25 @@
     "category": "location_constrained",
     "naturalLanguage": "Notary public serving the greater Seattle area, can meet at your location",
     "type": "capacity",
-    "structured": {
-      "capacityType": "notary",
-      "attributes": {
-        "mobile": true
+    "expressions": [
+      {
+        "text": "Notary public serving the greater Seattle area"
       },
-      "constraints": {
-        "location": {
-          "area": "greater Seattle",
-          "willTravel": true
-        }
+      {
+        "text": "notary"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "area": "greater Seattle",
+        "willTravel": true
       }
     },
-    "shouldMatchWith": ["document notarization needs in Seattle", "real estate closings", "legal document signing"],
+    "shouldMatchWith": [
+      "document notarization needs in Seattle",
+      "real estate closings",
+      "legal document signing"
+    ],
     "notes": "Mobile notary service"
   },
   {
@@ -1995,14 +3179,19 @@
     "category": "skill_based",
     "naturalLanguage": "I'm great with animals - worked at a vet clinic and a zoo",
     "type": "capacity",
-    "structured": {
-      "capacityType": "animal_care",
-      "attributes": {
-        "experience": ["veterinary", "zoo"],
-        "comfort": "high"
+    "expressions": [
+      {
+        "text": "great with animals - worked at a vet clinic and a zoo"
+      },
+      {
+        "text": "animal care"
       }
-    },
-    "shouldMatchWith": ["pet sitting needs", "exotic pet care", "animal rescue volunteering"],
+    ],
+    "shouldMatchWith": [
+      "pet sitting needs",
+      "exotic pet care",
+      "animal rescue volunteering"
+    ],
     "notes": "Animal care experience"
   },
   {
@@ -2010,16 +3199,26 @@
     "category": "quantity_unit",
     "naturalLanguage": "I make 20 jars of kimchi monthly and sell the extras",
     "type": "capacity",
-    "structured": {
-      "capacityType": "kimchi",
-      "constraints": {
-        "quantity": { "amount": 20, "unit": "jars", "period": "month" }
+    "expressions": [
+      {
+        "text": "20 jars of kimchi monthly and sell the extras"
       },
-      "attributes": {
-        "availability": "surplus"
+      {
+        "text": "kimchi"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 20,
+        "unit": "jars",
+        "period": "month"
       }
     },
-    "shouldMatchWith": ["kimchi buyers", "Korean food enthusiasts", "fermented food seekers"],
+    "shouldMatchWith": [
+      "kimchi buyers",
+      "Korean food enthusiasts",
+      "fermented food seekers"
+    ],
     "notes": "Home production surplus"
   },
   {
@@ -2027,15 +3226,19 @@
     "category": "edge_case",
     "naturalLanguage": "I have too much zucchini from my garden, please take some",
     "type": "capacity",
-    "structured": {
-      "capacityType": "zucchini",
-      "attributes": {
-        "source": "home_garden",
-        "price": 0,
-        "urgency": "moderate"
+    "expressions": [
+      {
+        "text": "too much zucchini from my garden, please take some"
+      },
+      {
+        "text": "zucchini"
       }
-    },
-    "shouldMatchWith": ["home cooks", "canners", "anyone wanting free produce"],
+    ],
+    "shouldMatchWith": [
+      "home cooks",
+      "canners",
+      "anyone wanting free produce"
+    ],
     "notes": "Garden surplus - common seasonal pattern"
   },
   {
@@ -2043,14 +3246,19 @@
     "category": "simple_direct",
     "naturalLanguage": "I can proofread and copy-edit documents in English",
     "type": "capacity",
-    "structured": {
-      "capacityType": "editor",
-      "attributes": {
-        "services": ["proofreading", "copy_editing"],
-        "language": "English"
+    "expressions": [
+      {
+        "text": "proofread and copy-edit documents in English"
+      },
+      {
+        "text": "editor"
       }
-    },
-    "shouldMatchWith": ["manuscript editing needs", "business document review", "academic editing"],
+    ],
+    "shouldMatchWith": [
+      "manuscript editing needs",
+      "business document review",
+      "academic editing"
+    ],
     "notes": "Editorial services"
   },
   {
@@ -2058,13 +3266,19 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Event DJ available for weddings, corporate events, and private parties",
     "type": "capacity",
-    "structured": {
-      "capacityType": "dj",
-      "attributes": {
-        "eventTypes": ["weddings", "corporate", "private_parties"]
+    "expressions": [
+      {
+        "text": "Event DJ"
+      },
+      {
+        "text": "dj"
       }
-    },
-    "shouldMatchWith": ["wedding entertainment needs", "corporate event planners", "party hosts"],
+    ],
+    "shouldMatchWith": [
+      "wedding entertainment needs",
+      "corporate event planners",
+      "party hosts"
+    ],
     "notes": "Entertainment capacity"
   },
   {
@@ -2072,14 +3286,18 @@
     "category": "compositional",
     "naturalLanguage": "Need someone for a birthday party who can do face painting AND balloon animals",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{
-        "requires": "entertainer",
-        "skills": ["face_painting", "balloon_animals"]
-      }],
-      "composition": "all_required"
-    },
-    "shouldMatchWith": ["party entertainers", "children's entertainers with multiple skills"],
+    "expressions": [
+      {
+        "text": "someone for a birthday party who can do face painting AND balloon animals"
+      },
+      {
+        "text": "entertainer"
+      }
+    ],
+    "shouldMatchWith": [
+      "party entertainers",
+      "children's entertainers with multiple skills"
+    ],
     "notes": "Multi-skill requirement in one person"
   },
   {
@@ -2087,16 +3305,27 @@
     "category": "time_constrained",
     "naturalLanguage": "I can teach early morning yoga classes before 7am",
     "type": "capacity",
-    "structured": {
-      "capacityType": "yoga_instructor",
-      "constraints": {
-        "time": {
-          "hours": { "end": "07:00" },
-          "type": "early_morning"
-        }
+    "expressions": [
+      {
+        "text": "teach early morning yoga classes before 7am"
+      },
+      {
+        "text": "yoga instructor"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "hours": {
+          "end": "07:00"
+        },
+        "type": "early_morning"
       }
     },
-    "shouldMatchWith": ["early bird fitness seekers", "morning yoga class needs", "before-work fitness"],
+    "shouldMatchWith": [
+      "early bird fitness seekers",
+      "morning yoga class needs",
+      "before-work fitness"
+    ],
     "notes": "Early morning only availability"
   },
   {
@@ -2104,15 +3333,26 @@
     "category": "location_constrained",
     "naturalLanguage": "I need in-person guitar lessons somewhere accessible by public transit",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "guitar_teacher", "mode": "in-person" }],
-      "constraints": {
-        "location": {
-          "accessibility": "public_transit"
-        }
+    "expressions": [
+      {
+        "text": "in-person guitar lessons somewhere accessible by public transit"
+      },
+      {
+        "text": "in-person guitar teacher"
+      },
+      {
+        "text": "guitar teacher"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "accessibility": "public_transit"
       }
     },
-    "shouldMatchWith": ["guitar teachers near transit", "music schools accessible by transit"],
+    "shouldMatchWith": [
+      "guitar teachers near transit",
+      "music schools accessible by transit"
+    ],
     "notes": "Accessibility constraint"
   },
   {
@@ -2120,14 +3360,22 @@
     "category": "skill_based",
     "naturalLanguage": "I'm comfortable with heights and do window cleaning for tall buildings",
     "type": "capacity",
-    "structured": {
-      "capacityType": "window_cleaner",
-      "attributes": {
-        "specialty": "high_rise",
-        "comfort": "heights"
+    "expressions": [
+      {
+        "text": "comfortable with heights"
+      },
+      {
+        "text": "high_rise window cleaner"
+      },
+      {
+        "text": "window cleaner"
       }
-    },
-    "shouldMatchWith": ["commercial building window cleaning", "high-rise maintenance", "difficult access window cleaning"],
+    ],
+    "shouldMatchWith": [
+      "commercial building window cleaning",
+      "high-rise maintenance",
+      "difficult access window cleaning"
+    ],
     "notes": "Specialized physical skill"
   },
   {
@@ -2135,13 +3383,26 @@
     "category": "quantity_unit",
     "naturalLanguage": "I have a pressure washer and can do up to 3 driveways per day",
     "type": "capacity",
-    "structured": {
-      "capacityType": "pressure_washing",
-      "constraints": {
-        "quantity": { "max": 3, "unit": "driveways", "period": "day" }
+    "expressions": [
+      {
+        "text": "a pressure washer and can do up to 3 driveways per day"
+      },
+      {
+        "text": "pressure washing"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "max": 3,
+        "unit": "driveways",
+        "period": "day"
       }
     },
-    "shouldMatchWith": ["driveway cleaning needs", "exterior cleaning requests", "spring cleaning services"],
+    "shouldMatchWith": [
+      "driveway cleaning needs",
+      "exterior cleaning requests",
+      "spring cleaning services"
+    ],
     "notes": "Daily capacity limit"
   },
   {
@@ -2149,14 +3410,19 @@
     "category": "edge_case",
     "naturalLanguage": "I speak five languages but none of them fluently",
     "type": "capacity",
-    "structured": {
-      "capacityType": "multilingual",
-      "attributes": {
-        "languages": 5,
-        "level": "conversational"
+    "expressions": [
+      {
+        "text": "five languages but none of them fluently"
+      },
+      {
+        "text": "multilingual"
       }
-    },
-    "shouldMatchWith": ["basic translation needs", "travel assistance", "cultural liaison roles"],
+    ],
+    "shouldMatchWith": [
+      "basic translation needs",
+      "travel assistance",
+      "cultural liaison roles"
+    ],
     "notes": "Breadth over depth language skills"
   },
   {
@@ -2164,13 +3430,20 @@
     "category": "edge_case",
     "naturalLanguage": "Will work for food",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "food" }],
-      "attributes": {
-        "exchange": "labor"
+    "expressions": [
+      {
+        "text": "Will work for food"
+      },
+      {
+        "text": "food"
       }
-    },
-    "shouldMatchWith": ["food banks", "restaurants needing help", "community kitchens", "work-for-meal arrangements"],
+    ],
+    "shouldMatchWith": [
+      "food banks",
+      "restaurants needing help",
+      "community kitchens",
+      "work-for-meal arrangements"
+    ],
     "notes": "Barter/exchange need"
   },
   {
@@ -2178,14 +3451,22 @@
     "category": "simple_direct",
     "naturalLanguage": "I do furniture assembly and can follow any IKEA instructions",
     "type": "capacity",
-    "structured": {
-      "capacityType": "furniture_assembler",
-      "attributes": {
-        "specialty": ["IKEA"],
-        "scope": "any"
+    "expressions": [
+      {
+        "text": "furniture assembly and can follow any IKEA instructions"
+      },
+      {
+        "text": "IKEA furniture assembler"
+      },
+      {
+        "text": "furniture assembler"
       }
-    },
-    "shouldMatchWith": ["furniture assembly needs", "IKEA assembly requests", "new furniture setup"],
+    ],
+    "shouldMatchWith": [
+      "furniture assembly needs",
+      "IKEA assembly requests",
+      "new furniture setup"
+    ],
     "notes": "Specific handyperson skill"
   },
   {
@@ -2193,17 +3474,26 @@
     "category": "asymmetric_type",
     "naturalLanguage": "Real estate agent helping first-time buyers in the Portland market",
     "type": "capacity",
-    "structured": {
-      "capacityType": "real_estate_agent",
-      "attributes": {
-        "specialty": "first_time_buyers",
-        "role": "buyer_agent"
+    "expressions": [
+      {
+        "text": "Real estate agent helping first-time buyers in the Portland market"
       },
-      "constraints": {
-        "location": { "city": "Portland" }
+      {
+        "text": "first_time_buyers real estate agent"
+      },
+      {
+        "text": "real estate agent"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "city": "Portland"
       }
     },
-    "shouldMatchWith": ["first-time home buyers in Portland", "people looking to buy homes"],
+    "shouldMatchWith": [
+      "first-time home buyers in Portland",
+      "people looking to buy homes"
+    ],
     "notes": "Buyer's agent matches with buyers"
   },
   {
@@ -2211,15 +3501,25 @@
     "category": "compositional",
     "naturalLanguage": "I need a website: design, development, and hosting all included",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [
-        { "requires": "web_designer" },
-        { "requires": "web_developer" },
-        { "requires": "web_hosting" }
-      ],
-      "composition": "all_required"
-    },
-    "shouldMatchWith": ["full-service web agencies", "web developers offering packages", "website builders"],
+    "expressions": [
+      {
+        "text": "a website: design, development, and hosting all included"
+      },
+      {
+        "text": "web designer"
+      },
+      {
+        "text": "web developer"
+      },
+      {
+        "text": "web hosting"
+      }
+    ],
+    "shouldMatchWith": [
+      "full-service web agencies",
+      "web developers offering packages",
+      "website builders"
+    ],
     "notes": "Full web service need"
   },
   {
@@ -2227,15 +3527,30 @@
     "category": "time_constrained",
     "naturalLanguage": "Looking for a part-time job, 10-15 hours per week maximum",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "job", "type": "part_time" }],
-      "constraints": {
-        "time": {
-          "hoursPerWeek": { "min": 10, "max": 15 }
+    "expressions": [
+      {
+        "text": "a part-time job, 10-15 hours per week maximum"
+      },
+      {
+        "text": "part time job"
+      },
+      {
+        "text": "job"
+      }
+    ],
+    "constraints": {
+      "time": {
+        "hoursPerWeek": {
+          "min": 10,
+          "max": 15
         }
       }
     },
-    "shouldMatchWith": ["part-time positions", "flexible hour jobs", "gig work"],
+    "shouldMatchWith": [
+      "part-time positions",
+      "flexible hour jobs",
+      "gig work"
+    ],
     "notes": "Part-time work with hour constraints"
   },
   {
@@ -2243,19 +3558,30 @@
     "category": "location_constrained",
     "naturalLanguage": "Available for emergency plumbing calls within 30 minutes of Scottsdale",
     "type": "capacity",
-    "structured": {
-      "capacityType": "plumber",
-      "attributes": {
-        "type": "emergency"
+    "expressions": [
+      {
+        "text": "Available for emergency plumbing calls within 30 minutes of Scottsdale"
       },
-      "constraints": {
-        "location": {
-          "center": "Scottsdale",
-          "responseTime": { "minutes": 30 }
+      {
+        "text": "emergency plumber"
+      },
+      {
+        "text": "plumber"
+      }
+    ],
+    "constraints": {
+      "location": {
+        "center": "Scottsdale",
+        "responseTime": {
+          "minutes": 30
         }
       }
     },
-    "shouldMatchWith": ["emergency plumbing in Scottsdale", "urgent pipe repairs", "24/7 plumbing needs"],
+    "shouldMatchWith": [
+      "emergency plumbing in Scottsdale",
+      "urgent pipe repairs",
+      "24/7 plumbing needs"
+    ],
     "notes": "Response-time based coverage"
   },
   {
@@ -2263,15 +3589,19 @@
     "category": "skill_based",
     "naturalLanguage": "I've managed teams of 50+ people and can help with leadership coaching",
     "type": "capacity",
-    "structured": {
-      "capacityType": "leadership_coach",
-      "attributes": {
-        "experience": {
-          "teamSize": { "min": 50 }
-        }
+    "expressions": [
+      {
+        "text": "I've managed teams of 50+ people"
+      },
+      {
+        "text": "leadership coach"
       }
-    },
-    "shouldMatchWith": ["new managers needing coaching", "leadership development needs", "executive coaching requests"],
+    ],
+    "shouldMatchWith": [
+      "new managers needing coaching",
+      "leadership development needs",
+      "executive coaching requests"
+    ],
     "notes": "Experience-based coaching capacity"
   },
   {
@@ -2279,16 +3609,25 @@
     "category": "quantity_unit",
     "naturalLanguage": "Need to ship 500 pounds of equipment to our trade show booth",
     "type": "need",
-    "structured": {
-      "satisfactionPaths": [{ "requires": "freight_shipping" }],
-      "constraints": {
-        "quantity": { "amount": 500, "unit": "pounds" }
+    "expressions": [
+      {
+        "text": "ship 500 pounds of equipment to our trade show booth"
       },
-      "attributes": {
-        "destination": "trade_show"
+      {
+        "text": "freight shipping"
+      }
+    ],
+    "constraints": {
+      "quantity": {
+        "amount": 500,
+        "unit": "pounds"
       }
     },
-    "shouldMatchWith": ["freight services", "trade show logistics", "heavy item shipping"],
+    "shouldMatchWith": [
+      "freight services",
+      "trade show logistics",
+      "heavy item shipping"
+    ],
     "notes": "Heavy freight need"
   },
   {
@@ -2296,14 +3635,20 @@
     "category": "edge_case",
     "naturalLanguage": "I make music but only weird experimental stuff",
     "type": "capacity",
-    "structured": {
-      "capacityType": "musician",
-      "attributes": {
-        "genre": "experimental",
-        "commercial": false
+    "expressions": [
+      {
+        "text": "music but only weird experimental stuff"
+      },
+      {
+        "text": "musician"
       }
-    },
-    "shouldMatchWith": ["experimental music fans", "avant-garde events", "art installations needing music", "film scoring for unusual projects"],
+    ],
+    "shouldMatchWith": [
+      "experimental music fans",
+      "avant-garde events",
+      "art installations needing music",
+      "film scoring for unusual projects"
+    ],
     "notes": "Niche artistic capacity"
   },
   {
@@ -2311,14 +3656,21 @@
     "category": "edge_case",
     "naturalLanguage": "I have a lot of land and nothing to do with it",
     "type": "capacity",
-    "structured": {
-      "capacityType": "land",
-      "attributes": {
-        "size": "large",
-        "currentUse": "none"
+    "expressions": [
+      {
+        "text": "a lot of land and nothing to do with it"
+      },
+      {
+        "text": "land"
       }
-    },
-    "shouldMatchWith": ["community gardens", "event venues", "farming cooperatives", "renewable energy projects", "outdoor recreation"],
+    ],
+    "shouldMatchWith": [
+      "community gardens",
+      "event venues",
+      "farming cooperatives",
+      "renewable energy projects",
+      "outdoor recreation"
+    ],
     "notes": "Underutilized resource"
   }
 ]

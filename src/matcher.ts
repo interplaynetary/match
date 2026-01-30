@@ -3,87 +3,32 @@ import type {
   Constraints,
   Need,
   MatchResult,
-  SatisfactionPath,
-  TypeCompatibility,
+  Expression,
 } from './types'
-import { DEFAULT_TYPE_COMPATIBILITIES } from './types'
+import { cosineSimilarity } from './embeddings'
+
+export type MatcherOptions = {
+  similarityThreshold?: number  // minimum similarity to consider a match (default 0.6)
+}
 
 export class Matcher {
-  private typeCompatibilities: TypeCompatibility[]
+  private similarityThreshold: number
 
-  constructor(customCompatibilities?: TypeCompatibility[]) {
-    this.typeCompatibilities = customCompatibilities ?? DEFAULT_TYPE_COMPATIBILITIES
+  constructor(options: MatcherOptions = {}) {
+    this.similarityThreshold = options.similarityThreshold ?? 0.6
   }
 
   /**
-   * Check if a capacity type satisfies a need's required type
-   * Handles both direct matches and asymmetric type compatibility
-   */
-  typeMatches(capacityType: string, needRequires: string): boolean {
-    // Normalize to lowercase for comparison
-    const capType = capacityType.toLowerCase()
-    const needType = needRequires.toLowerCase()
-
-    // Direct match
-    if (capType === needType) return true
-
-    // Check asymmetric compatibility
-    const compatibility = this.typeCompatibilities.find(
-      (c) => c.capacityType.toLowerCase() === capType
-    )
-    if (compatibility) {
-      return compatibility.satisfiesNeedFor.some((t) => t.toLowerCase() === needType)
-    }
-
-    return false
-  }
-
-  /**
-   * Check if a capacity can satisfy a single satisfaction path
-   */
-  satisfiesPath(capacity: Capacity, path: SatisfactionPath): boolean {
-    if (path.type === 'direct') {
-      if (!this.typeMatches(capacity.capacityType, path.requires)) {
-        return false
-      }
-      // Check attribute requirements if specified
-      if (path.attributes) {
-        for (const [key, value] of Object.entries(path.attributes)) {
-          if (capacity.attributes?.[key] !== value) {
-            return false
-          }
-        }
-      }
-      return true
-    }
-
-    if (path.type === 'composite') {
-      // For composite paths, this single capacity must satisfy at least one component
-      // Full composite matching requires multiple capacities - handled separately
-      return path.all.some((subPath) => this.satisfiesPath(capacity, subPath))
-    }
-
-    return false
-  }
-
-  /**
-   * Find all capacities that could satisfy a need
+   * Find all capacities that could satisfy a need.
+   * Matching is based on embedding similarity with priority weighting.
    */
   findMatches(need: Need, capacities: Capacity[]): MatchResult[] {
     const results: MatchResult[] = []
 
     for (const capacity of capacities) {
-      for (const path of need.satisfactionPaths) {
-        if (this.satisfiesPath(capacity, path)) {
-          const feasibility = this.computeFeasibility(need, capacity)
-          results.push({
-            needId: need.id,
-            capacityId: capacity.id,
-            satisfiedVia: path,
-            feasibilityScore: feasibility.total,
-            breakdown: feasibility.breakdown,
-          })
-        }
+      const match = this.computeMatch(need, capacity)
+      if (match && match.feasibilityScore >= this.similarityThreshold) {
+        results.push(match)
       }
     }
 
@@ -92,14 +37,119 @@ export class Matcher {
   }
 
   /**
-   * Compute feasibility score for a need-capacity pair
+   * Compute match between a need and capacity.
+   * Returns null if no valid match (e.g., missing embeddings).
    */
-  computeFeasibility(
+  private computeMatch(need: Need, capacity: Capacity): MatchResult | null {
+    // Require embeddings for matching
+    if (!need.embedding || !capacity.embedding) {
+      return null
+    }
+
+    // Compute overall similarity between embeddings
+    const rawSimilarity = cosineSimilarity(need.embedding, capacity.embedding)
+    const similarity = Math.max(0, rawSimilarity)
+
+    // Find best matching expression pair for reporting
+    const matchedExpressions = this.findBestExpressionMatch(need, capacity, similarity)
+
+    // Compute priority weight (higher priority = lower number = higher weight)
+    const priorityWeight = this.computePriorityWeight(matchedExpressions.need, matchedExpressions.capacity)
+
+    // Compute constraint feasibility
+    const constraintFeasibility = this.computeConstraintFeasibility(need, capacity)
+
+    // Combine scores: similarity * priorityWeight * constraintFeasibility
+    const breakdown: MatchResult['breakdown'] = {
+      similarity,
+      priorityWeight,
+      ...constraintFeasibility.breakdown,
+    }
+
+    const scores = [similarity, priorityWeight]
+    if (constraintFeasibility.breakdown.time !== undefined) {
+      scores.push(constraintFeasibility.breakdown.time)
+    }
+    if (constraintFeasibility.breakdown.space !== undefined) {
+      scores.push(constraintFeasibility.breakdown.space)
+    }
+    if (constraintFeasibility.breakdown.quantity !== undefined) {
+      scores.push(constraintFeasibility.breakdown.quantity)
+    }
+
+    // Geometric mean of all scores
+    const feasibilityScore = scores.length > 0
+      ? Math.pow(scores.reduce((a, b) => a * b, 1), 1 / scores.length)
+      : 0
+
+    return {
+      needId: need.id,
+      capacityId: capacity.id,
+      feasibilityScore,
+      matchedExpressions,
+      breakdown,
+    }
+  }
+
+  /**
+   * Find the best matching pair of expressions between need and capacity.
+   * For now, just returns the first expressions - in future could do per-expression embedding matching.
+   */
+  private findBestExpressionMatch(
+    need: Need,
+    capacity: Capacity,
+    similarity: number
+  ): MatchResult['matchedExpressions'] {
+    // Return highest priority expressions from each
+    const needExpr = this.getHighestPriorityExpression(need.expressions)
+    const capExpr = this.getHighestPriorityExpression(capacity.expressions)
+
+    return {
+      need: needExpr,
+      capacity: capExpr,
+      similarity,
+    }
+  }
+
+  /**
+   * Get the expression with highest priority (lowest priority number).
+   */
+  private getHighestPriorityExpression(expressions: Expression[]): Expression {
+    if (expressions.length === 0) {
+      return { text: '' }
+    }
+
+    return expressions.reduce((best, expr) => {
+      const bestPriority = best.priority ?? 1
+      const exprPriority = expr.priority ?? 1
+      return exprPriority < bestPriority ? expr : best
+    }, expressions[0]!)
+  }
+
+  /**
+   * Compute priority weight based on matched expressions.
+   * Lower priority numbers = higher weight.
+   */
+  private computePriorityWeight(needExpr: Expression, capacityExpr: Expression): number {
+    const needPriority = needExpr.priority ?? 1
+    const capacityPriority = capacityExpr.priority ?? 1
+
+    // Convert priority to weight: priority 1 = 1.0, priority 2 = 0.9, priority 3 = 0.8, etc.
+    const needWeight = Math.max(0.5, 1 - (needPriority - 1) * 0.1)
+    const capacityWeight = Math.max(0.5, 1 - (capacityPriority - 1) * 0.1)
+
+    // Combine weights (geometric mean)
+    return Math.sqrt(needWeight * capacityWeight)
+  }
+
+  /**
+   * Compute feasibility based on constraints.
+   */
+  private computeConstraintFeasibility(
     need: Need,
     capacity: Capacity
-  ): { total: number; breakdown: MatchResult['breakdown'] } {
-    const breakdown: MatchResult['breakdown'] = {}
-    const scores: number[] = []
+  ): { breakdown: Partial<MatchResult['breakdown']> } {
+    const breakdown: Partial<MatchResult['breakdown']> = {}
 
     // Time feasibility
     if (need.constraints?.time || capacity.constraints?.time) {
@@ -107,7 +157,6 @@ export class Matcher {
         need.constraints?.time,
         capacity.constraints?.time
       )
-      scores.push(breakdown.time)
     }
 
     // Space feasibility
@@ -116,7 +165,6 @@ export class Matcher {
         need.constraints?.space,
         capacity.constraints?.space
       )
-      scores.push(breakdown.space)
     }
 
     // Quantity feasibility
@@ -125,19 +173,9 @@ export class Matcher {
         need.constraints.quantity,
         capacity.constraints.quantity
       )
-      scores.push(breakdown.quantity)
     }
 
-    // Type match score (1.0 for direct, 0.8 for asymmetric compatibility)
-    breakdown.type = 1.0
-    scores.push(breakdown.type)
-
-    // Combine scores (geometric mean to penalize any low score)
-    const total = scores.length > 0
-      ? Math.pow(scores.reduce((a, b) => a * b, 1), 1 / scores.length)
-      : 1.0
-
-    return { total, breakdown }
+    return { breakdown }
   }
 
   private computeTimeFeasibility(
@@ -145,8 +183,6 @@ export class Matcher {
     capacityTime?: Constraints['time']
   ): number {
     // TODO: Implement proper time overlap calculation
-    // For now, return 1.0 if both have time constraints (optimistic)
-    // Return 0.5 if only one has constraints (uncertain)
     if (!needTime && !capacityTime) return 1.0
     if (!needTime || !capacityTime) return 0.5
     return 1.0
@@ -157,7 +193,6 @@ export class Matcher {
     capacitySpace?: Constraints['space']
   ): number {
     // TODO: Implement proper distance calculation
-    // For now, check area string match
     if (!needSpace && !capacitySpace) return 1.0
     if (!needSpace || !capacitySpace) return 0.5
 

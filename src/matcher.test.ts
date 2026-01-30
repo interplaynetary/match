@@ -1,143 +1,211 @@
-import { test, expect, describe, afterAll } from 'bun:test'
+import { test, expect, describe } from 'bun:test'
 import { Matcher } from './matcher'
 import type { Capacity, Need } from './types'
-import { generateReport } from './visualizer'
-import examples from '../data/matching-examples.json'
+import { cosineSimilarity, generateEmbeddingText } from './embeddings'
 
-const matcher = new Matcher()
-const REPORT_PATH = './match-report.html'
-
-afterAll(async () => {
-  await generateReport(REPORT_PATH)
-  // Open in browser
-  const proc = Bun.spawn(['open', REPORT_PATH])
-  await proc.exited
-})
-
-describe('Type Matching', () => {
-  test('direct type match', () => {
-    expect(matcher.typeMatches('flour', 'flour')).toBe(true)
-    expect(matcher.typeMatches('Flour', 'flour')).toBe(true) // case insensitive
+describe('Cosine Similarity', () => {
+  test('identical vectors have similarity 1', () => {
+    const v = [0.1, 0.2, 0.3]
+    expect(cosineSimilarity(v, v)).toBeCloseTo(1.0)
   })
 
-  test('asymmetric type match: teacher/student', () => {
-    expect(matcher.typeMatches('teacher', 'student')).toBe(true)
-    expect(matcher.typeMatches('student', 'teacher')).toBe(true)
+  test('orthogonal vectors have similarity 0', () => {
+    expect(cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0)
   })
 
-  test('asymmetric type match: host/guest', () => {
-    expect(matcher.typeMatches('host', 'guest')).toBe(true)
-    expect(matcher.typeMatches('guest', 'host')).toBe(true)
-    expect(matcher.typeMatches('coach', 'athlete')).toBe(true)
+  test('opposite vectors have similarity -1', () => {
+    expect(cosineSimilarity([1, 0], [-1, 0])).toBeCloseTo(-1)
   })
 
-  test('no match for unrelated types', () => {
-    expect(matcher.typeMatches('flour', 'piano')).toBe(false)
-    expect(matcher.typeMatches('teacher', 'flour')).toBe(false)
+  test('similar vectors have high similarity', () => {
+    const a = [0.5, 0.5, 0.0]
+    const b = [0.6, 0.4, 0.1]
+    const sim = cosineSimilarity(a, b)
+    expect(sim).toBeGreaterThan(0.9)
+  })
+
+  test('empty vectors return 0', () => {
+    expect(cosineSimilarity([], [])).toBe(0)
+  })
+
+  test('throws on dimension mismatch', () => {
+    expect(() => cosineSimilarity([1, 2], [1, 2, 3])).toThrow('dimension mismatch')
   })
 })
 
-describe('Path Satisfaction', () => {
-  test('direct path satisfaction', () => {
+describe('Embedding Text Generation', () => {
+  test('capacity generates text from expressions', () => {
     const capacity: Capacity = {
       id: 'c1',
-      capacityType: 'flour',
-      attributes: { organic: true },
-    }
-    const path = { type: 'direct' as const, requires: 'flour' }
-    expect(matcher.satisfiesPath(capacity, path)).toBe(true)
-  })
-
-  test('direct path with attribute requirements', () => {
-    const capacity: Capacity = {
-      id: 'c1',
-      capacityType: 'flour',
-      attributes: { organic: true },
-    }
-    const pathMatch = { type: 'direct' as const, requires: 'flour', attributes: { organic: true } }
-    const pathNoMatch = { type: 'direct' as const, requires: 'flour', attributes: { organic: false } }
-
-    expect(matcher.satisfiesPath(capacity, pathMatch)).toBe(true)
-    expect(matcher.satisfiesPath(capacity, pathNoMatch)).toBe(false)
-  })
-
-  test('composite path partial satisfaction', () => {
-    const capacity: Capacity = {
-      id: 'c1',
-      capacityType: 'flour',
-    }
-    const compositePath = {
-      type: 'composite' as const,
-      all: [
-        { type: 'direct' as const, requires: 'flour' },
-        { type: 'direct' as const, requires: 'olive oil' },
+      expressions: [
+        { text: 'piano teacher' },
+        { text: 'music lessons' },
       ],
     }
-    // Single capacity can satisfy one component of composite
-    expect(matcher.satisfiesPath(capacity, compositePath)).toBe(true)
-  })
-})
-
-describe('Find Matches', () => {
-  test('finds matching capacity for simple need', () => {
-    const need: Need = {
-      id: 'n1',
-      satisfactionPaths: [{ type: 'direct', requires: 'flour' }],
-    }
-    const capacities: Capacity[] = [
-      { id: 'c1', capacityType: 'flour' },
-      { id: 'c2', capacityType: 'sugar' },
-    ]
-
-    const matches = matcher.findMatches(need, capacities)
-    expect(matches).toHaveLength(1)
-    expect(matches[0]!.capacityId).toBe('c1')
+    const text = generateEmbeddingText(capacity)
+    expect(text).toContain('piano teacher')
+    expect(text).toContain('music lessons')
   })
 
-  test('finds asymmetric matches', () => {
+  test('need generates text from expressions', () => {
     const need: Need = {
       id: 'n1',
-      satisfactionPaths: [{ type: 'direct', requires: 'student' }],
-    }
-    const capacities: Capacity[] = [
-      { id: 'c1', capacityType: 'teacher', attributes: { subject: 'piano' } },
-      { id: 'c2', capacityType: 'flour' },
-    ]
-
-    const matches = matcher.findMatches(need, capacities)
-    expect(matches).toHaveLength(1)
-    expect(matches[0]!.capacityId).toBe('c1')
-  })
-
-  test('finds multiple satisfaction paths', () => {
-    const need: Need = {
-      id: 'n1',
-      satisfactionPaths: [
-        { type: 'direct', requires: 'vegan pizza' },
-        { type: 'direct', requires: 'flour' }, // alternative: I'll make it myself
+      expressions: [
+        { text: 'organic flour' },
+        { text: 'flour' },
       ],
     }
-    const capacities: Capacity[] = [
-      { id: 'c1', capacityType: 'flour' },
-    ]
+    const text = generateEmbeddingText(need)
+    expect(text).toContain('organic flour')
+    expect(text).toContain('flour')
+  })
 
-    const matches = matcher.findMatches(need, capacities)
-    expect(matches).toHaveLength(1)
-    expect(matches[0]!.capacityId).toBe('c1')
+  test('expressions sorted by priority', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [
+        { text: 'food', priority: 3 },
+        { text: 'pizza', priority: 1 },
+        { text: 'Italian food', priority: 2 },
+      ],
+    }
+    const text = generateEmbeddingText(need)
+    // Higher priority (lower number) comes first
+    expect(text.indexOf('pizza')).toBeLessThan(text.indexOf('Italian food'))
+    expect(text.indexOf('Italian food')).toBeLessThan(text.indexOf('food'))
   })
 })
 
-describe('Feasibility Scoring', () => {
+describe('Embedding-Based Matching', () => {
+  const matcher = new Matcher({ similarityThreshold: 0.5 })
+
+  test('matches when embeddings are similar', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [{ text: 'flour' }],
+      embedding: [0.8, 0.2, 0.1],
+    }
+    const capacity: Capacity = {
+      id: 'c1',
+      expressions: [{ text: 'organic flour' }],
+      embedding: [0.7, 0.3, 0.1], // similar
+    }
+
+    const matches = matcher.findMatches(need, [capacity])
+    expect(matches).toHaveLength(1)
+    expect(matches[0]!.breakdown.similarity).toBeGreaterThan(0.9)
+  })
+
+  test('no match when embeddings are dissimilar', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [{ text: 'flour' }],
+      embedding: [1.0, 0.0, 0.0],
+    }
+    const capacity: Capacity = {
+      id: 'c1',
+      expressions: [{ text: 'car' }],
+      embedding: [0.0, 0.0, 1.0], // orthogonal
+    }
+
+    const matches = matcher.findMatches(need, [capacity])
+    expect(matches).toHaveLength(0) // below threshold
+  })
+
+  test('no match when embeddings are missing', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [{ text: 'flour' }],
+      // no embedding
+    }
+    const capacity: Capacity = {
+      id: 'c1',
+      expressions: [{ text: 'organic flour' }],
+      // no embedding
+    }
+
+    const matches = matcher.findMatches(need, [capacity])
+    expect(matches).toHaveLength(0)
+  })
+
+  test('priority weighting affects score', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [
+        { text: 'pizza', priority: 1 },
+        { text: 'food', priority: 2 },
+      ],
+      embedding: [0.8, 0.2],
+    }
+    const capacity: Capacity = {
+      id: 'c1',
+      expressions: [
+        { text: 'vegan pizza', priority: 1 },
+      ],
+      embedding: [0.75, 0.25],
+    }
+
+    const matches = matcher.findMatches(need, [capacity])
+    expect(matches).toHaveLength(1)
+    expect(matches[0]!.breakdown.priorityWeight).toBe(1.0) // both priority 1
+  })
+
+  test('lower priority expressions get lower weight', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [
+        { text: 'food', priority: 3 }, // low priority
+      ],
+      embedding: [0.8, 0.2],
+    }
+    const capacity: Capacity = {
+      id: 'c1',
+      expressions: [
+        { text: 'food', priority: 3 }, // low priority
+      ],
+      embedding: [0.75, 0.25],
+    }
+
+    const matches = matcher.findMatches(need, [capacity])
+    expect(matches).toHaveLength(1)
+    // Priority 3 -> weight 0.8, combined = sqrt(0.8 * 0.8) = 0.8
+    expect(matches[0]!.breakdown.priorityWeight).toBeCloseTo(0.8)
+  })
+
+  test('negative similarity is clamped to 0', () => {
+    const need: Need = {
+      id: 'n1',
+      expressions: [{ text: 'flour' }],
+      embedding: [1.0, 0.0],
+    }
+    const capacity: Capacity = {
+      id: 'c1',
+      expressions: [{ text: 'not flour' }],
+      embedding: [-1.0, 0.0], // opposite direction
+    }
+
+    // With threshold 0.5, this won't match, but let's test with lower threshold
+    const lowThresholdMatcher = new Matcher({ similarityThreshold: 0 })
+    const matches = lowThresholdMatcher.findMatches(need, [capacity])
+    expect(matches[0]!.breakdown.similarity).toBe(0) // clamped
+  })
+})
+
+describe('Constraint Feasibility', () => {
+  const matcher = new Matcher({ similarityThreshold: 0.5 })
+
   test('quantity feasibility: sufficient capacity', () => {
     const need: Need = {
       id: 'n1',
-      satisfactionPaths: [{ type: 'direct', requires: 'flour' }],
+      expressions: [{ text: 'flour' }],
       constraints: { quantity: { amount: 2, unit: 'kg' } },
+      embedding: [0.8, 0.2],
     }
     const capacity: Capacity = {
       id: 'c1',
-      capacityType: 'flour',
+      expressions: [{ text: 'flour' }],
       constraints: { quantity: { amount: 5, unit: 'kg' } },
+      embedding: [0.8, 0.2],
     }
 
     const matches = matcher.findMatches(need, [capacity])
@@ -147,13 +215,15 @@ describe('Feasibility Scoring', () => {
   test('quantity feasibility: insufficient capacity', () => {
     const need: Need = {
       id: 'n1',
-      satisfactionPaths: [{ type: 'direct', requires: 'flour' }],
+      expressions: [{ text: 'flour' }],
       constraints: { quantity: { amount: 10, unit: 'kg' } },
+      embedding: [0.8, 0.2],
     }
     const capacity: Capacity = {
       id: 'c1',
-      capacityType: 'flour',
+      expressions: [{ text: 'flour' }],
       constraints: { quantity: { amount: 5, unit: 'kg' } },
+      embedding: [0.8, 0.2],
     }
 
     const matches = matcher.findMatches(need, [capacity])
@@ -163,25 +233,35 @@ describe('Feasibility Scoring', () => {
   test('quantity feasibility: unit mismatch', () => {
     const need: Need = {
       id: 'n1',
-      satisfactionPaths: [{ type: 'direct', requires: 'flour' }],
+      expressions: [{ text: 'flour' }],
       constraints: { quantity: { amount: 2, unit: 'kg' } },
+      embedding: [0.8, 0.2],
     }
     const capacity: Capacity = {
       id: 'c1',
-      capacityType: 'flour',
+      expressions: [{ text: 'flour' }],
       constraints: { quantity: { amount: 5, unit: 'lbs' } },
+      embedding: [0.8, 0.2],
     }
 
-    const matches = matcher.findMatches(need, [capacity])
+    // Use zero threshold to see the actual quantity score
+    const noThresholdMatcher = new Matcher({ similarityThreshold: 0 })
+    const matches = noThresholdMatcher.findMatches(need, [capacity])
     expect(matches[0]!.breakdown.quantity).toBe(0.0)
   })
 })
 
-// Test against the generated examples dataset
-import { convertExamples, KNOWN_PAIRS } from './example-converter'
+// Test against the dataset
+import { convertExamples, type EmbeddingsStore } from './example-converter'
+import { generateReport } from './visualizer'
+import examples from '../data/matching-examples.json'
+import embeddingsData from '../data/embeddings.json'
+
+const embeddings = embeddingsData as EmbeddingsStore
 
 describe('Dataset Examples', () => {
-  const { capacities, needs, byId } = convertExamples(examples as any)
+  const { capacities, needs } = convertExamples(examples as any, embeddings)
+  const matcher = new Matcher()
 
   test('converts all examples', () => {
     expect(capacities.length).toBeGreaterThan(0)
@@ -189,62 +269,39 @@ describe('Dataset Examples', () => {
     console.log(`Converted ${capacities.length} capacities, ${needs.length} needs`)
   })
 
-  describe('Known matching pairs', () => {
-    for (const pair of KNOWN_PAIRS) {
-      test(`${pair.reason}`, () => {
-        const needData = byId.get(String(pair.needId))
-        const capData = byId.get(String(pair.capacityId))
-
-        if (!needData || !capData) {
-          throw new Error(`Pair not found: need ${pair.needId}, capacity ${pair.capacityId}`)
-        }
-
-        const need = needData.converted as Need
-        const capacity = capData.converted as Capacity
-
-        const matches = matcher.findMatches(need, [capacity])
-        expect(matches.length).toBeGreaterThan(0)
-      })
+  test('all items have expressions', () => {
+    for (const cap of capacities) {
+      expect(cap.expressions.length).toBeGreaterThan(0)
     }
-  })
-
-  describe('All needs find at least one match', () => {
-    const results: { id: string; matched: boolean; matchCount: number }[] = []
-
     for (const need of needs) {
-      test(`need #${need.id} finds matches`, () => {
-        const matches = matcher.findMatches(need, capacities)
-        results.push({ id: need.id, matched: matches.length > 0, matchCount: matches.length })
-        // Don't fail - just report
-        if (matches.length === 0) {
-          const original = byId.get(need.id)?.original
-          console.log(`No matches for need #${need.id}: "${original?.naturalLanguage}"`)
-          console.log(`  Requires: ${need.satisfactionPaths.map((p) => p.type === 'direct' ? p.requires : 'composite').join(', ')}`)
-        }
-        expect(matches.length).toBeGreaterThanOrEqual(0) // Always passes, but logs failures
-      })
+      expect(need.expressions.length).toBeGreaterThan(0)
     }
   })
 
-  test('summary: coverage statistics', () => {
-    let matchedNeeds = 0
-    let unmatchedNeeds = 0
+  test('all items have embeddings', () => {
+    for (const cap of capacities) {
+      expect(cap.embedding).toBeDefined()
+      expect(cap.embedding!.length).toBe(1536)
+    }
+    for (const need of needs) {
+      expect(need.embedding).toBeDefined()
+      expect(need.embedding!.length).toBe(1536)
+    }
+  })
 
+  test('finds matches across dataset', () => {
+    let totalMatches = 0
     for (const need of needs) {
       const matches = matcher.findMatches(need, capacities)
-      if (matches.length > 0) {
-        matchedNeeds++
-      } else {
-        unmatchedNeeds++
-      }
+      totalMatches += matches.length
     }
+    console.log(`Found ${totalMatches} matches across ${needs.length} needs`)
+    expect(totalMatches).toBeGreaterThan(0)
+  })
 
-    console.log(`\n=== MATCHING COVERAGE ===`)
-    console.log(`Needs with matches: ${matchedNeeds}/${needs.length} (${((matchedNeeds / needs.length) * 100).toFixed(1)}%)`)
-    console.log(`Needs without matches: ${unmatchedNeeds}`)
-    console.log(`Total capacities available: ${capacities.length}`)
-
-    // We expect at least some matches
-    expect(matchedNeeds).toBeGreaterThan(0)
+  test('generates report and opens it', async () => {
+    const reportPath = './output/matching-report.html'
+    await generateReport(reportPath)
+    await Bun.$`open ${reportPath}`
   })
 })
