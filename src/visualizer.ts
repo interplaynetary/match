@@ -303,8 +303,8 @@ export function generateHTML(data: MatchData): string {
 
       if (capIndex === -1 || needIndex === -1) return;
 
-      const capPos = getPosition({ isCapacity: true, index: capIndex }, outerRadius - 15);
-      const needPos = getPosition({ isCapacity: false, index: needIndex }, needRadius + 15);
+      const capPos = getPosition({ isCapacity: true, index: capIndex }, outerRadius);
+      const needPos = getPosition({ isCapacity: false, index: needIndex }, needRadius);
 
       const cap = data.capacities[capIndex];
       const need = data.needs[needIndex];
