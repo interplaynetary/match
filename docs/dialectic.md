@@ -45,16 +45,18 @@ A: A capacity says "I have X with these constraints." A need says "I want X with
 
 **Q: Can a need be satisfied in multiple ways?**
 
-A: Yes. When declaring a need, you can specify alternative satisfaction paths:
+A: Yes. A need can have multiple expressions at different abstraction levels:
 
 ```
 Need: "I want vegan pizza"
-Can be satisfied by:
-  - "vegan pizza" (someone has one)
-  - ["flour", "olive oil", "tomatoes", "oven access"] (I'll make it myself if I get ingredients)
+Expressions:
+  - "vegan pizza" (most specific)
+  - "pizza"
+  - "Italian food"
+  - "food" (fallback)
 ```
 
-These alternatives are OR'd together — any path works.
+Any capacity with similar expressions can match — more specific matches rank higher via priority weighting.
 
 ---
 
@@ -80,24 +82,32 @@ A: No match. The time windows don't overlap sufficiently for the composite need.
 
 ---
 
-## 5. Type Compatibility
+## 5. Semantic Matching via Expressions
 
-**Q: How does the system know that a "host" matches with a "guest"?**
+**Q: How does the system know that a "piano teacher" matches with "looking for piano lessons"?**
 
-A: This is the type compatibility problem. Unlike simple equality matching (flour matches flour), some types have complementary relationships:
+A: Through semantic similarity of embeddings. Each capacity and need has multiple *expressions* — text descriptions at different abstraction levels. These get embedded using an LLM, and matching uses cosine similarity.
 
-- Host ↔ Guest (hospitality)
-- Teacher ↔ Student (role-based)
-- Buyer ↔ Seller (transactional)
-- Coach ↔ Athlete (training)
+**Q: What are expressions?**
 
-**Q: Who declares these relationships?**
+A: Multiple ways to describe the same thing, from specific to general:
 
-A: The user, when expressing their need or capacity. "I'm a host looking for a guest" explicitly declares the compatible type. It's like DNA base pairing (A↔T, C↔G) — the compatibility is part of the type definition.
+```
+Capacity: "I can teach piano"
+Expressions:
+  - "Classical piano lessons for beginners" (priority 1)
+  - "Piano teacher" (priority 2)
+  - "Music lessons" (priority 3)
+  - "Teaching" (priority 4)
+```
 
-**Q: Can this be done statically, or does it require semantic understanding?**
+**Q: Why multiple expressions instead of just one description?**
 
-A: For well-known pairings (host/guest, buyer/seller), it can be static. For novel pairings, embeddings can suggest compatibility, but the user confirms.
+A: Flexible matching at different abstraction levels. If no one needs exactly "classical piano for beginners," you might still match someone looking for "music lessons." Lower priority matches rank lower but still surface.
+
+**Q: How does this handle asymmetric pairings like teacher/student?**
+
+A: The embeddings understand semantic relationships. "Piano teacher" and "looking for piano lessons" have high cosine similarity because they describe complementary roles. No hardcoded type rules needed.
 
 ---
 
@@ -140,40 +150,47 @@ A: For compositional needs, time feasibility is a hard gate. All components must
 ## 8. The Data Model
 
 ```typescript
-type SatisfactionPath =
-  | { type: 'direct'; capacityType: string }
-  | { type: 'composite'; all: SatisfactionPath[] }
-
-type Need = {
-  id: string
-  embedding: number[]              // for discovery
-  satisfiedBy: SatisfactionPath[]  // OR of these paths
-  constraints: Constraints
+type Expression = {
+  text: string
+  priority?: number  // lower = more specific, higher weight
 }
 
 type Capacity = {
   id: string
-  embedding: number[]              // for discovery
-  capacityType: string
-  constraints: Constraints
+  expressions: Expression[]  // what this offers
+  constraints?: Constraints
+  embedding?: number[]       // computed from expressions
+}
+
+type Need = {
+  id: string
+  expressions: Expression[]  // what would satisfy this
+  constraints?: Constraints
+  embedding?: number[]       // computed from expressions
+}
+
+type MatchResult = {
+  needId: string
+  capacityId: string
+  feasibilityScore: number   // 0-1, geometric mean of all scores
+  matchedExpressions: {
+    need: Expression
+    capacity: Expression
+    similarity: number       // cosine similarity
+  }
+  breakdown: {
+    similarity: number       // embedding cosine similarity
+    priorityWeight: number   // based on matched expression priorities
+    time?: number
+    space?: number
+    quantity?: number
+  }
 }
 
 type Constraints = {
-  time?: {
-    start: Date
-    end: Date
-    availabilityWindows?: TimeWindow[]
-    minDuration?: number
-  }
-  space?: {
-    location: GeoPoint
-    maxRadius: number
-  }
-  quantity?: {
-    amount: number
-    unit: string
-    minAtomic?: number
-  }
+  time?: { availableFrom?: string; availableTo?: string }
+  space?: { area?: string; remote?: boolean }
+  quantity?: { amount: number; unit: string }
 }
 ```
 
@@ -192,9 +209,9 @@ type Constraints = {
 
 The matching system solves coordination through:
 
-1. **User-declared satisfaction paths** — avoiding the semantic inference problem
-2. **Bidirectional queries** — both needs and capacities actively search
-3. **LLM embeddings for discovery** — surfacing candidates users might not find
-4. **Explicit validation** — users confirm what actually matches
-5. **Constraint satisfaction** — compositional needs require temporally-feasible combinations
-6. **Feasibility scoring** — ranking matches by time, space, skills, trust
+1. **Expression-based matching** — multiple descriptions at different abstraction levels
+2. **Semantic similarity via embeddings** — LLM embeddings enable flexible matching without hardcoded rules
+3. **Priority weighting** — specific matches rank higher than generic ones
+4. **Bidirectional queries** — both needs and capacities actively search
+5. **Constraint satisfaction** — time, space, quantity constraints gate feasibility
+6. **Feasibility scoring** — geometric mean of similarity, priority, and constraint scores
