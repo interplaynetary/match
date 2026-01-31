@@ -10,6 +10,10 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@types/json-logic-js": "^2.0.8",
+    "h3-js": "^4.4.0",
+    "json-logic-js": "^2.0.5",
+    "nanoid": "^5.1.6",
     "zod": "^4.3.6"
   }
 }

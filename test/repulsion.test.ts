@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { resolveOverlaps, type Rect } from './repulsion'
+import { resolveOverlaps, type Rect } from '../src/repulsion'
 
 function rectsOverlap(a: Rect, b: Rect, gap: number): boolean {
   const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
