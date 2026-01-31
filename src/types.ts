@@ -85,6 +85,13 @@ export type CategoryMatch = {
  * Result of matching a need against capacities.
  * Score combines semantic similarity with constraint feasibility.
  */
+export type ConstraintDetail = {
+  score: number
+  reason: string  // human-readable explanation of the score
+  needDesc?: string
+  capacityDesc?: string
+}
+
 export type MatchResult = {
   needId: string
   capacityId: string
@@ -98,6 +105,9 @@ export type MatchResult = {
     time?: number
     space?: number
     quantity?: number
+    timeDetail?: ConstraintDetail
+    spaceDetail?: ConstraintDetail
+    quantityDetail?: ConstraintDetail
     similarity: number
     priorityWeight: number
     categoryMatch?: CategoryMatch  // present if category chains overlapped

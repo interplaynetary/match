@@ -1,7 +1,8 @@
 import type { PCATransform } from '../../semantic-colors.ts'
-import type { NodeItem, MatchWithOther } from '../types.ts'
+import type { NodeItem, MatchWithOther, ConstraintSummary } from '../types.ts'
 import { getNodeColor } from '../utils.ts'
 import { MatchBadge } from './MatchBadge.tsx'
+import { ConstraintScores } from './ConstraintScores.tsx'
 
 type DetailSidebarProps = {
   activeItem: NodeItem
@@ -9,6 +10,23 @@ type DetailSidebarProps = {
   activeMatches: MatchWithOther[]
   transform: PCATransform
   onBack: () => void
+}
+
+function ConstraintsSummary({ constraints }: { constraints?: ConstraintSummary }) {
+  if (!constraints) return null
+  const entries = Object.entries(constraints).filter(([_, v]) => v)
+  if (entries.length === 0) return null
+
+  return (
+    <div className="active-constraints">
+      {entries.map(([key, value]) => (
+        <div key={key} className="constraint-row">
+          <span className="constraint-label">{key}:</span>
+          <span>{value}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export function DetailSidebar({
@@ -40,9 +58,8 @@ export function DetailSidebar({
       <p style={{ fontSize: '0.9em', color: '#ccc', marginBottom: '15px' }}>
         {activeItem.label}
       </p>
-      <div style={{ fontSize: '0.85em', color: '#888' }}>
-        Expressions: {activeItem.expressions.join(', ')}
-      </div>
+
+      <ConstraintsSummary constraints={activeItem.constraints} />
 
       <h2 style={{ marginTop: '20px' }}>Top Matches ({activeMatches.length})</h2>
       <div className="match-list">
@@ -63,6 +80,11 @@ export function DetailSidebar({
             <div style={{ marginTop: '6px' }}>
               <MatchBadge match={m} />
             </div>
+            <ConstraintScores
+              breakdown={m.breakdown}
+              compact
+              showSide={activeIsCapacity ? 'need' : 'capacity'}
+            />
           </div>
         ))}
         {activeMatches.length > 20 && (

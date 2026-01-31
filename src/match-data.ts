@@ -2,7 +2,8 @@
  * Match data generation for the visualization API.
  */
 
-import { Matcher } from './matcher'
+import { Matcher, describeTimeConstraint, describeSpaceConstraint, describeQuantityConstraint } from './matcher'
+import type { Constraints } from './types'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
 import { computePCATransform, type PCATransform } from './semantic-colors'
 import examples from '../data/enriched-examples.json'
@@ -10,9 +11,43 @@ import embeddingsData from '../data/embeddings.json'
 
 const embeddings = embeddingsData as EmbeddingsStore
 
+function summarizeConstraints(constraints?: Constraints): ConstraintSummary | undefined {
+  if (!constraints) return undefined
+
+  const summary: ConstraintSummary = {}
+
+  if (constraints.time) {
+    const desc = describeTimeConstraint(constraints.time)
+    if (desc !== 'any time') summary.time = desc
+  }
+  if (constraints.space) {
+    const desc = describeSpaceConstraint(constraints.space)
+    if (desc !== 'any location') summary.space = desc
+  }
+  if (constraints.quantity) {
+    const desc = describeQuantityConstraint(constraints.quantity)
+    if (desc !== 'any amount') summary.quantity = desc
+  }
+
+  return Object.keys(summary).length > 0 ? summary : undefined
+}
+
+type ConstraintDetail = {
+  score: number
+  reason: string
+  needDesc?: string
+  capacityDesc?: string
+}
+
+type ConstraintSummary = {
+  time?: string
+  space?: string
+  quantity?: string
+}
+
 export type MatchData = {
-  capacities: Array<{ id: string; expressions: string[]; label: string; embedding?: number[] }>
-  needs: Array<{ id: string; expressions: string[]; label: string; embedding?: number[] }>
+  capacities: Array<{ id: string; expressions: string[]; label: string; embedding?: number[]; constraints?: ConstraintSummary }>
+  needs: Array<{ id: string; expressions: string[]; label: string; embedding?: number[]; constraints?: ConstraintSummary }>
   pcaTransform: PCATransform
   matches: Array<{
     needId: string
@@ -22,6 +57,9 @@ export type MatchData = {
       time?: number
       space?: number
       quantity?: number
+      timeDetail?: ConstraintDetail
+      spaceDetail?: ConstraintDetail
+      quantityDetail?: ConstraintDetail
       similarity?: number
       priorityWeight?: number
       categoryMatch?: {
@@ -55,6 +93,7 @@ export function generateMatchData(): MatchData {
       expressions: c.expressions.map(e => e.text),
       label: original?.naturalLanguage?.slice(0, 50) ?? c.expressions[0]?.text ?? 'capacity',
       embedding: c.embedding,
+      constraints: summarizeConstraints(c.constraints),
     }
   })
 
@@ -66,6 +105,7 @@ export function generateMatchData(): MatchData {
       expressions: n.expressions.map(e => e.text),
       label: original?.naturalLanguage?.slice(0, 50) ?? n.expressions[0]?.text ?? 'need',
       embedding: n.embedding,
+      constraints: summarizeConstraints(n.constraints),
     }
   })
 

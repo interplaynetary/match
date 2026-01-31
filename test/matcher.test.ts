@@ -252,7 +252,7 @@ describe('Constraint Feasibility', () => {
 })
 
 // Test against the dataset
-import { convertExamples, type EmbeddingsStore } from './example-converter'
+import { convertExamples, type EmbeddingsStore } from '../src/example-converter'
 import embeddingsData from '../data/embeddings.json'
 
 // Try to load enriched examples (with category chains), fall back to original
