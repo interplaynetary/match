@@ -3,6 +3,7 @@ import {
   findCategoryOverlap,
   hasDisjointConflict,
   computeCategoryScore,
+  computeSpecificity,
 } from '../src/category-matcher'
 
 describe('findCategoryOverlap', () => {
@@ -11,7 +12,7 @@ describe('findCategoryOverlap', () => {
       ['food', 'meat', 'pork-belly'],
       ['food', 'meat', 'pork-belly']
     )
-    expect(overlap).toEqual({ category: 'pork-belly', distance: 0 })
+    expect(overlap).toEqual({ category: 'pork-belly', distance: 0, depthA: 3, depthB: 3, matchDepthA: 3, matchDepthB: 3 })
   })
 
   test('sibling match returns distance 1', () => {
@@ -19,7 +20,7 @@ describe('findCategoryOverlap', () => {
       ['instruction', 'piano-instruction', 'piano-lessons'],
       ['instruction', 'piano-instruction', 'piano-teaching']
     )
-    expect(overlap).toEqual({ category: 'piano-instruction', distance: 1 })
+    expect(overlap).toEqual({ category: 'piano-instruction', distance: 1, depthA: 3, depthB: 3, matchDepthA: 2, matchDepthB: 2 })
   })
 
   test('ancestor match returns correct distance', () => {
@@ -27,7 +28,7 @@ describe('findCategoryOverlap', () => {
       ['food'],
       ['food', 'meat', 'pork', 'pork-belly']
     )
-    expect(overlap).toEqual({ category: 'food', distance: 0 })
+    expect(overlap).toEqual({ category: 'food', distance: 0, depthA: 1, depthB: 4, matchDepthA: 1, matchDepthB: 1 })
   })
 
   test('descendant match returns distance from need leaf', () => {
@@ -36,16 +37,16 @@ describe('findCategoryOverlap', () => {
       ['food', 'vegetables'],
       ['food', 'vegetables', 'potatoes']
     )
-    expect(overlap).toEqual({ category: 'vegetables', distance: 0 })
+    expect(overlap).toEqual({ category: 'vegetables', distance: 0, depthA: 2, depthB: 3, matchDepthA: 2, matchDepthB: 2 })
   })
 
   test('weak ancestor match returns higher distance', () => {
-    // "bicycle" vs "unicycle" - overlap at "human-powered" (2 steps from bicycle)
+    // "bicycle" vs "unicycle" - overlap at "human-powered" (1 step from bicycle leaf)
     const overlap = findCategoryOverlap(
       ['vehicle', 'human-powered', 'bicycle'],
       ['vehicle', 'human-powered', 'unicycle']
     )
-    expect(overlap).toEqual({ category: 'human-powered', distance: 1 })
+    expect(overlap).toEqual({ category: 'human-powered', distance: 1, depthA: 3, depthB: 3, matchDepthA: 2, matchDepthB: 2 })
   })
 
   test('no overlap returns null', () => {
@@ -133,5 +134,48 @@ describe('computeCategoryScore', () => {
   test('score never goes below 0.5', () => {
     expect(computeCategoryScore(10)).toBe(0.5)
     expect(computeCategoryScore(100)).toBe(0.5)
+  })
+})
+
+describe('computeSpecificity', () => {
+  test('equal shallow depths have low specificity', () => {
+    // 1 <> 1: generic but balanced
+    const spec = computeSpecificity(1, 1)
+    expect(spec).toBeCloseTo(1/6 * 1.0, 5) // ~0.167
+  })
+
+  test('asymmetric depths have lower specificity', () => {
+    // 1 <> 3: generic and unbalanced
+    const spec = computeSpecificity(1, 3)
+    expect(spec).toBeCloseTo(1/6 * (1/3), 5) // ~0.056
+  })
+
+  test('equal medium depths have moderate specificity', () => {
+    // 3 <> 3: moderately specific
+    const spec = computeSpecificity(3, 3)
+    expect(spec).toBeCloseTo(3/6 * 1.0, 5) // 0.5
+  })
+
+  test('equal deep depths have high specificity', () => {
+    // 5 <> 5: highly specific
+    const spec = computeSpecificity(5, 5)
+    expect(spec).toBeCloseTo(5/6 * 1.0, 5) // ~0.833
+  })
+
+  test('moderate asymmetric depths', () => {
+    // 3 <> 5: moderate depth, somewhat unbalanced
+    const spec = computeSpecificity(3, 5)
+    expect(spec).toBeCloseTo(3/6 * (3/5), 5) // 0.3
+  })
+
+  test('is commutative', () => {
+    expect(computeSpecificity(1, 3)).toBe(computeSpecificity(3, 1))
+    expect(computeSpecificity(2, 5)).toBe(computeSpecificity(5, 2))
+  })
+
+  test('zero or negative depth returns 0', () => {
+    expect(computeSpecificity(0, 3)).toBe(0)
+    expect(computeSpecificity(3, 0)).toBe(0)
+    expect(computeSpecificity(-1, 3)).toBe(0)
   })
 })

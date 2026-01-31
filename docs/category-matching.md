@@ -179,6 +179,74 @@ Where `overlapDistance` = steps from the need's most specific term to the overla
 
 ---
 
+## Match Specificity
+
+Similarity answers "does this satisfy the need?" but doesn't capture **how precise** the match is.
+
+### The Problem
+
+Consider:
+- Need: "Will work for food" (generic)
+- Capacity: "I have sourdough starter to share" (specific)
+
+These match at the "food" level—technically valid, but vague. The category score might be high (1.0 for exact match on the need's leaf), but this tells us nothing about match precision.
+
+### Specificity vs Similarity
+
+| Metric | Question | Use |
+|--------|----------|-----|
+| **Similarity** | Does the capacity fulfill the need? | Ranking, filtering |
+| **Specificity** | How precise is this match? | UI opacity, confidence |
+
+### Specificity Formula
+
+Specificity depends on two factors:
+
+1. **Match point depth** — where in the taxonomy the overlap occurs (not chain length!)
+2. **Balance** — symmetric match depths indicate tighter alignment
+
+```
+matchDepthA = position of overlap category in chain A
+matchDepthB = position of overlap category in chain B
+minMatchDepth = min(matchDepthA, matchDepthB)
+balance = minMatchDepth / max(matchDepthA, matchDepthB)
+specificity = (minMatchDepth / MAX_DEPTH) * balance
+```
+
+**Key insight**: Two long chains matching at a generic root (like "goods") should have LOW specificity. The formula uses where the match *occurred*, not how long the chains are.
+
+### Examples
+
+| Match at | Chain lengths | Specificity | Interpretation |
+|----------|---------------|-------------|----------------|
+| "goods" (depth 1) | 5 & 4 | 0.17 | Generic root match — barely visible |
+| "food" (depth 2) | 5 & 5 | 0.33 | Shallow match — faded |
+| "bread" (depth 3) | 3 & 4 | 0.50 | Moderate depth — visible |
+| "flour" (depth 5) | 5 & 6 | 0.83 | Deep match — prominent |
+
+### Why This Works
+
+**Match depth matters**: A match at "flour" (depth 5) means both parties specified something concrete. A match at "goods" (depth 1) is essentially "we both want... stuff."
+
+**Balance matters**: If the match point is at depth 2 in one chain and depth 5 in another, there's asymmetry. The shallower side is being vague.
+
+**Commutative**: Specificity is symmetric — order doesn't affect the result.
+
+### UI Application
+
+Edge opacity in the visualization uses specificity (squared for visual emphasis):
+
+```
+opacity = specificity * specificity
+```
+
+This makes vague matches nearly invisible while specific matches stand out:
+- Match at "goods" (depth 1): specificity 0.17 → opacity 0.03
+- Match at "food" (depth 2): specificity 0.33 → opacity 0.11
+- Match at "flour" (depth 5): specificity 0.83 → opacity 0.69
+
+---
+
 ## Data Model
 
 ```typescript
@@ -192,6 +260,7 @@ type Expression = {
 type CategoryMatch = {
   overlapCategory: string       // where chains intersected
   overlapDistance: number       // 0 = exact, 1 = sibling, 2+ = ancestor
-  isBlocked: boolean           // true if disjoint conflict
+  isBlocked: boolean            // true if disjoint conflict
+  specificity: number           // 0-1: match precision (depth * balance)
 }
 ```

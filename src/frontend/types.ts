@@ -41,11 +41,13 @@ export type MatchData = {
       spaceDetail?: ConstraintDetail
       quantityDetail?: ConstraintDetail
       similarity?: number
+      specificity?: number
       priorityWeight?: number
       categoryMatch?: {
         overlapCategory: string
         overlapDistance: number
         isBlocked: boolean
+        specificity: number
       }
     }
     matchedExpressions?: {

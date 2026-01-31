@@ -11,6 +11,7 @@ import {
   findCategoryOverlap,
   hasDisjointConflict,
   computeCategoryScore,
+  computeSpecificity,
   type CategoryInfo,
 } from './category-matcher'
 import { haversineDistance } from './spatial'
@@ -92,6 +93,7 @@ export class Matcher {
     // Combine scores: similarity * priorityWeight * constraintFeasibility
     const breakdown: MatchResult['breakdown'] = {
       similarity,
+      specificity: categoryResult?.specificity,
       priorityWeight,
       ...constraintFeasibility.breakdown,
       categoryMatch: categoryResult ?? undefined,
@@ -154,20 +156,24 @@ export class Matcher {
             overlapCategory: '',
             overlapDistance: 0,
             isBlocked: true,
+            specificity: 0,
           }
         }
 
         // Find overlap
         const overlap = findCategoryOverlap(needExpr.categoryChain, capacityExpr.categoryChain)
         if (overlap) {
+          const specificity = computeSpecificity(overlap.matchDepthA, overlap.matchDepthB)
           const match: CategoryMatch = {
             overlapCategory: overlap.category,
             overlapDistance: overlap.distance,
             isBlocked: false,
+            specificity,
           }
 
-          // Keep the match with lowest distance
-          if (!bestMatch || overlap.distance < bestMatch.overlapDistance) {
+          // Keep the match with lowest distance (highest specificity on tie)
+          if (!bestMatch || overlap.distance < bestMatch.overlapDistance ||
+              (overlap.distance === bestMatch.overlapDistance && specificity > bestMatch.specificity)) {
             bestMatch = match
           }
         }

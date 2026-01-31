@@ -4,8 +4,12 @@
  */
 
 export type CategoryOverlap = {
-  category: string   // where chains intersected
-  distance: number   // 0 = exact, 1 = sibling, 2+ = ancestor
+  category: string      // where chains intersected
+  distance: number      // 0 = exact, 1 = sibling, 2+ = ancestor
+  depthA: number        // length of first chain
+  depthB: number        // length of second chain
+  matchDepthA: number   // depth of match point in first chain (1-indexed)
+  matchDepthB: number   // depth of match point in second chain (1-indexed)
 }
 
 export type CategoryInfo = {
@@ -37,7 +41,10 @@ export function findCategoryOverlap(
     if (setB.has(category)) {
       // Distance is how far from the leaf of chainA this match is
       const distance = chainA.length - 1 - i
-      return { category, distance }
+      // Match depth = position of match point in each chain (1-indexed)
+      const matchDepthA = i + 1
+      const matchDepthB = chainB.indexOf(category) + 1
+      return { category, distance, depthA: chainA.length, depthB: chainB.length, matchDepthA, matchDepthB }
     }
   }
 
@@ -74,4 +81,37 @@ export function hasDisjointConflict(a: CategoryInfo, b: CategoryInfo): boolean {
  */
 export function computeCategoryScore(distance: number): number {
   return Math.max(0.5, 1.0 - distance * 0.1)
+}
+
+const MAX_DEPTH = 6
+
+/**
+ * Compute specificity of a category match based on where the match occurred.
+ *
+ * Specificity reflects how precise/tight a match is:
+ * - Deeper match points = more specific (matching at "sourdough" vs "food")
+ * - Balanced match depths = stronger than asymmetric
+ *
+ * Uses the MATCH POINT depths (where in each chain the overlap occurred),
+ * NOT the total chain lengths. Two long chains matching at a generic
+ * root should have LOW specificity.
+ *
+ * Formula: (minMatchDepth / MAX_DEPTH) * balance
+ * - First term: how deep is the match point (deeper = more specific)
+ * - Second term: how balanced is the match (1.0 when equal depths)
+ *
+ * Examples (using match depths, not chain lengths):
+ * - Match at depth 1↔1: (1/6) * 1.0 = 0.17 (generic root match)
+ * - Match at depth 1↔3: (1/6) * 0.33 = 0.06 (one side generic)
+ * - Match at depth 3↔3: (3/6) * 1.0 = 0.50 (moderately deep match)
+ * - Match at depth 5↔5: (5/6) * 1.0 = 0.83 (very specific match)
+ */
+export function computeSpecificity(matchDepthA: number, matchDepthB: number): number {
+  if (matchDepthA <= 0 || matchDepthB <= 0) return 0
+
+  const minDepth = Math.min(matchDepthA, matchDepthB)
+  const maxDepth = Math.max(matchDepthA, matchDepthB)
+  const balance = minDepth / maxDepth
+
+  return (minDepth / MAX_DEPTH) * balance
 }

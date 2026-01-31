@@ -315,7 +315,7 @@ export class CommonsManager {
         if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
         if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
 
-        return this.fill(commonsId, matches?[0].id, filledBy, author);
+        return this.fill(commonsId, matches[0]!.id, filledBy, author);
     }
 
     /** Unfill a slot. */

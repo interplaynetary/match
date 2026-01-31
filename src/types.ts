@@ -79,6 +79,7 @@ export type CategoryMatch = {
   overlapCategory: string   // where chains intersected
   overlapDistance: number   // 0 = exact, 1 = sibling, 2+ = ancestor
   isBlocked: boolean        // true if disjoint conflict
+  specificity: number       // 0-1: how precise the match is (depth * balance)
 }
 
 /**
@@ -109,6 +110,7 @@ export type MatchResult = {
     spaceDetail?: ConstraintDetail
     quantityDetail?: ConstraintDetail
     similarity: number
+    specificity?: number  // 0-1: how precise the category match is (undefined if no category match)
     priorityWeight: number
     categoryMatch?: CategoryMatch  // present if category chains overlapped
   }
