@@ -52,8 +52,11 @@ src/
   embeddings.ts         # Cosine similarity, OpenAI embedding provider
   matcher.ts            # Embedding + category matching with constraint scoring
   category-matcher.ts   # Category chain overlap and disjoint detection
+  semantic-colors.ts    # PCA-based coloring from embeddings
   example-converter.ts
-  visualizer.ts         # Chord diagram visualization
+  visualizer.ts         # Static HTML report generation
+  server.ts             # Bun server for React visualization
+  frontend/             # React app (imports semantic-colors directly)
   *.test.ts
 
 scripts/
@@ -73,13 +76,21 @@ output/
 
 ### Just want to see the visualization?
 
-The pre-generated report is included in the repo:
+**Option 1: Static HTML** (no setup required)
 
 ```bash
 open output/matching-report.html
 ```
 
-No dependencies or API keys required - just open the HTML file in a browser.
+**Option 2: React server** (recommended for development)
+
+```bash
+bun install
+bun --hot src/server.ts
+# Open http://localhost:3000
+```
+
+The React server uses shared modules directly, ensuring color functions stay in sync.
 
 ### Run the tests (regenerate visualization)
 
@@ -123,6 +134,8 @@ expressions: [
 See [docs/index.md](docs/index.md) for the full documentation index, including:
 - [Dialectic Introduction](docs/dialectic.md) — Conceptual introduction via Q&A
 - [Category Matching](docs/category-matching.md) — Taxonomy-based semantic matching
+- [Semantic Colors](docs/semantic-colors.md) — Embedding-based visualization coloring
+- [Constraint Matching](docs/constraint-matching.md) — Time, space, and quantity constraints
 
 ## Status
 
@@ -133,6 +146,7 @@ The matching logic handles:
 - Multi-expression matching with priority weighting
 - Quantity feasibility scoring
 - Interactive visualization with threshold slider
+- Semantic coloring (similar embeddings get similar colors via PCA)
 
 Not yet implemented:
 - Full compositional matching (AND across multiple capacities)
