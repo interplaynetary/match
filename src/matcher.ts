@@ -357,15 +357,20 @@ export class Matcher {
   }
 
   private computeQuantityFeasibility(
-    needQty: NonNullable<Need['constraints']>['quantity'],
-    capacityQty: NonNullable<Capacity['constraints']>['quantity']
+    needQty?: NonNullable<Need['constraints']>['quantity'],
+    capacityQty?: NonNullable<Capacity['constraints']>['quantity']
   ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
-    if (!needQty || !capacityQty) {
+    if (!needQty && !capacityQty) {
       return { score: 1.0, reason: 'No quantity constraints' }
     }
 
-    const needDesc = `${needQty.amount}${needQty.unit}`
-    const capDesc = `${capacityQty.amount}${capacityQty.unit}`
+    const needDesc = needQty ? `${needQty.amount}${needQty.unit}` : 'any amount'
+    const capDesc = capacityQty ? `${capacityQty.amount}${capacityQty.unit}` : 'any amount'
+
+    // One side unspecified = uncertainty
+    if (!needQty || !capacityQty) {
+      return { score: 0.5, reason: 'partial info', needDesc, capacityDesc: capDesc }
+    }
 
     // Units must match (TODO: unit conversion)
     if (needQty.unit !== capacityQty.unit) {

@@ -38,17 +38,21 @@ describe('Time Constraint Descriptions', () => {
     expect(matches[0]?.breakdown.timeDetail).toBeUndefined()
   })
 
-  test('one side has no time constraint - no timeDetail (neutral = silent)', () => {
-    // If need has no time constraint, they're flexible - nothing to compare
+  test('one side has no time constraint - shows 0.5 score (uncertainty)', () => {
+    // Need has no time constraint, capacity does - uncertainty
     const detail1 = getTimeDetail(undefined, {
       availableFrom: '2024-01-27',
       availableTo: '2024-01-28',
     })
-    expect(detail1).toBeUndefined()
+    expect(detail1?.score).toBe(0.5)
+    expect(detail1?.needDesc).toBe('any time')
+    expect(detail1?.capacityDesc).toContain('2024-01-27')
 
-    // Same if capacity has no time constraint
+    // Capacity has no time constraint, need does - uncertainty
     const detail2 = getTimeDetail({ dayOfWeek: 'Saturday' }, undefined)
-    expect(detail2).toBeUndefined()
+    expect(detail2?.score).toBe(0.5)
+    expect(detail2?.needDesc).toContain('Saturday')
+    expect(detail2?.capacityDesc).toBe('any time')
   })
 
   test('both sides have time constraints - shows comparison', () => {
@@ -143,9 +147,11 @@ describe('Quantity Constraint Descriptions', () => {
     return matches[0]?.breakdown.quantityDetail
   }
 
-  test('one side has no quantity - no quantityDetail (neutral)', () => {
+  test('one side has no quantity - shows 0.5 score (uncertainty)', () => {
     const detail = getQuantityDetail({ amount: 2, unit: 'kg' }, undefined)
-    expect(detail).toBeUndefined()
+    expect(detail?.score).toBe(0.5)
+    expect(detail?.needDesc).toBe('2kg')
+    expect(detail?.capacityDesc).toBe('any amount')
   })
 
   test('sufficient capacity', () => {
@@ -199,9 +205,11 @@ describe('Space Constraint Descriptions', () => {
     return matches[0]?.breakdown.spaceDetail
   }
 
-  test('one side has no space constraint - no spaceDetail (neutral)', () => {
+  test('one side has no space constraint - shows 0.5 score (uncertainty)', () => {
     const detail = getSpaceDetail({ remote: true }, undefined)
-    expect(detail).toBeUndefined()
+    expect(detail?.score).toBe(0.5)
+    expect(detail?.needDesc).toBe('remote')
+    expect(detail?.capacityDesc).toBe('any location')
   })
 
   test('both remote', () => {
