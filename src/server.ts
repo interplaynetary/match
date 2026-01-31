@@ -6,7 +6,7 @@
  */
 
 import index from './frontend/index.html'
-import { generateMatchData } from './visualizer.ts'
+import { generateMatchData } from './match-data.ts'
 
 // Cache match data (regenerate by restarting server)
 const matchData = generateMatchData()

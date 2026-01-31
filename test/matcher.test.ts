@@ -253,7 +253,6 @@ describe('Constraint Feasibility', () => {
 
 // Test against the dataset
 import { convertExamples, type EmbeddingsStore } from './example-converter'
-import { generateReport } from './visualizer'
 import embeddingsData from '../data/embeddings.json'
 
 // Try to load enriched examples (with category chains), fall back to original
@@ -304,11 +303,5 @@ describe('Dataset Examples', () => {
     }
     console.log(`Found ${totalMatches} matches across ${needs.length} needs`)
     expect(totalMatches).toBeGreaterThan(0)
-  })
-
-  test('generates report and opens it', async () => {
-    const reportPath = './output/matching-report.html'
-    await generateReport(reportPath)
-    await Bun.$`open ${reportPath}`
   })
 })

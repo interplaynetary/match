@@ -33,7 +33,8 @@ enriched-examples.json         embeddings.json
               └─────────────┘
                      │
                      ▼
-         matching-report.html
+           React visualization
+          (http://localhost:3000)
 ```
 
 ## Approach
@@ -54,10 +55,15 @@ src/
   category-matcher.ts   # Category chain overlap and disjoint detection
   semantic-colors.ts    # PCA-based coloring from embeddings
   example-converter.ts
-  visualizer.ts         # Static HTML report generation
+  match-data.ts         # Generates match data for the API
   server.ts             # Bun server for React visualization
-  frontend/             # React app (imports semantic-colors directly)
-  *.test.ts
+  frontend/             # React app
+    App.tsx             # Main app component
+    types.ts            # Frontend type definitions
+    constants.ts        # Layout constants
+    utils.ts            # Utility functions (positioning, colors)
+    hooks/              # Custom React hooks
+    components/         # UI components
 
 scripts/
   enrich-categories.ts    # Add category chains via Claude CLI
@@ -67,22 +73,11 @@ data/
   matching-examples.json    # 145 test cases across 8 categories
   enriched-examples.json    # Examples with category chains (generated)
   embeddings.json           # Pre-computed embeddings (1536-dim)
-
-output/
-  matching-report.html      # Interactive visualization (open directly)
 ```
 
 ## Getting Started
 
-### Just want to see the visualization?
-
-**Option 1: Static HTML** (no setup required)
-
-```bash
-open output/matching-report.html
-```
-
-**Option 2: React server** (recommended for development)
+### Run the visualization
 
 ```bash
 bun install
@@ -90,16 +85,11 @@ bun --hot src/server.ts
 # Open http://localhost:3000
 ```
 
-The React server uses shared modules directly, ensuring color functions stay in sync.
-
-### Run the tests (regenerate visualization)
+### Run the tests
 
 ```bash
-bun install
 bun test
 ```
-
-This runs the test suite and regenerates `output/matching-report.html` with the latest data.
 
 ### Enrich with category chains (requires Claude Code)
 

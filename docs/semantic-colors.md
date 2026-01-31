@@ -43,7 +43,7 @@ The PCA transform is computed at report generation time from all embeddings in t
               |
               v
   +-----------+-----------+
-  |   generateMatchData() |  <-- src/visualizer.ts
+  |   generateMatchData() |  <-- src/match-data.ts
   |                       |
   |  1. Load all items    |
   |  2. Collect embeddings|
