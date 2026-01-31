@@ -1,3 +1,14 @@
+/**
+ * Static HTML report generator for match visualization.
+ *
+ * NOTE: This file contains embedded JavaScript that duplicates functions from
+ * semantic-colors.ts. This is necessary for standalone HTML reports that work
+ * without a server.
+ *
+ * For a server-based approach without duplication, use src/server.ts which
+ * serves a React frontend that imports semantic-colors.ts directly.
+ */
+
 import { Matcher } from './matcher'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
 import { computePCATransform, type PCATransform } from './semantic-colors'
@@ -6,7 +17,7 @@ import embeddingsData from '../data/embeddings.json'
 
 const embeddings = embeddingsData as EmbeddingsStore
 
-type MatchData = {
+export type MatchData = {
   capacities: Array<{ id: string; expressions: string[]; label: string; embedding?: number[] }>
   needs: Array<{ id: string; expressions: string[]; label: string; embedding?: number[] }>
   pcaTransform: PCATransform

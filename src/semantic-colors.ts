@@ -37,7 +37,7 @@ export function coordinatesToHSL(x: number, y: number): string {
   // Radius to saturation (50-100%)
   // Scale factor tuned for typical PCA coordinate ranges
   const radius = Math.sqrt(x * x + y * y)
-  const saturation = (50 + Math.min(50, radius * 200)) * 0.1
+  const saturation = (50 + Math.min(50, radius * 200)) * 0.5
 
   // Fixed lightness for readability
   const lightness = 45
