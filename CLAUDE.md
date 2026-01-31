@@ -1,3 +1,8 @@
+## Documentation
+
+See [docs/index.md](docs/index.md) for design documents and specifications.
+
+## Runtime
 
 Default to using Bun instead of Node.js.
 

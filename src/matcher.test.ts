@@ -254,8 +254,15 @@ describe('Constraint Feasibility', () => {
 // Test against the dataset
 import { convertExamples, type EmbeddingsStore } from './example-converter'
 import { generateReport } from './visualizer'
-import examples from '../data/matching-examples.json'
 import embeddingsData from '../data/embeddings.json'
+
+// Try to load enriched examples (with category chains), fall back to original
+let examples: unknown[]
+try {
+  examples = await Bun.file('./data/enriched-examples.json').json()
+} catch {
+  examples = (await import('../data/matching-examples.json')).default
+}
 
 const embeddings = embeddingsData as EmbeddingsStore
 

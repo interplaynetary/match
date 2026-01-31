@@ -13,6 +13,8 @@
 export type Expression = {
   text: string
   priority?: number  // optional, omit = equal weighting (default priority 1)
+  categoryChain?: string[]  // ["food", "meat", "pork-belly"] - path from abstract to concrete
+  disjointWith?: string[]   // ["vegan", "kosher"] - mutually exclusive categories
 }
 
 export type TimeConstraint = {
@@ -70,6 +72,19 @@ export type Need = {
  * Result of matching a need against capacities.
  * Score combines semantic similarity with constraint feasibility.
  */
+/**
+ * Result of category chain matching.
+ */
+export type CategoryMatch = {
+  overlapCategory: string   // where chains intersected
+  overlapDistance: number   // 0 = exact, 1 = sibling, 2+ = ancestor
+  isBlocked: boolean        // true if disjoint conflict
+}
+
+/**
+ * Result of matching a need against capacities.
+ * Score combines semantic similarity with constraint feasibility.
+ */
 export type MatchResult = {
   needId: string
   capacityId: string
@@ -85,5 +100,6 @@ export type MatchResult = {
     quantity?: number
     similarity: number
     priorityWeight: number
+    categoryMatch?: CategoryMatch  // present if category chains overlapped
   }
 }

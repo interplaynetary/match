@@ -4,8 +4,15 @@ import type {
   Need,
   MatchResult,
   Expression,
+  CategoryMatch,
 } from './types'
 import { cosineSimilarity } from './embeddings'
+import {
+  findCategoryOverlap,
+  hasDisjointConflict,
+  computeCategoryScore,
+  type CategoryInfo,
+} from './category-matcher'
 
 export type MatcherOptions = {
   similarityThreshold?: number  // minimum similarity to consider a match (default 0.6)
@@ -38,7 +45,7 @@ export class Matcher {
 
   /**
    * Compute match between a need and capacity.
-   * Returns null if no valid match (e.g., missing embeddings).
+   * Returns null if no valid match (e.g., missing embeddings or disjoint conflict).
    */
   private computeMatch(need: Need, capacity: Capacity): MatchResult | null {
     // Require embeddings for matching
@@ -46,9 +53,29 @@ export class Matcher {
       return null
     }
 
+    // Check for category-based matching first
+    const categoryResult = this.findBestCategoryMatch(need.expressions, capacity.expressions)
+
+    // If there's a disjoint conflict, block the match entirely
+    if (categoryResult?.isBlocked) {
+      return null
+    }
+
     // Compute overall similarity between embeddings
     const rawSimilarity = cosineSimilarity(need.embedding, capacity.embedding)
-    const similarity = Math.max(0, rawSimilarity)
+    const embeddingSimilarity = Math.max(0, rawSimilarity)
+
+    // Compute final similarity score
+    // If we have a category match, blend category score with embedding score
+    // Otherwise, use pure embedding similarity
+    let similarity: number
+    if (categoryResult && !categoryResult.isBlocked) {
+      const categoryScore = computeCategoryScore(categoryResult.overlapDistance)
+      // Category match: 70% category score, 30% embedding score
+      similarity = categoryScore * 0.7 + embeddingSimilarity * 0.3
+    } else {
+      similarity = embeddingSimilarity
+    }
 
     // Find best matching expression pair for reporting
     const matchedExpressions = this.findBestExpressionMatch(need, capacity, similarity)
@@ -64,6 +91,7 @@ export class Matcher {
       similarity,
       priorityWeight,
       ...constraintFeasibility.breakdown,
+      categoryMatch: categoryResult ?? undefined,
     }
 
     const scores = [similarity, priorityWeight]
@@ -89,6 +117,61 @@ export class Matcher {
       matchedExpressions,
       breakdown,
     }
+  }
+
+  /**
+   * Find the best category match across all expression pairs.
+   * Returns the match with the lowest distance, or null if no overlap.
+   * Also checks for disjoint conflicts.
+   */
+  private findBestCategoryMatch(
+    needExprs: Expression[],
+    capacityExprs: Expression[]
+  ): CategoryMatch | null {
+    let bestMatch: CategoryMatch | null = null
+
+    for (const needExpr of needExprs) {
+      if (!needExpr.categoryChain) continue
+
+      for (const capacityExpr of capacityExprs) {
+        if (!capacityExpr.categoryChain) continue
+
+        // Check for disjoint conflict first
+        const needInfo: CategoryInfo = {
+          chain: needExpr.categoryChain,
+          disjointWith: needExpr.disjointWith ?? [],
+        }
+        const capacityInfo: CategoryInfo = {
+          chain: capacityExpr.categoryChain,
+          disjointWith: capacityExpr.disjointWith ?? [],
+        }
+
+        if (hasDisjointConflict(needInfo, capacityInfo)) {
+          return {
+            overlapCategory: '',
+            overlapDistance: 0,
+            isBlocked: true,
+          }
+        }
+
+        // Find overlap
+        const overlap = findCategoryOverlap(needExpr.categoryChain, capacityExpr.categoryChain)
+        if (overlap) {
+          const match: CategoryMatch = {
+            overlapCategory: overlap.category,
+            overlapDistance: overlap.distance,
+            isBlocked: false,
+          }
+
+          // Keep the match with lowest distance
+          if (!bestMatch || overlap.distance < bestMatch.overlapDistance) {
+            bestMatch = match
+          }
+        }
+      }
+    }
+
+    return bestMatch
   }
 
   /**
