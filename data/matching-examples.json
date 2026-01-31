@@ -1,7 +1,6 @@
 [
   {
     "id": 1,
-    "category": "simple_direct",
     "naturalLanguage": "I have 5kg of organic flour available this weekend",
     "type": "capacity",
     "expressions": [
@@ -34,7 +33,6 @@
   },
   {
     "id": 2,
-    "category": "simple_direct",
     "naturalLanguage": "Looking for 2kg of flour for baking bread",
     "type": "need",
     "expressions": [
@@ -60,7 +58,6 @@
   },
   {
     "id": 3,
-    "category": "simple_direct",
     "naturalLanguage": "I have a working lawnmower I can lend out",
     "type": "capacity",
     "expressions": [
@@ -79,7 +76,6 @@
   },
   {
     "id": 4,
-    "category": "simple_direct",
     "naturalLanguage": "Need to borrow a lawnmower for Saturday afternoon",
     "type": "need",
     "expressions": [
@@ -105,7 +101,6 @@
   },
   {
     "id": 5,
-    "category": "asymmetric_type",
     "naturalLanguage": "I'm a professional piano teacher with 15 years experience",
     "type": "capacity",
     "expressions": [
@@ -128,7 +123,6 @@
   },
   {
     "id": 6,
-    "category": "asymmetric_type",
     "naturalLanguage": "Looking for piano lessons for my 8-year-old beginner",
     "type": "need",
     "expressions": [
@@ -150,7 +144,6 @@
   },
   {
     "id": 7,
-    "category": "asymmetric_type",
     "naturalLanguage": "I have a spare room and can host travelers visiting the SF bay area",
     "type": "capacity",
     "expressions": [
@@ -174,7 +167,6 @@
   },
   {
     "id": 8,
-    "category": "asymmetric_type",
     "naturalLanguage": "Experienced running coach looking for athletes to train for marathons",
     "type": "capacity",
     "expressions": [
@@ -196,7 +188,6 @@
   },
   {
     "id": 9,
-    "category": "asymmetric_type",
     "naturalLanguage": "I want to buy a used bicycle, preferably under $200",
     "type": "need",
     "expressions": [
@@ -225,7 +216,6 @@
   },
   {
     "id": 10,
-    "category": "asymmetric_type",
     "naturalLanguage": "Selling my Trek mountain bike, asking $175",
     "type": "capacity",
     "expressions": [
@@ -254,7 +244,6 @@
   },
   {
     "id": 11,
-    "category": "asymmetric_type",
     "naturalLanguage": "Looking for a roommate to share my 2BR apartment, $900/month",
     "type": "capacity",
     "expressions": [
@@ -281,7 +270,6 @@
   },
   {
     "id": 12,
-    "category": "asymmetric_type",
     "naturalLanguage": "Need a room in a shared apartment, budget up to $1000/month",
     "type": "need",
     "expressions": [
@@ -308,7 +296,6 @@
   },
   {
     "id": 13,
-    "category": "compositional",
     "naturalLanguage": "I need a photographer and a makeup artist for my wedding on June 15th",
     "type": "need",
     "expressions": [
@@ -342,7 +329,6 @@
   },
   {
     "id": 14,
-    "category": "compositional",
     "naturalLanguage": "Planning a dinner party, need someone who can cook Italian food and also handle decorations",
     "type": "need",
     "expressions": [
@@ -369,7 +355,6 @@
   },
   {
     "id": 15,
-    "category": "compositional",
     "naturalLanguage": "Looking for either a ride to the airport or help with luggage",
     "type": "need",
     "expressions": [
@@ -395,7 +380,6 @@
   },
   {
     "id": 16,
-    "category": "compositional",
     "naturalLanguage": "I can offer a complete home renovation package: plumbing, electrical, and painting",
     "type": "capacity",
     "expressions": [
@@ -426,7 +410,6 @@
   },
   {
     "id": 17,
-    "category": "time_constrained",
     "naturalLanguage": "I'm available for freelance web development Mon-Wed, 9am-5pm EST",
     "type": "capacity",
     "expressions": [
@@ -461,7 +444,6 @@
   },
   {
     "id": 18,
-    "category": "time_constrained",
     "naturalLanguage": "Need an emergency plumber right now, pipe burst!",
     "type": "need",
     "expressions": [
@@ -489,7 +471,6 @@
   },
   {
     "id": 19,
-    "category": "time_constrained",
     "naturalLanguage": "I can babysit weekday evenings after 6pm",
     "type": "capacity",
     "expressions": [
@@ -525,7 +506,6 @@
   },
   {
     "id": 20,
-    "category": "time_constrained",
     "naturalLanguage": "Looking for someone to walk my dog twice daily for the next 2 weeks while I'm traveling",
     "type": "need",
     "expressions": [
@@ -555,7 +535,6 @@
   },
   {
     "id": 21,
-    "category": "location_constrained",
     "naturalLanguage": "I can tutor math in-person anywhere in Manhattan",
     "type": "capacity",
     "expressions": [
@@ -583,7 +562,6 @@
   },
   {
     "id": 22,
-    "category": "location_constrained",
     "naturalLanguage": "Need a yoga instructor who can come to my home in Brooklyn Heights",
     "type": "need",
     "expressions": [
@@ -610,7 +588,6 @@
   },
   {
     "id": 23,
-    "category": "location_constrained",
     "naturalLanguage": "I offer remote graphic design services, timezone-flexible",
     "type": "capacity",
     "expressions": [
@@ -636,7 +613,6 @@
   },
   {
     "id": 24,
-    "category": "location_constrained",
     "naturalLanguage": "Looking for a moving company that services the Bay Area to LA route",
     "type": "need",
     "expressions": [
@@ -662,7 +638,6 @@
   },
   {
     "id": 25,
-    "category": "skill_based",
     "naturalLanguage": "I'm a certified electrician with 10 years experience in residential and commercial",
     "type": "capacity",
     "expressions": [
@@ -685,7 +660,6 @@
   },
   {
     "id": 26,
-    "category": "skill_based",
     "naturalLanguage": "Need someone who knows React, TypeScript, and has AWS experience for a 3-month contract",
     "type": "need",
     "expressions": [
@@ -713,7 +687,6 @@
   },
   {
     "id": 27,
-    "category": "skill_based",
     "naturalLanguage": "I speak fluent Spanish and English, available for translation work",
     "type": "capacity",
     "expressions": [
@@ -733,7 +706,6 @@
   },
   {
     "id": 28,
-    "category": "skill_based",
     "naturalLanguage": "Looking for someone to help me learn conversational Japanese",
     "type": "need",
     "expressions": [
@@ -756,7 +728,6 @@
   },
   {
     "id": 29,
-    "category": "quantity_unit",
     "naturalLanguage": "I have 50 folding chairs available for event rental",
     "type": "capacity",
     "expressions": [
@@ -782,7 +753,6 @@
   },
   {
     "id": 30,
-    "category": "quantity_unit",
     "naturalLanguage": "Need to rent 30 tables for a corporate event next Friday",
     "type": "need",
     "expressions": [
@@ -811,7 +781,6 @@
   },
   {
     "id": 31,
-    "category": "quantity_unit",
     "naturalLanguage": "I can provide catering for up to 100 people",
     "type": "capacity",
     "expressions": [
@@ -837,7 +806,6 @@
   },
   {
     "id": 32,
-    "category": "quantity_unit",
     "naturalLanguage": "Looking for bulk organic vegetables, minimum 20kg weekly",
     "type": "need",
     "expressions": [
@@ -866,7 +834,6 @@
   },
   {
     "id": 33,
-    "category": "edge_case",
     "naturalLanguage": "I have a truck and I'm bored on weekends",
     "type": "capacity",
     "expressions": [
@@ -898,7 +865,6 @@
   },
   {
     "id": 34,
-    "category": "edge_case",
     "naturalLanguage": "My grandmother needs help but I don't know exactly what kind",
     "type": "need",
     "expressions": [
@@ -925,7 +891,6 @@
   },
   {
     "id": 35,
-    "category": "edge_case",
     "naturalLanguage": "Free couch, must pick up today",
     "type": "capacity",
     "expressions": [
@@ -950,7 +915,6 @@
   },
   {
     "id": 36,
-    "category": "edge_case",
     "naturalLanguage": "I need someone but not sure if I need a therapist or a life coach",
     "type": "need",
     "expressions": [
@@ -974,7 +938,6 @@
   },
   {
     "id": 37,
-    "category": "edge_case",
     "naturalLanguage": "I can help with whatever you need, I'm pretty handy",
     "type": "capacity",
     "expressions": [
@@ -995,7 +958,6 @@
   },
   {
     "id": 38,
-    "category": "simple_direct",
     "naturalLanguage": "I have fresh eggs from my backyard chickens",
     "type": "capacity",
     "expressions": [
@@ -1015,7 +977,6 @@
   },
   {
     "id": 39,
-    "category": "simple_direct",
     "naturalLanguage": "Looking for farm-fresh eggs, tired of supermarket ones",
     "type": "need",
     "expressions": [
@@ -1040,7 +1001,6 @@
   },
   {
     "id": 40,
-    "category": "asymmetric_type",
     "naturalLanguage": "Looking for a mentor in product management",
     "type": "need",
     "expressions": [
@@ -1060,7 +1020,6 @@
   },
   {
     "id": 41,
-    "category": "asymmetric_type",
     "naturalLanguage": "Senior PM happy to mentor early-career product folks",
     "type": "capacity",
     "expressions": [
@@ -1080,7 +1039,6 @@
   },
   {
     "id": 42,
-    "category": "asymmetric_type",
     "naturalLanguage": "I'm a landlord with a 1BR apartment available in Austin",
     "type": "capacity",
     "expressions": [
@@ -1105,7 +1063,6 @@
   },
   {
     "id": 43,
-    "category": "asymmetric_type",
     "naturalLanguage": "Looking to rent a 1-2BR apartment in Austin, budget $1500",
     "type": "need",
     "expressions": [
@@ -1135,7 +1092,6 @@
   },
   {
     "id": 44,
-    "category": "compositional",
     "naturalLanguage": "I need a band for my wedding - drums, bass, guitar, and vocals minimum",
     "type": "need",
     "expressions": [
@@ -1167,7 +1123,6 @@
   },
   {
     "id": 45,
-    "category": "compositional",
     "naturalLanguage": "Starting a podcast, need either audio engineering help or a complete production package",
     "type": "need",
     "expressions": [
@@ -1193,7 +1148,6 @@
   },
   {
     "id": 46,
-    "category": "compositional",
     "naturalLanguage": "I do full-stack web development: frontend, backend, and database design",
     "type": "capacity",
     "expressions": [
@@ -1223,7 +1177,6 @@
   },
   {
     "id": 47,
-    "category": "time_constrained",
     "naturalLanguage": "I'm only in town for the next 3 days but can help with anything",
     "type": "capacity",
     "expressions": [
@@ -1251,7 +1204,6 @@
   },
   {
     "id": 48,
-    "category": "time_constrained",
     "naturalLanguage": "Need a house sitter for 3 weeks in July",
     "type": "need",
     "expressions": [
@@ -1279,7 +1231,6 @@
   },
   {
     "id": 49,
-    "category": "time_constrained",
     "naturalLanguage": "Available for last-minute gigs - I can be ready in an hour",
     "type": "capacity",
     "expressions": [
@@ -1307,7 +1258,6 @@
   },
   {
     "id": 50,
-    "category": "location_constrained",
     "naturalLanguage": "I can only work from home, but I'm great at customer service",
     "type": "capacity",
     "expressions": [
@@ -1333,7 +1283,6 @@
   },
   {
     "id": 51,
-    "category": "location_constrained",
     "naturalLanguage": "Need someone on-site in our Chicago office 3 days a week",
     "type": "need",
     "expressions": [
@@ -1360,7 +1309,6 @@
   },
   {
     "id": 52,
-    "category": "location_constrained",
     "naturalLanguage": "Mobile pet grooming service covering all of Orange County",
     "type": "capacity",
     "expressions": [
@@ -1389,7 +1337,6 @@
   },
   {
     "id": 53,
-    "category": "skill_based",
     "naturalLanguage": "I'm a certified yoga instructor specializing in prenatal yoga",
     "type": "capacity",
     "expressions": [
@@ -1412,7 +1359,6 @@
   },
   {
     "id": 54,
-    "category": "skill_based",
     "naturalLanguage": "Looking for someone who can teach me woodworking basics",
     "type": "need",
     "expressions": [
@@ -1435,7 +1381,6 @@
   },
   {
     "id": 55,
-    "category": "skill_based",
     "naturalLanguage": "Expert in Salesforce administration and can help with migrations",
     "type": "capacity",
     "expressions": [
@@ -1455,7 +1400,6 @@
   },
   {
     "id": 56,
-    "category": "skill_based",
     "naturalLanguage": "I need someone who understands both Figma and CSS to help translate designs to code",
     "type": "need",
     "expressions": [
@@ -1475,7 +1419,6 @@
   },
   {
     "id": 57,
-    "category": "quantity_unit",
     "naturalLanguage": "I can drive 4 passengers in my SUV",
     "type": "capacity",
     "expressions": [
@@ -1501,7 +1444,6 @@
   },
   {
     "id": 58,
-    "category": "quantity_unit",
     "naturalLanguage": "Need transportation for a group of 12 to the conference",
     "type": "need",
     "expressions": [
@@ -1529,7 +1471,6 @@
   },
   {
     "id": 59,
-    "category": "quantity_unit",
     "naturalLanguage": "I have 1000 sq ft of warehouse space available for storage",
     "type": "capacity",
     "expressions": [
@@ -1558,7 +1499,6 @@
   },
   {
     "id": 60,
-    "category": "quantity_unit",
     "naturalLanguage": "Looking for storage for about 50 boxes during my renovation",
     "type": "need",
     "expressions": [
@@ -1589,7 +1529,6 @@
   },
   {
     "id": 61,
-    "category": "edge_case",
     "naturalLanguage": "I'll trade piano lessons for Spanish lessons",
     "type": "capacity",
     "expressions": [
@@ -1609,7 +1548,6 @@
   },
   {
     "id": 62,
-    "category": "edge_case",
     "naturalLanguage": "I could probably help with some coding stuff I guess",
     "type": "capacity",
     "expressions": [
@@ -1629,7 +1567,6 @@
   },
   {
     "id": 63,
-    "category": "edge_case",
     "naturalLanguage": "URGENT!!! Need help ASAP won't say what but it pays well",
     "type": "need",
     "expressions": [
@@ -1653,7 +1590,6 @@
   },
   {
     "id": 64,
-    "category": "edge_case",
     "naturalLanguage": "I have an extra ticket to the concert tonight if anyone wants it",
     "type": "capacity",
     "expressions": [
@@ -1682,7 +1618,6 @@
   },
   {
     "id": 65,
-    "category": "simple_direct",
     "naturalLanguage": "I have a 3D printer and can print small objects",
     "type": "capacity",
     "expressions": [
@@ -1707,7 +1642,6 @@
   },
   {
     "id": 66,
-    "category": "simple_direct",
     "naturalLanguage": "Need to get a custom phone case 3D printed",
     "type": "need",
     "expressions": [
@@ -1727,7 +1661,6 @@
   },
   {
     "id": 67,
-    "category": "asymmetric_type",
     "naturalLanguage": "I have an investment opportunity in sustainable tech",
     "type": "capacity",
     "expressions": [
@@ -1747,7 +1680,6 @@
   },
   {
     "id": 68,
-    "category": "asymmetric_type",
     "naturalLanguage": "Angel investor looking for early-stage sustainable tech startups",
     "type": "capacity",
     "expressions": [
@@ -1770,7 +1702,6 @@
   },
   {
     "id": 69,
-    "category": "compositional",
     "naturalLanguage": "I need help moving: packing, loading, transporting, and unpacking",
     "type": "need",
     "expressions": [
@@ -1800,7 +1731,6 @@
   },
   {
     "id": 70,
-    "category": "compositional",
     "naturalLanguage": "I can handle all your social media: strategy, content creation, and community management",
     "type": "capacity",
     "expressions": [
@@ -1830,7 +1760,6 @@
   },
   {
     "id": 71,
-    "category": "time_constrained",
     "naturalLanguage": "I only work night shifts, available 10pm to 6am",
     "type": "capacity",
     "expressions": [
@@ -1859,7 +1788,6 @@
   },
   {
     "id": 72,
-    "category": "time_constrained",
     "naturalLanguage": "Need someone to cover reception desk 12pm-1pm daily during lunch",
     "type": "need",
     "expressions": [
@@ -1889,7 +1817,6 @@
   },
   {
     "id": 73,
-    "category": "location_constrained",
     "naturalLanguage": "I have a fully equipped photography studio in downtown Portland",
     "type": "capacity",
     "expressions": [
@@ -1915,7 +1842,6 @@
   },
   {
     "id": 74,
-    "category": "location_constrained",
     "naturalLanguage": "Looking for a venue in the Portland area that can host 200 people",
     "type": "need",
     "expressions": [
@@ -1944,7 +1870,6 @@
   },
   {
     "id": 75,
-    "category": "skill_based",
     "naturalLanguage": "I'm a licensed plumber who also does HVAC work",
     "type": "capacity",
     "expressions": [
@@ -1965,7 +1890,6 @@
   },
   {
     "id": 76,
-    "category": "skill_based",
     "naturalLanguage": "Need someone comfortable working with children who have special needs",
     "type": "need",
     "expressions": [
@@ -1985,7 +1909,6 @@
   },
   {
     "id": 77,
-    "category": "quantity_unit",
     "naturalLanguage": "I bake 50 cupcakes every week and have extras to sell",
     "type": "capacity",
     "expressions": [
@@ -2014,7 +1937,6 @@
   },
   {
     "id": 78,
-    "category": "quantity_unit",
     "naturalLanguage": "Need 200 cupcakes for a birthday party next Saturday",
     "type": "need",
     "expressions": [
@@ -2044,7 +1966,6 @@
   },
   {
     "id": 79,
-    "category": "edge_case",
     "naturalLanguage": "I used to be a nurse but my license expired",
     "type": "capacity",
     "expressions": [
@@ -2064,7 +1985,6 @@
   },
   {
     "id": 80,
-    "category": "edge_case",
     "naturalLanguage": "I need someone to take care of my plants while I travel but also my fish but they're in different locations",
     "type": "need",
     "expressions": [
@@ -2087,7 +2007,6 @@
   },
   {
     "id": 81,
-    "category": "edge_case",
     "naturalLanguage": "Offering free advice on anything, I've done a lot in my life",
     "type": "capacity",
     "expressions": [
@@ -2107,7 +2026,6 @@
   },
   {
     "id": 82,
-    "category": "simple_direct",
     "naturalLanguage": "I have sourdough starter to share",
     "type": "capacity",
     "expressions": [
@@ -2126,7 +2044,6 @@
   },
   {
     "id": 83,
-    "category": "simple_direct",
     "naturalLanguage": "Anyone have sourdough starter they can spare?",
     "type": "need",
     "expressions": [
@@ -2145,7 +2062,6 @@
   },
   {
     "id": 84,
-    "category": "asymmetric_type",
     "naturalLanguage": "I'm a foster parent with capacity for 2 more children",
     "type": "capacity",
     "expressions": [
@@ -2170,7 +2086,6 @@
   },
   {
     "id": 85,
-    "category": "asymmetric_type",
     "naturalLanguage": "Casting director looking for actors for a commercial shoot",
     "type": "need",
     "expressions": [
@@ -2190,7 +2105,6 @@
   },
   {
     "id": 86,
-    "category": "asymmetric_type",
     "naturalLanguage": "Actor seeking representation, experienced in film and TV",
     "type": "need",
     "expressions": [
@@ -2210,7 +2124,6 @@
   },
   {
     "id": 87,
-    "category": "compositional",
     "naturalLanguage": "Planning a film shoot - need location, equipment, crew, and catering all for the same day",
     "type": "need",
     "expressions": [
@@ -2245,7 +2158,6 @@
   },
   {
     "id": 88,
-    "category": "time_constrained",
     "naturalLanguage": "I'm retiring in 6 months and looking for someone to take over my business",
     "type": "capacity",
     "expressions": [
@@ -2273,7 +2185,6 @@
   },
   {
     "id": 89,
-    "category": "time_constrained",
     "naturalLanguage": "Need a same-day courier for an urgent document delivery",
     "type": "need",
     "expressions": [
@@ -2302,7 +2213,6 @@
   },
   {
     "id": 90,
-    "category": "location_constrained",
     "naturalLanguage": "I have a beachfront property available for events in Malibu",
     "type": "capacity",
     "expressions": [
@@ -2331,7 +2241,6 @@
   },
   {
     "id": 91,
-    "category": "skill_based",
     "naturalLanguage": "Experienced grant writer specializing in nonprofit arts funding",
     "type": "capacity",
     "expressions": [
@@ -2354,7 +2263,6 @@
   },
   {
     "id": 92,
-    "category": "skill_based",
     "naturalLanguage": "Our nonprofit needs help writing a NEA grant application",
     "type": "need",
     "expressions": [
@@ -2374,7 +2282,6 @@
   },
   {
     "id": 93,
-    "category": "quantity_unit",
     "naturalLanguage": "I have 6 hours of studio recording time I'm not using this month",
     "type": "capacity",
     "expressions": [
@@ -2403,7 +2310,6 @@
   },
   {
     "id": 94,
-    "category": "quantity_unit",
     "naturalLanguage": "Need about 10 hours of professional recording studio time",
     "type": "need",
     "expressions": [
@@ -2430,7 +2336,6 @@
   },
   {
     "id": 95,
-    "category": "edge_case",
     "naturalLanguage": "I inherited my grandfather's woodworking tools but don't know how to use them",
     "type": "capacity",
     "expressions": [
@@ -2450,7 +2355,6 @@
   },
   {
     "id": 96,
-    "category": "edge_case",
     "naturalLanguage": "I need someone who won't judge me",
     "type": "need",
     "expressions": [
@@ -2477,7 +2381,6 @@
   },
   {
     "id": 97,
-    "category": "edge_case",
     "naturalLanguage": "ISO something fun to do this weekend, not picky",
     "type": "need",
     "expressions": [
@@ -2508,7 +2411,6 @@
   },
   {
     "id": 98,
-    "category": "simple_direct",
     "naturalLanguage": "I grow microgreens and have fresh batches every week",
     "type": "capacity",
     "expressions": [
@@ -2534,7 +2436,6 @@
   },
   {
     "id": 99,
-    "category": "asymmetric_type",
     "naturalLanguage": "I'm a birth doula supporting families through pregnancy and delivery",
     "type": "capacity",
     "expressions": [
@@ -2557,7 +2458,6 @@
   },
   {
     "id": 100,
-    "category": "asymmetric_type",
     "naturalLanguage": "Expecting our first baby and looking for a doula",
     "type": "need",
     "expressions": [
@@ -2577,7 +2477,6 @@
   },
   {
     "id": 101,
-    "category": "compositional",
     "naturalLanguage": "Setting up a new office - need furniture, IT setup, cleaning service, and plants",
     "type": "need",
     "expressions": [
@@ -2608,7 +2507,6 @@
   },
   {
     "id": 102,
-    "category": "time_constrained",
     "naturalLanguage": "Available for seasonal work during the summer months only",
     "type": "capacity",
     "expressions": [
@@ -2635,7 +2533,6 @@
   },
   {
     "id": 103,
-    "category": "location_constrained",
     "naturalLanguage": "I have a food truck and can travel anywhere in the tri-state area",
     "type": "capacity",
     "expressions": [
@@ -2661,7 +2558,6 @@
   },
   {
     "id": 104,
-    "category": "skill_based",
     "naturalLanguage": "ASL interpreter available for events and medical appointments",
     "type": "capacity",
     "expressions": [
@@ -2681,7 +2577,6 @@
   },
   {
     "id": 105,
-    "category": "skill_based",
     "naturalLanguage": "Need an ASL interpreter for my doctor's appointment Thursday at 2pm",
     "type": "need",
     "expressions": [
@@ -2706,7 +2601,6 @@
   },
   {
     "id": 106,
-    "category": "quantity_unit",
     "naturalLanguage": "I can process up to 500 payroll entries per month",
     "type": "capacity",
     "expressions": [
@@ -2732,7 +2626,6 @@
   },
   {
     "id": 107,
-    "category": "edge_case",
     "naturalLanguage": "I'm not sure if I need a lawyer or an accountant for this situation",
     "type": "need",
     "expressions": [
@@ -2755,7 +2648,6 @@
   },
   {
     "id": 108,
-    "category": "edge_case",
     "naturalLanguage": "Selling everything as I'm leaving the country next week",
     "type": "capacity",
     "expressions": [
@@ -2783,7 +2675,6 @@
   },
   {
     "id": 109,
-    "category": "simple_direct",
     "naturalLanguage": "I make custom leather bags and wallets",
     "type": "capacity",
     "expressions": [
@@ -2806,7 +2697,6 @@
   },
   {
     "id": 110,
-    "category": "asymmetric_type",
     "naturalLanguage": "Personal chef available for private dinners and weekly meal prep",
     "type": "capacity",
     "expressions": [
@@ -2826,7 +2716,6 @@
   },
   {
     "id": 111,
-    "category": "asymmetric_type",
     "naturalLanguage": "Looking for a personal chef for weekly healthy meal prep",
     "type": "need",
     "expressions": [
@@ -2851,7 +2740,6 @@
   },
   {
     "id": 112,
-    "category": "compositional",
     "naturalLanguage": "I can do video production end-to-end: scripting, filming, editing, and color grading",
     "type": "capacity",
     "expressions": [
@@ -2880,7 +2768,6 @@
   },
   {
     "id": 113,
-    "category": "time_constrained",
     "naturalLanguage": "I need someone to cover my bar shift this Friday 8pm-2am",
     "type": "need",
     "expressions": [
@@ -2909,7 +2796,6 @@
   },
   {
     "id": 114,
-    "category": "location_constrained",
     "naturalLanguage": "I can pick up and deliver items within a 10-mile radius of downtown Denver",
     "type": "capacity",
     "expressions": [
@@ -2938,7 +2824,6 @@
   },
   {
     "id": 115,
-    "category": "skill_based",
     "naturalLanguage": "Certified arborist specializing in tree health assessment and removal",
     "type": "capacity",
     "expressions": [
@@ -2961,7 +2846,6 @@
   },
   {
     "id": 116,
-    "category": "quantity_unit",
     "naturalLanguage": "I can host up to 8 dinner guests at my home restaurant experience",
     "type": "capacity",
     "expressions": [
@@ -2987,7 +2871,6 @@
   },
   {
     "id": 117,
-    "category": "edge_case",
     "naturalLanguage": "We're a band looking for another band to split a bill with for a show",
     "type": "need",
     "expressions": [
@@ -3007,7 +2890,6 @@
   },
   {
     "id": 118,
-    "category": "edge_case",
     "naturalLanguage": "I have skills but no idea what to do with my life",
     "type": "capacity",
     "expressions": [
@@ -3028,7 +2910,6 @@
   },
   {
     "id": 119,
-    "category": "simple_direct",
     "naturalLanguage": "Professional resume and LinkedIn profile writing services",
     "type": "capacity",
     "expressions": [
@@ -3051,7 +2932,6 @@
   },
   {
     "id": 120,
-    "category": "simple_direct",
     "naturalLanguage": "Need help updating my resume for tech jobs",
     "type": "need",
     "expressions": [
@@ -3071,7 +2951,6 @@
   },
   {
     "id": 121,
-    "category": "asymmetric_type",
     "naturalLanguage": "Fitness coach specializing in postpartum recovery",
     "type": "capacity",
     "expressions": [
@@ -3094,7 +2973,6 @@
   },
   {
     "id": 122,
-    "category": "compositional",
     "naturalLanguage": "I can provide complete childcare: supervision, tutoring help, and meal preparation",
     "type": "capacity",
     "expressions": [
@@ -3123,7 +3001,6 @@
   },
   {
     "id": 123,
-    "category": "time_constrained",
     "naturalLanguage": "I can only commit to projects that are under 2 weeks",
     "type": "capacity",
     "expressions": [
@@ -3150,7 +3027,6 @@
   },
   {
     "id": 124,
-    "category": "location_constrained",
     "naturalLanguage": "Notary public serving the greater Seattle area, can meet at your location",
     "type": "capacity",
     "expressions": [
@@ -3176,7 +3052,6 @@
   },
   {
     "id": 125,
-    "category": "skill_based",
     "naturalLanguage": "I'm great with animals - worked at a vet clinic and a zoo",
     "type": "capacity",
     "expressions": [
@@ -3196,7 +3071,6 @@
   },
   {
     "id": 126,
-    "category": "quantity_unit",
     "naturalLanguage": "I make 20 jars of kimchi monthly and sell the extras",
     "type": "capacity",
     "expressions": [
@@ -3223,7 +3097,6 @@
   },
   {
     "id": 127,
-    "category": "edge_case",
     "naturalLanguage": "I have too much zucchini from my garden, please take some",
     "type": "capacity",
     "expressions": [
@@ -3243,7 +3116,6 @@
   },
   {
     "id": 128,
-    "category": "simple_direct",
     "naturalLanguage": "I can proofread and copy-edit documents in English",
     "type": "capacity",
     "expressions": [
@@ -3263,7 +3135,6 @@
   },
   {
     "id": 129,
-    "category": "asymmetric_type",
     "naturalLanguage": "Event DJ available for weddings, corporate events, and private parties",
     "type": "capacity",
     "expressions": [
@@ -3283,7 +3154,6 @@
   },
   {
     "id": 130,
-    "category": "compositional",
     "naturalLanguage": "Need someone for a birthday party who can do face painting AND balloon animals",
     "type": "need",
     "expressions": [
@@ -3302,7 +3172,6 @@
   },
   {
     "id": 131,
-    "category": "time_constrained",
     "naturalLanguage": "I can teach early morning yoga classes before 7am",
     "type": "capacity",
     "expressions": [
@@ -3330,7 +3199,6 @@
   },
   {
     "id": 132,
-    "category": "location_constrained",
     "naturalLanguage": "I need in-person guitar lessons somewhere accessible by public transit",
     "type": "need",
     "expressions": [
@@ -3357,7 +3225,6 @@
   },
   {
     "id": 133,
-    "category": "skill_based",
     "naturalLanguage": "I'm comfortable with heights and do window cleaning for tall buildings",
     "type": "capacity",
     "expressions": [
@@ -3380,7 +3247,6 @@
   },
   {
     "id": 134,
-    "category": "quantity_unit",
     "naturalLanguage": "I have a pressure washer and can do up to 3 driveways per day",
     "type": "capacity",
     "expressions": [
@@ -3407,7 +3273,6 @@
   },
   {
     "id": 135,
-    "category": "edge_case",
     "naturalLanguage": "I speak five languages but none of them fluently",
     "type": "capacity",
     "expressions": [
@@ -3427,7 +3292,6 @@
   },
   {
     "id": 136,
-    "category": "edge_case",
     "naturalLanguage": "Will work for food",
     "type": "need",
     "expressions": [
@@ -3448,7 +3312,6 @@
   },
   {
     "id": 137,
-    "category": "simple_direct",
     "naturalLanguage": "I do furniture assembly and can follow any IKEA instructions",
     "type": "capacity",
     "expressions": [
@@ -3471,7 +3334,6 @@
   },
   {
     "id": 138,
-    "category": "asymmetric_type",
     "naturalLanguage": "Real estate agent helping first-time buyers in the Portland market",
     "type": "capacity",
     "expressions": [
@@ -3498,7 +3360,6 @@
   },
   {
     "id": 139,
-    "category": "compositional",
     "naturalLanguage": "I need a website: design, development, and hosting all included",
     "type": "need",
     "expressions": [
@@ -3524,7 +3385,6 @@
   },
   {
     "id": 140,
-    "category": "time_constrained",
     "naturalLanguage": "Looking for a part-time job, 10-15 hours per week maximum",
     "type": "need",
     "expressions": [
@@ -3555,7 +3415,6 @@
   },
   {
     "id": 141,
-    "category": "location_constrained",
     "naturalLanguage": "Available for emergency plumbing calls within 30 minutes of Scottsdale",
     "type": "capacity",
     "expressions": [
@@ -3586,7 +3445,6 @@
   },
   {
     "id": 142,
-    "category": "skill_based",
     "naturalLanguage": "I've managed teams of 50+ people and can help with leadership coaching",
     "type": "capacity",
     "expressions": [
@@ -3606,7 +3464,6 @@
   },
   {
     "id": 143,
-    "category": "quantity_unit",
     "naturalLanguage": "Need to ship 500 pounds of equipment to our trade show booth",
     "type": "need",
     "expressions": [
@@ -3632,7 +3489,6 @@
   },
   {
     "id": 144,
-    "category": "edge_case",
     "naturalLanguage": "I make music but only weird experimental stuff",
     "type": "capacity",
     "expressions": [
@@ -3653,7 +3509,6 @@
   },
   {
     "id": 145,
-    "category": "edge_case",
     "naturalLanguage": "I have a lot of land and nothing to do with it",
     "type": "capacity",
     "expressions": [
