@@ -12,7 +12,7 @@ describe('findCategoryOverlap', () => {
       ['food', 'meat', 'pork-belly'],
       ['food', 'meat', 'pork-belly']
     )
-    expect(overlap).toEqual({ category: 'pork-belly', distance: 0, depthA: 3, depthB: 3, matchDepthA: 3, matchDepthB: 3 })
+    expect(overlap).toEqual({ category: 'pork-belly', distance: 0, matchDepthA: 3, matchDepthB: 3 })
   })
 
   test('sibling match returns distance 1', () => {
@@ -20,7 +20,7 @@ describe('findCategoryOverlap', () => {
       ['instruction', 'piano-instruction', 'piano-lessons'],
       ['instruction', 'piano-instruction', 'piano-teaching']
     )
-    expect(overlap).toEqual({ category: 'piano-instruction', distance: 1, depthA: 3, depthB: 3, matchDepthA: 2, matchDepthB: 2 })
+    expect(overlap).toEqual({ category: 'piano-instruction', distance: 1, matchDepthA: 2, matchDepthB: 2 })
   })
 
   test('ancestor match returns correct distance', () => {
@@ -28,7 +28,7 @@ describe('findCategoryOverlap', () => {
       ['food'],
       ['food', 'meat', 'pork', 'pork-belly']
     )
-    expect(overlap).toEqual({ category: 'food', distance: 0, depthA: 1, depthB: 4, matchDepthA: 1, matchDepthB: 1 })
+    expect(overlap).toEqual({ category: 'food', distance: 0, matchDepthA: 1, matchDepthB: 1 })
   })
 
   test('descendant match returns distance from need leaf', () => {
@@ -37,7 +37,7 @@ describe('findCategoryOverlap', () => {
       ['food', 'vegetables'],
       ['food', 'vegetables', 'potatoes']
     )
-    expect(overlap).toEqual({ category: 'vegetables', distance: 0, depthA: 2, depthB: 3, matchDepthA: 2, matchDepthB: 2 })
+    expect(overlap).toEqual({ category: 'vegetables', distance: 0, matchDepthA: 2, matchDepthB: 2 })
   })
 
   test('weak ancestor match returns higher distance', () => {
@@ -46,7 +46,7 @@ describe('findCategoryOverlap', () => {
       ['vehicle', 'human-powered', 'bicycle'],
       ['vehicle', 'human-powered', 'unicycle']
     )
-    expect(overlap).toEqual({ category: 'human-powered', distance: 1, depthA: 3, depthB: 3, matchDepthA: 2, matchDepthB: 2 })
+    expect(overlap).toEqual({ category: 'human-powered', distance: 1, matchDepthA: 2, matchDepthB: 2 })
   })
 
   test('no overlap returns null', () => {

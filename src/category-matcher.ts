@@ -6,8 +6,6 @@
 export type CategoryOverlap = {
   category: string      // where chains intersected
   distance: number      // 0 = exact, 1 = sibling, 2+ = ancestor
-  depthA: number        // length of first chain
-  depthB: number        // length of second chain
   matchDepthA: number   // depth of match point in first chain (1-indexed)
   matchDepthB: number   // depth of match point in second chain (1-indexed)
 }
@@ -44,7 +42,7 @@ export function findCategoryOverlap(
       // Match depth = position of match point in each chain (1-indexed)
       const matchDepthA = i + 1
       const matchDepthB = chainB.indexOf(category) + 1
-      return { category, distance, depthA: chainA.length, depthB: chainB.length, matchDepthA, matchDepthB }
+      return { category, distance, matchDepthA, matchDepthB }
     }
   }
 
