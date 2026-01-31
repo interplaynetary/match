@@ -3694,7 +3694,19 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a fully equipped photography studio in downtown Portland"
+        "text": "a fully equipped photography studio in downtown Portland",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "photography",
+          "photography-studio",
+          "full-service-studio"
+        ],
+        "disjointWith": [
+          "outdoor-photography",
+          "mobile-photography",
+          "amateur-equipment"
+        ]
       },
       {
         "text": "photography studio",
