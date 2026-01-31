@@ -1,8 +1,8 @@
 /*
  * Enrich expressions with category chains using Claude CLI
  *
- * Reads matching-examples.json, calls Claude for each expression that
- * doesn't have a categoryChain, and writes to enriched-examples.json.
+ * Reads matching-examples.json, calls Claude ONCE with all expressions,
+ * and writes to enriched-examples.json.
  *
  * Usage:
  *   bun scripts/enrich-categories.ts
@@ -12,7 +12,6 @@
  */
 
 import { spawn } from 'child_process'
-import { z } from 'zod'
 
 const EXAMPLES_FILE = './data/matching-examples.json'
 const ENRICHED_FILE = './data/enriched-examples.json'
@@ -35,22 +34,33 @@ type RawExample = {
   notes?: string
 }
 
-const CategoryResponseSchema = z.object({
-  categoryChain: z.array(z.string()),
-  disjointWith: z.array(z.string()),
-})
+type CategoryResult = {
+  text: string
+  categoryChain: string[]
+  disjointWith: string[]
+}
 
-async function callClaude(text: string): Promise<{ categoryChain: string[]; disjointWith: string[] }> {
-  const prompt = `Given this term, return a category chain from abstract to specific, and any mutually exclusive categories.
+async function callClaudeBatch(expressions: string[]): Promise<CategoryResult[]> {
+  const expressionList = expressions.map((e, i) => `${i + 1}. "${e}"`).join('\n')
 
-The category chain should start with the most general category and end with the most specific.
-Categories should be lowercase, hyphenated if multi-word.
-Only include disjointWith categories that are genuinely mutually exclusive (e.g., vegan vs meat, not just different).
+  const prompt = `For each term below, generate a category chain (abstract to specific) and any mutually exclusive categories.
 
-Term: "${text}"
+Rules:
+- categoryChain: path from general to specific (e.g., ["food", "meat", "pork"])
+- disjointWith: genuinely mutually exclusive categories (e.g., vegan conflicts with meat)
+- Use lowercase, hyphenated multi-word categories
+- Keep chains concise (3-6 levels typically)
 
-Respond with ONLY valid JSON, no markdown:
-{"categoryChain": [...], "disjointWith": []}`
+Terms:
+${expressionList}
+
+Respond with a JSON array, one object per term in order:
+[
+  {"text": "...", "categoryChain": [...], "disjointWith": [...]},
+  ...
+]
+
+Output ONLY the JSON array, no markdown or explanation.`
 
   return new Promise((resolve, reject) => {
     const proc = spawn('claude', ['-p', prompt, '--output-format', 'json'], {
@@ -80,17 +90,17 @@ Respond with ONLY valid JSON, no markdown:
         const output = JSON.parse(stdout)
         const resultText = output.result || stdout
 
-        // Extract JSON from the result (may have markdown wrapper)
-        const jsonMatch = resultText.match(/\{[\s\S]*\}/)
+        // Extract JSON array from the result
+        const jsonMatch = resultText.match(/\[[\s\S]*\]/)
         if (!jsonMatch) {
-          reject(new Error(`No JSON found in response: ${resultText}`))
+          reject(new Error(`No JSON array found in response: ${resultText.slice(0, 500)}`))
           return
         }
 
-        const parsed = JSON.parse(jsonMatch[0])
-        resolve(CategoryResponseSchema.parse(parsed))
+        const parsed = JSON.parse(jsonMatch[0]) as CategoryResult[]
+        resolve(parsed)
       } catch (e) {
-        reject(new Error(`Failed to parse response: ${e}. Output: ${stdout}`))
+        reject(new Error(`Failed to parse response: ${e}. Output: ${stdout.slice(0, 500)}`))
       }
     })
 
@@ -110,57 +120,68 @@ async function main() {
     console.log(`Loaded ${examples.length} examples from source file`)
   }
 
-  // Count expressions needing enrichment
-  let needsEnrichment = 0
+  // Collect expressions needing enrichment
+  const toEnrich: { example: RawExample; expr: Expression; text: string }[] = []
   let alreadyEnriched = 0
+
   for (const example of examples) {
     for (const expr of example.expressions) {
       if (expr.categoryChain) {
         alreadyEnriched++
       } else {
-        needsEnrichment++
+        toEnrich.push({ example, expr, text: expr.text })
       }
     }
   }
 
-  console.log(`${alreadyEnriched} expressions already enriched, ${needsEnrichment} need enrichment`)
+  console.log(`${alreadyEnriched} already enriched, ${toEnrich.length} need enrichment`)
 
-  if (needsEnrichment === 0) {
+  if (toEnrich.length === 0) {
     console.log('All expressions already have categories')
     return
   }
 
-  // Process each expression
-  let processed = 0
-  for (const example of examples) {
-    for (const expr of example.expressions) {
-      if (expr.categoryChain) continue
+  // Process in batches (Claude can handle ~50-100 at a time comfortably)
+  const BATCH_SIZE = 50
+  const batches = []
+  for (let i = 0; i < toEnrich.length; i += BATCH_SIZE) {
+    batches.push(toEnrich.slice(i, i + BATCH_SIZE))
+  }
 
-      processed++
-      console.log(`[${processed}/${needsEnrichment}] "${expr.text}"`)
+  console.log(`Processing ${toEnrich.length} expressions in ${batches.length} batch(es)...`)
 
-      try {
-        const result = await callClaude(expr.text)
-        expr.categoryChain = result.categoryChain
-        expr.disjointWith = result.disjointWith
-        console.log(`  -> [${result.categoryChain.join(' > ')}]`)
-        if (result.disjointWith.length > 0) {
-          console.log(`     disjoint: ${result.disjointWith.join(', ')}`)
-        }
-      } catch (error) {
-        console.error(`  ERROR: ${error}`)
-        // Continue with other expressions
+  for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+    const batch = batches[batchIdx]!
+    console.log(`\nBatch ${batchIdx + 1}/${batches.length} (${batch.length} expressions)...`)
+
+    const texts = batch.map(b => b.text)
+
+    try {
+      const results = await callClaudeBatch(texts)
+
+      // Apply results back to expressions
+      for (let i = 0; i < batch.length && i < results.length; i++) {
+        const result = results[i]!
+        const item = batch[i]!
+
+        item.expr.categoryChain = result.categoryChain
+        item.expr.disjointWith = result.disjointWith
+
+        console.log(`  "${item.text}" -> [${result.categoryChain.join(' > ')}]`)
       }
 
-      // Save after each expression for idempotency
+      // Save after each batch
       await Bun.write(ENRICHED_FILE, JSON.stringify(examples, null, 2))
+      console.log(`  Saved progress.`)
 
-      // Small delay to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 100))
+    } catch (error) {
+      console.error(`  Batch error: ${error}`)
+      // Save what we have and continue
+      await Bun.write(ENRICHED_FILE, JSON.stringify(examples, null, 2))
     }
   }
 
-  console.log(`Done! Enriched examples saved to ${ENRICHED_FILE}`)
+  console.log(`\nDone! Enriched examples saved to ${ENRICHED_FILE}`)
 }
 
 main().catch(console.error)

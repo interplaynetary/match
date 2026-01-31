@@ -730,10 +730,24 @@
         ]
       },
       {
-        "text": "chef"
+        "text": "chef",
+        "categoryChain": [
+          "services",
+          "food-services",
+          "cooking",
+          "chef"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "decorator"
+        "text": "decorator",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "interior-design",
+          "decorator"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -751,16 +765,42 @@
     "type": "need",
     "expressions": [
       {
-        "text": "either a ride to the airport or help with luggage"
+        "text": "either a ride to the airport or help with luggage",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "airport-services"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "ride"
+        "text": "ride",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "ride"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "porter luggage help"
+        "text": "porter luggage help",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "luggage-assistance",
+          "porter"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "porter"
+        "text": "porter",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "luggage-assistance",
+          "porter"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -777,19 +817,62 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "offer a complete home renovation package: plumbing"
+        "text": "offer a complete home renovation package: plumbing",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "renovation",
+          "plumbing"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "renovation package"
+        "text": "renovation package",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "renovation"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "plumber"
+        "text": "plumber",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "plumber"
+        ],
+        "disjointWith": [
+          "electrician",
+          "painter"
+        ]
       },
       {
-        "text": "electrician"
+        "text": "electrician",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "electrician"
+        ],
+        "disjointWith": [
+          "plumber",
+          "painter"
+        ]
       },
       {
-        "text": "painter"
+        "text": "painter",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "painter"
+        ],
+        "disjointWith": [
+          "plumber",
+          "electrician"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -808,10 +891,26 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "available for freelance web development Mon-Wed, 9am-5pm EST"
+        "text": "available for freelance web development Mon-Wed, 9am-5pm EST",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology",
+          "software-development",
+          "web-development"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "web developer"
+        "text": "web developer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology",
+          "software-development",
+          "web-developer"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -843,13 +942,39 @@
     "type": "need",
     "expressions": [
       {
-        "text": "emergency plumber right now, pipe burst!"
+        "text": "emergency plumber right now, pipe burst!",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "plumber",
+          "emergency-plumber"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "emergency plumber"
+        "text": "emergency plumber",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "plumber",
+          "emergency-plumber"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "plumber"
+        "text": "plumber",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "plumber"
+        ],
+        "disjointWith": [
+          "electrician",
+          "painter"
+        ]
       }
     ],
     "constraints": {
@@ -871,10 +996,26 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "babysit weekday evenings after 6pm"
+        "text": "babysit weekday evenings after 6pm",
+        "categoryChain": [
+          "services",
+          "childcare",
+          "babysitter"
+        ],
+        "disjointWith": [
+          "pet-care"
+        ]
       },
       {
-        "text": "babysitter"
+        "text": "babysitter",
+        "categoryChain": [
+          "services",
+          "childcare",
+          "babysitter"
+        ],
+        "disjointWith": [
+          "pet-care"
+        ]
       }
     ],
     "constraints": {
@@ -907,10 +1048,28 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone to walk my dog twice daily for the next 2 weeks"
+        "text": "someone to walk my dog twice daily for the next 2 weeks",
+        "categoryChain": [
+          "services",
+          "pet-care",
+          "dog-services",
+          "dog-walker"
+        ],
+        "disjointWith": [
+          "childcare"
+        ]
       },
       {
-        "text": "dog walker"
+        "text": "dog walker",
+        "categoryChain": [
+          "services",
+          "pet-care",
+          "dog-services",
+          "dog-walker"
+        ],
+        "disjointWith": [
+          "childcare"
+        ]
       }
     ],
     "constraints": {
@@ -937,13 +1096,35 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "tutor math in-person anywhere in Manhattan"
+        "text": "tutor math in-person anywhere in Manhattan",
+        "categoryChain": [
+          "services",
+          "education",
+          "tutoring",
+          "academic-tutoring",
+          "math-tutor"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "math tutor"
+        "text": "math tutor",
+        "categoryChain": [
+          "services",
+          "education",
+          "tutoring",
+          "academic-tutoring",
+          "math-tutor"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "tutor"
+        "text": "tutor",
+        "categoryChain": [
+          "services",
+          "education",
+          "tutoring"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -965,10 +1146,27 @@
     "type": "need",
     "expressions": [
       {
-        "text": "yoga instructor"
+        "text": "yoga instructor",
+        "categoryChain": [
+          "services",
+          "health-wellness",
+          "fitness",
+          "yoga-instructor"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "in-home yoga instructor"
+        "text": "in-home yoga instructor",
+        "categoryChain": [
+          "services",
+          "health-wellness",
+          "fitness",
+          "yoga-instructor",
+          "in-home-yoga-instructor"
+        ],
+        "disjointWith": [
+          "remote"
+        ]
       }
     ],
     "constraints": {
@@ -992,10 +1190,26 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "remote graphic design services, timezone-flexible"
+        "text": "remote graphic design services, timezone-flexible",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative",
+          "graphic-design"
+        ],
+        "disjointWith": [
+          "in-person"
+        ]
       },
       {
-        "text": "graphic designer"
+        "text": "graphic designer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative",
+          "graphic-designer"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -1018,10 +1232,24 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a moving company that services the Bay Area to LA route"
+        "text": "a moving company that services the Bay Area to LA route",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "moving",
+          "moving-company"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "moving company"
+        "text": "moving company",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "moving",
+          "moving-company"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -1044,13 +1272,45 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "certified electrician with 10 years experience in residential and commercial"
+        "text": "certified electrician with 10 years experience in residential and commercial",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "electrician",
+          "certified-electrician"
+        ],
+        "disjointWith": [
+          "plumber",
+          "painter"
+        ]
       },
       {
-        "text": "certified electrician"
+        "text": "certified electrician",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "electrician",
+          "certified-electrician"
+        ],
+        "disjointWith": [
+          "plumber",
+          "painter"
+        ]
       },
       {
-        "text": "electrician"
+        "text": "electrician",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "trades",
+          "electrician"
+        ],
+        "disjointWith": [
+          "plumber",
+          "painter"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1067,10 +1327,26 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone who knows React"
+        "text": "someone who knows React",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology",
+          "software-development",
+          "frontend-developer"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "developer"
+        "text": "developer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology",
+          "software-development",
+          "developer"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -1095,10 +1371,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "fluent Spanish and English"
+        "text": "fluent Spanish and English",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "language-services",
+          "translation",
+          "bilingual-translator"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "translator"
+        "text": "translator",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "language-services",
+          "translator"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -1115,13 +1406,34 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone to help me learn conversational Japanese"
+        "text": "someone to help me learn conversational Japanese",
+        "categoryChain": [
+          "services",
+          "education",
+          "language-learning",
+          "japanese-teacher"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "Japanese language teacher"
+        "text": "Japanese language teacher",
+        "categoryChain": [
+          "services",
+          "education",
+          "language-learning",
+          "japanese-teacher"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "language teacher"
+        "text": "language teacher",
+        "categoryChain": [
+          "services",
+          "education",
+          "language-learning",
+          "language-teacher"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -1138,10 +1450,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "50 folding chairs"
+        "text": "50 folding chairs",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "seating",
+          "chairs",
+          "folding-chairs"
+        ],
+        "disjointWith": [
+          "tables"
+        ]
       },
       {
-        "text": "folding chairs"
+        "text": "folding chairs",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "seating",
+          "chairs",
+          "folding-chairs"
+        ],
+        "disjointWith": [
+          "tables"
+        ]
       }
     ],
     "constraints": {
@@ -1164,10 +1496,27 @@
     "type": "need",
     "expressions": [
       {
-        "text": "rent 30 tables for a corporate event next Friday"
+        "text": "rent 30 tables for a corporate event next Friday",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "tables",
+          "event-tables"
+        ],
+        "disjointWith": [
+          "chairs"
+        ]
       },
       {
-        "text": "tables"
+        "text": "tables",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "tables"
+        ],
+        "disjointWith": [
+          "chairs"
+        ]
       }
     ],
     "constraints": {
@@ -1193,10 +1542,24 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "provide catering for up to 100 people"
+        "text": "provide catering for up to 100 people",
+        "categoryChain": [
+          "services",
+          "food-services",
+          "catering",
+          "caterer"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "caterer"
+        "text": "caterer",
+        "categoryChain": [
+          "services",
+          "food-services",
+          "catering",
+          "caterer"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -1219,10 +1582,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "bulk organic vegetables, minimum 20kg weekly"
+        "text": "bulk organic vegetables, minimum 20kg weekly",
+        "categoryChain": [
+          "goods",
+          "food",
+          "produce",
+          "vegetables",
+          "organic-vegetables"
+        ],
+        "disjointWith": [
+          "meat",
+          "dairy"
+        ]
       },
       {
-        "text": "vegetables"
+        "text": "vegetables",
+        "categoryChain": [
+          "goods",
+          "food",
+          "produce",
+          "vegetables"
+        ],
+        "disjointWith": [
+          "meat",
+          "dairy"
+        ]
       }
     ],
     "constraints": {
@@ -1248,13 +1632,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a truck and I'm bored on weekends"
+        "text": "a truck and I'm bored on weekends",
+        "categoryChain": [
+          "goods",
+          "vehicles",
+          "truck"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "truck vehicle"
+        "text": "truck vehicle",
+        "categoryChain": [
+          "goods",
+          "vehicles",
+          "truck"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "vehicle"
+        "text": "vehicle",
+        "categoryChain": [
+          "goods",
+          "vehicles"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -1280,16 +1681,54 @@
     "type": "need",
     "expressions": [
       {
-        "text": "My grandmother needs help but I don't know exactly what kind"
+        "text": "My grandmother needs help but I don't know exactly what kind",
+        "categoryChain": [
+          "services",
+          "care-services",
+          "eldercare"
+        ],
+        "disjointWith": [
+          "childcare",
+          "pet-care"
+        ]
       },
       {
-        "text": "eldercare"
+        "text": "eldercare",
+        "categoryChain": [
+          "services",
+          "care-services",
+          "eldercare"
+        ],
+        "disjointWith": [
+          "childcare",
+          "pet-care"
+        ]
       },
       {
-        "text": "companion"
+        "text": "companion",
+        "categoryChain": [
+          "services",
+          "care-services",
+          "eldercare",
+          "companion-care"
+        ],
+        "disjointWith": [
+          "medical-care",
+          "childcare"
+        ]
       },
       {
-        "text": "home helper"
+        "text": "home helper",
+        "categoryChain": [
+          "services",
+          "care-services",
+          "eldercare",
+          "home-assistance"
+        ],
+        "disjointWith": [
+          "childcare",
+          "pet-care"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1307,10 +1746,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Free couch, must pick up today"
+        "text": "Free couch, must pick up today",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "seating",
+          "couch"
+        ],
+        "disjointWith": [
+          "services"
+        ]
       },
       {
-        "text": "couch"
+        "text": "couch",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "seating",
+          "couch"
+        ],
+        "disjointWith": [
+          "table",
+          "bed",
+          "chair"
+        ]
       }
     ],
     "constraints": {
@@ -1332,13 +1791,42 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone but not sure if I need a therapist or a life coach"
+        "text": "someone but not sure if I need a therapist or a life coach",
+        "categoryChain": [
+          "services",
+          "personal-development",
+          "guidance"
+        ],
+        "disjointWith": [
+          "physical-services",
+          "goods"
+        ]
       },
       {
-        "text": "therapist"
+        "text": "therapist",
+        "categoryChain": [
+          "services",
+          "personal-development",
+          "mental-health",
+          "therapist"
+        ],
+        "disjointWith": [
+          "life-coach",
+          "medical-doctor"
+        ]
       },
       {
-        "text": "life coach"
+        "text": "life coach",
+        "categoryChain": [
+          "services",
+          "personal-development",
+          "coaching",
+          "life-coach"
+        ],
+        "disjointWith": [
+          "therapist",
+          "counselor"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1356,10 +1844,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "help with whatever you need, I'm pretty handy"
+        "text": "help with whatever you need, I'm pretty handy",
+        "categoryChain": [
+          "services",
+          "general-help"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "handyperson"
+        "text": "handyperson",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "maintenance",
+          "handyperson"
+        ],
+        "disjointWith": [
+          "licensed-contractor",
+          "specialist-tradesperson"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1377,10 +1880,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "fresh eggs from my backyard chickens"
+        "text": "fresh eggs from my backyard chickens",
+        "categoryChain": [
+          "goods",
+          "food",
+          "protein",
+          "eggs",
+          "farm-fresh-eggs"
+        ],
+        "disjointWith": [
+          "vegan-food",
+          "processed-food"
+        ]
       },
       {
-        "text": "eggs"
+        "text": "eggs",
+        "categoryChain": [
+          "goods",
+          "food",
+          "protein",
+          "eggs"
+        ],
+        "disjointWith": [
+          "vegan-food"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1397,10 +1920,30 @@
     "type": "need",
     "expressions": [
       {
-        "text": "farm-fresh eggs, tired of supermarket ones"
+        "text": "farm-fresh eggs, tired of supermarket ones",
+        "categoryChain": [
+          "goods",
+          "food",
+          "protein",
+          "eggs",
+          "farm-fresh-eggs"
+        ],
+        "disjointWith": [
+          "commercial-eggs",
+          "vegan-food"
+        ]
       },
       {
-        "text": "eggs"
+        "text": "eggs",
+        "categoryChain": [
+          "goods",
+          "food",
+          "protein",
+          "eggs"
+        ],
+        "disjointWith": [
+          "vegan-food"
+        ]
       }
     ],
     "constraints": {
@@ -1422,10 +1965,29 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a mentor in product management"
+        "text": "a mentor in product management",
+        "categoryChain": [
+          "services",
+          "professional-development",
+          "mentorship",
+          "product-management-mentor"
+        ],
+        "disjointWith": [
+          "peer-relationship",
+          "employee-relationship"
+        ]
       },
       {
-        "text": "mentor"
+        "text": "mentor",
+        "categoryChain": [
+          "services",
+          "professional-development",
+          "mentorship"
+        ],
+        "disjointWith": [
+          "mentee",
+          "peer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1442,10 +2004,29 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Senior PM happy to mentor early-career product folks"
+        "text": "Senior PM happy to mentor early-career product folks",
+        "categoryChain": [
+          "services",
+          "professional-development",
+          "mentorship",
+          "product-management-mentor"
+        ],
+        "disjointWith": [
+          "mentee",
+          "consultant"
+        ]
       },
       {
-        "text": "mentor"
+        "text": "mentor",
+        "categoryChain": [
+          "services",
+          "professional-development",
+          "mentorship"
+        ],
+        "disjointWith": [
+          "mentee",
+          "peer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1462,10 +2043,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "landlord with a 1BR apartment"
+        "text": "landlord with a 1BR apartment",
+        "categoryChain": [
+          "housing",
+          "rental",
+          "apartment",
+          "one-bedroom"
+        ],
+        "disjointWith": [
+          "home-purchase",
+          "commercial-property"
+        ]
       },
       {
-        "text": "apartment"
+        "text": "apartment",
+        "categoryChain": [
+          "housing",
+          "rental",
+          "apartment"
+        ],
+        "disjointWith": [
+          "house",
+          "condo",
+          "commercial-space"
+        ]
       }
     ],
     "constraints": {
@@ -1487,10 +2088,29 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Looking to rent a 1-2BR apartment in Austin, budget $1500"
+        "text": "Looking to rent a 1-2BR apartment in Austin, budget $1500",
+        "categoryChain": [
+          "housing",
+          "rental",
+          "apartment"
+        ],
+        "disjointWith": [
+          "home-purchase",
+          "commercial-property"
+        ]
       },
       {
-        "text": "apartment"
+        "text": "apartment",
+        "categoryChain": [
+          "housing",
+          "rental",
+          "apartment"
+        ],
+        "disjointWith": [
+          "house",
+          "condo",
+          "commercial-space"
+        ]
       }
     ],
     "constraints": {
@@ -1517,19 +2137,75 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a band"
+        "text": "a band",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "music",
+          "band"
+        ],
+        "disjointWith": [
+          "solo-artist",
+          "dj"
+        ]
       },
       {
-        "text": "drums musician"
+        "text": "drums musician",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "music",
+          "musician",
+          "drummer"
+        ],
+        "disjointWith": [
+          "guitarist",
+          "bassist",
+          "vocalist"
+        ]
       },
       {
-        "text": "musician"
+        "text": "musician",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "music",
+          "musician"
+        ],
+        "disjointWith": [
+          "dj",
+          "producer"
+        ]
       },
       {
-        "text": "bass musician"
+        "text": "bass musician",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "music",
+          "musician",
+          "bassist"
+        ],
+        "disjointWith": [
+          "guitarist",
+          "drummer",
+          "vocalist"
+        ]
       },
       {
-        "text": "guitar musician"
+        "text": "guitar musician",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "music",
+          "musician",
+          "guitarist"
+        ],
+        "disjointWith": [
+          "bassist",
+          "drummer",
+          "vocalist"
+        ]
       }
     ],
     "constraints": {
@@ -1549,16 +2225,58 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Starting a podcast"
+        "text": "Starting a podcast",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "audio-production",
+          "podcast-production"
+        ],
+        "disjointWith": [
+          "video-production",
+          "music-production"
+        ]
       },
       {
-        "text": "audio engineer"
+        "text": "audio engineer",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "audio-production",
+          "audio-engineer"
+        ],
+        "disjointWith": [
+          "video-editor",
+          "graphic-designer"
+        ]
       },
       {
-        "text": "full service podcast producer"
+        "text": "full service podcast producer",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "audio-production",
+          "podcast-production",
+          "full-service-producer"
+        ],
+        "disjointWith": [
+          "audio-only-engineer",
+          "video-producer"
+        ]
       },
       {
-        "text": "podcast producer"
+        "text": "podcast producer",
+        "categoryChain": [
+          "services",
+          "creative-services",
+          "audio-production",
+          "podcast-production",
+          "podcast-producer"
+        ],
+        "disjointWith": [
+          "music-producer",
+          "video-producer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1575,19 +2293,74 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "full-stack web development: frontend"
+        "text": "full-stack web development: frontend",
+        "categoryChain": [
+          "services",
+          "technology",
+          "software-development",
+          "web-development",
+          "frontend-development"
+        ],
+        "disjointWith": [
+          "backend-development",
+          "mobile-development"
+        ]
       },
       {
-        "text": "full stack developer"
+        "text": "full stack developer",
+        "categoryChain": [
+          "services",
+          "technology",
+          "software-development",
+          "web-development",
+          "full-stack-developer"
+        ],
+        "disjointWith": [
+          "mobile-developer",
+          "devops-engineer"
+        ]
       },
       {
-        "text": "frontend developer"
+        "text": "frontend developer",
+        "categoryChain": [
+          "services",
+          "technology",
+          "software-development",
+          "web-development",
+          "frontend-developer"
+        ],
+        "disjointWith": [
+          "backend-developer",
+          "mobile-developer"
+        ]
       },
       {
-        "text": "backend developer"
+        "text": "backend developer",
+        "categoryChain": [
+          "services",
+          "technology",
+          "software-development",
+          "web-development",
+          "backend-developer"
+        ],
+        "disjointWith": [
+          "frontend-developer",
+          "mobile-developer"
+        ]
       },
       {
-        "text": "database designer"
+        "text": "database designer",
+        "categoryChain": [
+          "services",
+          "technology",
+          "software-development",
+          "data-engineering",
+          "database-designer"
+        ],
+        "disjointWith": [
+          "frontend-developer",
+          "mobile-developer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1605,10 +2378,26 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "only in town for the next 3 days but can help with anything"
+        "text": "only in town for the next 3 days but can help with anything",
+        "categoryChain": [
+          "services",
+          "general-help",
+          "temporary-help"
+        ],
+        "disjointWith": [
+          "long-term-employment",
+          "permanent-position"
+        ]
       },
       {
-        "text": "general help"
+        "text": "general help",
+        "categoryChain": [
+          "services",
+          "general-help"
+        ],
+        "disjointWith": [
+          "specialized-services"
+        ]
       }
     ],
     "constraints": {
@@ -1633,10 +2422,28 @@
     "type": "need",
     "expressions": [
       {
-        "text": "house sitter for 3 weeks in July"
+        "text": "house sitter for 3 weeks in July",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "house-sitting"
+        ],
+        "disjointWith": [
+          "pet-sitting",
+          "property-management"
+        ]
       },
       {
-        "text": "house sitter"
+        "text": "house sitter",
+        "categoryChain": [
+          "services",
+          "home-services",
+          "house-sitting"
+        ],
+        "disjointWith": [
+          "tenant",
+          "property-manager"
+        ]
       }
     ],
     "constraints": {
@@ -1661,10 +2468,27 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Available for last-minute gigs - I can be ready in an hour"
+        "text": "Available for last-minute gigs - I can be ready in an hour",
+        "categoryChain": [
+          "services",
+          "general-help",
+          "on-demand-help"
+        ],
+        "disjointWith": [
+          "scheduled-services",
+          "long-term-employment"
+        ]
       },
       {
-        "text": "flexible worker"
+        "text": "flexible worker",
+        "categoryChain": [
+          "services",
+          "general-help",
+          "flexible-worker"
+        ],
+        "disjointWith": [
+          "specialized-professional"
+        ]
       }
     ],
     "constraints": {
@@ -1689,10 +2513,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "only work from home, but I'm great at customer service"
+        "text": "only work from home, but I'm great at customer service",
+        "categoryChain": [
+          "services",
+          "business-services",
+          "customer-service",
+          "remote-customer-service"
+        ],
+        "disjointWith": [
+          "on-site-work",
+          "field-work"
+        ]
       },
       {
-        "text": "customer service rep"
+        "text": "customer service rep",
+        "categoryChain": [
+          "services",
+          "business-services",
+          "customer-service",
+          "customer-service-representative"
+        ],
+        "disjointWith": [
+          "sales-representative",
+          "technical-support"
+        ]
       }
     ],
     "constraints": {
@@ -1715,10 +2559,29 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone on-site in our Chicago office 3 days a week"
+        "text": "someone on-site in our Chicago office 3 days a week",
+        "categoryChain": [
+          "services",
+          "employment",
+          "on-site-employee"
+        ],
+        "disjointWith": [
+          "remote-worker",
+          "freelancer"
+        ]
       },
       {
-        "text": "employee"
+        "text": "employee",
+        "categoryChain": [
+          "services",
+          "employment",
+          "employee"
+        ],
+        "disjointWith": [
+          "freelancer",
+          "contractor",
+          "volunteer"
+        ]
       }
     ],
     "constraints": {
@@ -1742,13 +2605,44 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Mobile pet grooming service covering all of Orange County"
+        "text": "Mobile pet grooming service covering all of Orange County",
+        "categoryChain": [
+          "services",
+          "pet-services",
+          "pet-grooming",
+          "mobile-pet-grooming"
+        ],
+        "disjointWith": [
+          "stationary-grooming",
+          "pet-sitting"
+        ]
       },
       {
-        "text": "mobile pet groomer"
+        "text": "mobile pet groomer",
+        "categoryChain": [
+          "services",
+          "pet-services",
+          "pet-grooming",
+          "mobile-pet-groomer"
+        ],
+        "disjointWith": [
+          "salon-groomer",
+          "pet-sitter"
+        ]
       },
       {
-        "text": "pet groomer"
+        "text": "pet groomer",
+        "categoryChain": [
+          "services",
+          "pet-services",
+          "pet-grooming",
+          "pet-groomer"
+        ],
+        "disjointWith": [
+          "pet-sitter",
+          "dog-walker",
+          "veterinarian"
+        ]
       }
     ],
     "constraints": {
@@ -1771,13 +2665,51 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "certified yoga instructor specializing in prenatal yoga"
+        "text": "certified yoga instructor specializing in prenatal yoga",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "fitness-instruction",
+          "yoga-instruction",
+          "prenatal-yoga-instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "employment"
+        ]
       },
       {
-        "text": "certified prenatal yoga instructor"
+        "text": "certified prenatal yoga instructor",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "fitness-instruction",
+          "yoga-instruction",
+          "prenatal-yoga-instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "employment"
+        ]
       },
       {
-        "text": "yoga instructor"
+        "text": "yoga instructor",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "fitness-instruction",
+          "yoga-instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "employment"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1794,13 +2726,47 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone who can teach me woodworking basics"
+        "text": "someone who can teach me woodworking basics",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "craft-instruction",
+          "woodworking-instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "employment"
+        ]
       },
       {
-        "text": "woodworking instructor"
+        "text": "woodworking instructor",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "craft-instruction",
+          "woodworking-instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "employment"
+        ]
       },
       {
-        "text": "instructor"
+        "text": "instructor",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "employment"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1817,10 +2783,34 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Expert in Salesforce administration"
+        "text": "Expert in Salesforce administration",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "software-administration",
+          "crm-administration",
+          "salesforce-administration"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor"
+        ]
       },
       {
-        "text": "salesforce admin"
+        "text": "salesforce admin",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "software-administration",
+          "crm-administration",
+          "salesforce-administration"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1837,10 +2827,33 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone who understands both Figma"
+        "text": "someone who understands both Figma",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "design-services",
+          "digital-design",
+          "ui-ux-design"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       },
       {
-        "text": "developer"
+        "text": "developer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "software-development"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1857,10 +2870,32 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "drive 4 passengers in my SUV"
+        "text": "drive 4 passengers in my SUV",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "passenger-transport",
+          "rideshare",
+          "small-group-transport"
+        ],
+        "disjointWith": [
+          "goods",
+          "professional-services",
+          "storage"
+        ]
       },
       {
-        "text": "driver"
+        "text": "driver",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "driving-services"
+        ],
+        "disjointWith": [
+          "goods",
+          "professional-services",
+          "storage"
+        ]
       }
     ],
     "constraints": {
@@ -1883,10 +2918,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "transportation for a group of 12 to the conference"
+        "text": "transportation for a group of 12 to the conference",
+        "categoryChain": [
+          "services",
+          "transportation",
+          "passenger-transport",
+          "group-transport",
+          "large-group-transport"
+        ],
+        "disjointWith": [
+          "goods",
+          "professional-services",
+          "storage"
+        ]
       },
       {
-        "text": "transport"
+        "text": "transport",
+        "categoryChain": [
+          "services",
+          "transportation"
+        ],
+        "disjointWith": [
+          "goods",
+          "professional-services",
+          "storage"
+        ]
       }
     ],
     "constraints": {
@@ -1911,13 +2967,43 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "1000 sq ft of warehouse space"
+        "text": "1000 sq ft of warehouse space",
+        "categoryChain": [
+          "services",
+          "storage",
+          "commercial-storage",
+          "warehouse-storage"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "professional-services"
+        ]
       },
       {
-        "text": "warehouse storage space"
+        "text": "warehouse storage space",
+        "categoryChain": [
+          "services",
+          "storage",
+          "commercial-storage",
+          "warehouse-storage"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "residential-storage"
+        ]
       },
       {
-        "text": "storage space"
+        "text": "storage space",
+        "categoryChain": [
+          "services",
+          "storage"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation"
+        ]
       }
     ],
     "constraints": {
@@ -1940,10 +3026,29 @@
     "type": "need",
     "expressions": [
       {
-        "text": "storage for about 50 boxes during my renovation"
+        "text": "storage for about 50 boxes during my renovation",
+        "categoryChain": [
+          "services",
+          "storage",
+          "residential-storage",
+          "temporary-storage"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "commercial-storage"
+        ]
       },
       {
-        "text": "storage space"
+        "text": "storage space",
+        "categoryChain": [
+          "services",
+          "storage"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation"
+        ]
       }
     ],
     "constraints": {
@@ -1971,10 +3076,34 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "I'll trade piano lessons for Spanish lessons"
+        "text": "I'll trade piano lessons for Spanish lessons",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "skill-exchange",
+          "lesson-exchange"
+        ],
+        "disjointWith": [
+          "goods",
+          "paid-services",
+          "investment"
+        ]
       },
       {
-        "text": "piano teacher"
+        "text": "piano teacher",
+        "categoryChain": [
+          "services",
+          "education",
+          "instruction",
+          "music-instruction",
+          "piano-instruction"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "transportation"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -1991,10 +3120,32 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "I could probably help with some coding stuff I guess"
+        "text": "I could probably help with some coding stuff I guess",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "software-development"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       },
       {
-        "text": "developer"
+        "text": "developer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "software-development"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2011,7 +3162,12 @@
     "type": "need",
     "expressions": [
       {
-        "text": "URGENT!!! Need help ASAP won't say what but it pays well"
+        "text": "URGENT!!! Need help ASAP won't say what but it pays well",
+        "categoryChain": [
+          "services",
+          "unspecified-services"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -2035,10 +3191,32 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "an extra ticket to the concert tonight if anyone wants it"
+        "text": "an extra ticket to the concert tonight if anyone wants it",
+        "categoryChain": [
+          "goods",
+          "tickets",
+          "event-tickets",
+          "concert-tickets"
+        ],
+        "disjointWith": [
+          "services",
+          "investment",
+          "real-estate"
+        ]
       },
       {
-        "text": "concert ticket"
+        "text": "concert ticket",
+        "categoryChain": [
+          "goods",
+          "tickets",
+          "event-tickets",
+          "concert-tickets"
+        ],
+        "disjointWith": [
+          "services",
+          "investment",
+          "real-estate"
+        ]
       }
     ],
     "constraints": {
@@ -2064,10 +3242,32 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a 3D printer and can print small objects"
+        "text": "a 3D printer and can print small objects",
+        "categoryChain": [
+          "services",
+          "manufacturing",
+          "custom-fabrication",
+          "3d-printing"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "professional-services"
+        ]
       },
       {
-        "text": "3d printing service"
+        "text": "3d printing service",
+        "categoryChain": [
+          "services",
+          "manufacturing",
+          "custom-fabrication",
+          "3d-printing"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "professional-services"
+        ]
       }
     ],
     "constraints": {
@@ -2089,10 +3289,33 @@
     "type": "need",
     "expressions": [
       {
-        "text": "get a custom phone case 3D printed"
+        "text": "get a custom phone case 3D printed",
+        "categoryChain": [
+          "services",
+          "manufacturing",
+          "custom-fabrication",
+          "3d-printing",
+          "custom-accessories"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "professional-services"
+        ]
       },
       {
-        "text": "3d printing service"
+        "text": "3d printing service",
+        "categoryChain": [
+          "services",
+          "manufacturing",
+          "custom-fabrication",
+          "3d-printing"
+        ],
+        "disjointWith": [
+          "goods",
+          "transportation",
+          "professional-services"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2109,10 +3332,33 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "an investment opportunity in sustainable tech"
+        "text": "an investment opportunity in sustainable tech",
+        "categoryChain": [
+          "investment",
+          "business-investment",
+          "startup-investment",
+          "sustainable-tech-investment"
+        ],
+        "disjointWith": [
+          "services",
+          "goods",
+          "employment"
+        ]
       },
       {
-        "text": "investment opportunity"
+        "text": "investment opportunity",
+        "categoryChain": [
+          "investment",
+          "business-investment",
+          "startup-investment",
+          "angel-investment",
+          "sustainable-tech-investment"
+        ],
+        "disjointWith": [
+          "services",
+          "goods",
+          "employment"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2129,13 +3375,43 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Angel investor looking for early-stage sustainable tech startups"
+        "text": "Angel investor looking for early-stage sustainable tech startups",
+        "categoryChain": [
+          "investment",
+          "business-investment",
+          "startup-investment",
+          "angel-investment"
+        ],
+        "disjointWith": [
+          "services",
+          "goods",
+          "employment"
+        ]
       },
       {
-        "text": "angel investor"
+        "text": "angel investor",
+        "categoryChain": [
+          "investment",
+          "business-investment"
+        ],
+        "disjointWith": [
+          "services",
+          "goods",
+          "employment"
+        ]
       },
       {
-        "text": "investor"
+        "text": "investor",
+        "categoryChain": [
+          "services",
+          "moving-services",
+          "full-service-moving"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "professional-services"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2152,19 +3428,70 @@
     "type": "need",
     "expressions": [
       {
-        "text": "help moving: packing, loading, transporting, and unpacking"
+        "text": "help moving: packing, loading, transporting, and unpacking",
+        "categoryChain": [
+          "services",
+          "moving-services",
+          "packing-services"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "transportation-only"
+        ]
       },
       {
-        "text": "packer"
+        "text": "packer",
+        "categoryChain": [
+          "services",
+          "moving-services",
+          "loading-services"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "packing-only"
+        ]
       },
       {
-        "text": "mover loading"
+        "text": "mover loading",
+        "categoryChain": [
+          "services",
+          "moving-services"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "professional-services"
+        ]
       },
       {
-        "text": "mover"
+        "text": "mover",
+        "categoryChain": [
+          "services",
+          "moving-services",
+          "moving-transport"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "packing-services"
+        ]
       },
       {
-        "text": "moving truck transport"
+        "text": "moving truck transport",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "marketing-services",
+          "social-media-services",
+          "social-media-strategy"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2182,19 +3509,74 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "handle all your social media: strategy"
+        "text": "handle all your social media: strategy",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "marketing-services",
+          "social-media-services",
+          "social-media-management"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       },
       {
-        "text": "social media manager"
+        "text": "social media manager",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "marketing-services",
+          "social-media-services",
+          "social-media-strategy"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       },
       {
-        "text": "social media strategist"
+        "text": "social media strategist",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative-services",
+          "content-creation"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       },
       {
-        "text": "content creator"
+        "text": "content creator",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "marketing-services",
+          "community-management"
+        ],
+        "disjointWith": [
+          "goods",
+          "manual-labor",
+          "transportation"
+        ]
       },
       {
-        "text": "community manager"
+        "text": "community manager",
+        "categoryChain": [
+          "services",
+          "shift-work",
+          "night-shift"
+        ],
+        "disjointWith": [
+          "day-shift",
+          "standard-hours"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2212,10 +3594,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "I only work night shifts"
+        "text": "I only work night shifts",
+        "categoryChain": [
+          "services",
+          "shift-work",
+          "night-shift"
+        ],
+        "disjointWith": [
+          "day-shift",
+          "standard-hours"
+        ]
       },
       {
-        "text": "night worker"
+        "text": "night worker",
+        "categoryChain": [
+          "services",
+          "administrative-services",
+          "reception-services",
+          "temporary-reception"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "remote-work"
+        ]
       }
     ],
     "constraints": {
@@ -2241,10 +3643,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone to cover reception desk 12pm-1pm daily during lunch"
+        "text": "someone to cover reception desk 12pm-1pm daily during lunch",
+        "categoryChain": [
+          "services",
+          "administrative-services",
+          "reception-services"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "remote-work"
+        ]
       },
       {
-        "text": "receptionist"
+        "text": "receptionist",
+        "categoryChain": [
+          "services",
+          "space-rental",
+          "studio-rental",
+          "photography-studio-rental"
+        ],
+        "disjointWith": [
+          "goods",
+          "investment",
+          "residential-rental"
+        ]
       }
     ],
     "constraints": {
@@ -2274,7 +3697,17 @@
         "text": "a fully equipped photography studio in downtown Portland"
       },
       {
-        "text": "photography studio"
+        "text": "photography studio",
+        "categoryChain": [
+          "service",
+          "creative-service",
+          "photography",
+          "photography-studio"
+        ],
+        "disjointWith": [
+          "videography-studio",
+          "recording-studio"
+        ]
       }
     ],
     "constraints": {
@@ -2297,10 +3730,25 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a venue in the Portland area that can host 200 people"
+        "text": "a venue in the Portland area that can host 200 people",
+        "categoryChain": [
+          "space",
+          "venue",
+          "event-venue",
+          "large-venue"
+        ],
+        "disjointWith": [
+          "small-venue",
+          "intimate-venue"
+        ]
       },
       {
-        "text": "venue"
+        "text": "venue",
+        "categoryChain": [
+          "space",
+          "venue"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -2326,10 +3774,26 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "licensed plumber who also does HVAC work"
+        "text": "licensed plumber who also does HVAC work",
+        "categoryChain": [
+          "service",
+          "trade-service",
+          "multi-trade-contractor"
+        ],
+        "disjointWith": [
+          "unlicensed-tradesperson"
+        ]
       },
       {
-        "text": "tradesperson"
+        "text": "tradesperson",
+        "categoryChain": [
+          "service",
+          "trade-service",
+          "tradesperson"
+        ],
+        "disjointWith": [
+          "professional-service"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2347,10 +3811,26 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone comfortable working with children who have special needs"
+        "text": "someone comfortable working with children who have special needs",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "childcare",
+          "special-needs-childcare"
+        ],
+        "disjointWith": [
+          "elderly-care",
+          "pet-care"
+        ]
       },
       {
-        "text": "caregiver"
+        "text": "caregiver",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "caregiver"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -2367,10 +3847,29 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "50 cupcakes every week and have extras to sell"
+        "text": "50 cupcakes every week and have extras to sell",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baked-goods",
+          "cupcakes",
+          "recurring-supply"
+        ],
+        "disjointWith": [
+          "one-time-order"
+        ]
       },
       {
-        "text": "cupcakes"
+        "text": "cupcakes",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baked-goods",
+          "cupcakes"
+        ],
+        "disjointWith": [
+          "savory-baked-goods"
+        ]
       }
     ],
     "constraints": {
@@ -2396,10 +3895,30 @@
     "type": "need",
     "expressions": [
       {
-        "text": "200 cupcakes for a birthday party next Saturday"
+        "text": "200 cupcakes for a birthday party next Saturday",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baked-goods",
+          "cupcakes",
+          "bulk-order",
+          "event-order"
+        ],
+        "disjointWith": [
+          "recurring-supply"
+        ]
       },
       {
-        "text": "cupcakes"
+        "text": "cupcakes",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baked-goods",
+          "cupcakes"
+        ],
+        "disjointWith": [
+          "savory-baked-goods"
+        ]
       }
     ],
     "constraints": {
@@ -2426,10 +3945,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "I used to be a nurse but my license expired"
+        "text": "I used to be a nurse but my license expired",
+        "categoryChain": [
+          "service",
+          "healthcare",
+          "unlicensed-healthcare-worker",
+          "former-nurse"
+        ],
+        "disjointWith": [
+          "licensed-healthcare-worker"
+        ]
       },
       {
-        "text": "healthcare worker"
+        "text": "healthcare worker",
+        "categoryChain": [
+          "service",
+          "healthcare",
+          "healthcare-worker"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -2446,13 +3980,43 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone to take care of my plants"
+        "text": "someone to take care of my plants",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "plant-care",
+          "plant-sitting"
+        ],
+        "disjointWith": [
+          "pet-care",
+          "childcare"
+        ]
       },
       {
-        "text": "plant sitter"
+        "text": "plant sitter",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "plant-care",
+          "plant-sitter"
+        ],
+        "disjointWith": [
+          "pet-sitter"
+        ]
       },
       {
-        "text": "fish sitter"
+        "text": "fish sitter",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "pet-care",
+          "fish-sitting"
+        ],
+        "disjointWith": [
+          "plant-care",
+          "dog-sitting",
+          "cat-sitting"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2469,10 +4033,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Offering free advice on anything, I've done a lot in my life"
+        "text": "Offering free advice on anything, I've done a lot in my life",
+        "categoryChain": [
+          "service",
+          "consulting",
+          "general-advice",
+          "life-experience-advisor"
+        ],
+        "disjointWith": [
+          "specialized-consulting"
+        ]
       },
       {
-        "text": "advisor"
+        "text": "advisor",
+        "categoryChain": [
+          "service",
+          "consulting",
+          "advisor"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -2489,10 +4068,27 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "sourdough starter to share"
+        "text": "sourdough starter to share",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baking-supplies",
+          "sourdough-starter",
+          "available"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "sourdough starter"
+        "text": "sourdough starter",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baking-supplies",
+          "sourdough-starter"
+        ],
+        "disjointWith": [
+          "commercial-yeast"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2508,10 +4104,27 @@
     "type": "need",
     "expressions": [
       {
-        "text": "sourdough starter they can spare?"
+        "text": "sourdough starter they can spare?",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baking-supplies",
+          "sourdough-starter",
+          "wanted"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "sourdough starter"
+        "text": "sourdough starter",
+        "categoryChain": [
+          "goods",
+          "food",
+          "baking-supplies",
+          "sourdough-starter"
+        ],
+        "disjointWith": [
+          "commercial-yeast"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2527,10 +4140,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "foster parent with capacity for 2 more children"
+        "text": "foster parent with capacity for 2 more children",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "foster-care",
+          "foster-parent",
+          "available-capacity"
+        ],
+        "disjointWith": [
+          "adoption-service"
+        ]
       },
       {
-        "text": "foster home"
+        "text": "foster home",
+        "categoryChain": [
+          "service",
+          "care-service",
+          "foster-care",
+          "foster-home"
+        ],
+        "disjointWith": [
+          "group-home",
+          "adoption-agency"
+        ]
       }
     ],
     "constraints": {
@@ -2552,10 +4185,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Casting director looking for actors for a commercial shoot"
+        "text": "Casting director looking for actors for a commercial shoot",
+        "categoryChain": [
+          "opportunity",
+          "entertainment",
+          "acting",
+          "commercial-acting",
+          "casting-call"
+        ],
+        "disjointWith": [
+          "film-acting",
+          "theater-acting"
+        ]
       },
       {
-        "text": "actor"
+        "text": "actor",
+        "categoryChain": [
+          "service",
+          "creative-service",
+          "performing-arts",
+          "actor"
+        ],
+        "disjointWith": [
+          "voice-actor",
+          "stunt-performer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2572,10 +4226,29 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Actor seeking representation, experienced in film and TV"
+        "text": "Actor seeking representation, experienced in film and TV",
+        "categoryChain": [
+          "service",
+          "creative-service",
+          "performing-arts",
+          "actor",
+          "seeking-representation"
+        ],
+        "disjointWith": [
+          "theater-actor"
+        ]
       },
       {
-        "text": "talent agent"
+        "text": "talent agent",
+        "categoryChain": [
+          "service",
+          "entertainment-industry",
+          "talent-representation",
+          "talent-agent"
+        ],
+        "disjointWith": [
+          "casting-director"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2592,19 +4265,64 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Planning a film shoot - need location"
+        "text": "Planning a film shoot - need location",
+        "categoryChain": [
+          "space",
+          "production-space",
+          "film-location"
+        ],
+        "disjointWith": [
+          "photo-studio"
+        ]
       },
       {
-        "text": "film location"
+        "text": "film location",
+        "categoryChain": [
+          "space",
+          "production-space",
+          "film-location"
+        ],
+        "disjointWith": [
+          "event-venue"
+        ]
       },
       {
-        "text": "film equipment"
+        "text": "film equipment",
+        "categoryChain": [
+          "goods",
+          "production-equipment",
+          "film-equipment"
+        ],
+        "disjointWith": [
+          "audio-equipment",
+          "photography-equipment"
+        ]
       },
       {
-        "text": "film crew"
+        "text": "film crew",
+        "categoryChain": [
+          "service",
+          "creative-service",
+          "production-crew",
+          "film-crew"
+        ],
+        "disjointWith": [
+          "photography-crew",
+          "event-staff"
+        ]
       },
       {
-        "text": "caterer"
+        "text": "caterer",
+        "categoryChain": [
+          "service",
+          "food-service",
+          "catering",
+          "caterer"
+        ],
+        "disjointWith": [
+          "personal-chef",
+          "restaurant"
+        ]
       }
     ],
     "constraints": {
@@ -2627,10 +4345,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "retiring in 6 months"
+        "text": "retiring in 6 months",
+        "categoryChain": [
+          "opportunity",
+          "business",
+          "business-transition",
+          "retirement-sale"
+        ],
+        "disjointWith": [
+          "expansion",
+          "hiring"
+        ]
       },
       {
-        "text": "business transfer"
+        "text": "business transfer",
+        "categoryChain": [
+          "opportunity",
+          "business",
+          "business-transition",
+          "business-transfer"
+        ],
+        "disjointWith": [
+          "startup",
+          "franchise"
+        ]
       }
     ],
     "constraints": {
@@ -2655,13 +4393,43 @@
     "type": "need",
     "expressions": [
       {
-        "text": "same-day courier for an urgent document delivery"
+        "text": "same-day courier for an urgent document delivery",
+        "categoryChain": [
+          "service",
+          "delivery-service",
+          "courier",
+          "same-day-courier",
+          "document-delivery"
+        ],
+        "disjointWith": [
+          "standard-shipping",
+          "freight"
+        ]
       },
       {
-        "text": "document courier"
+        "text": "document courier",
+        "categoryChain": [
+          "service",
+          "delivery-service",
+          "courier",
+          "document-courier"
+        ],
+        "disjointWith": [
+          "package-courier",
+          "freight-courier"
+        ]
       },
       {
-        "text": "courier"
+        "text": "courier",
+        "categoryChain": [
+          "service",
+          "delivery-service",
+          "courier"
+        ],
+        "disjointWith": [
+          "freight-service",
+          "postal-service"
+        ]
       }
     ],
     "constraints": {
@@ -2684,13 +4452,42 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a beachfront property"
+        "text": "a beachfront property",
+        "categoryChain": [
+          "space",
+          "property",
+          "waterfront-property",
+          "beachfront-property"
+        ],
+        "disjointWith": [
+          "inland-property",
+          "mountain-property"
+        ]
       },
       {
-        "text": "beachfront event venue"
+        "text": "beachfront event venue",
+        "categoryChain": [
+          "space",
+          "venue",
+          "event-venue",
+          "beachfront-event-venue"
+        ],
+        "disjointWith": [
+          "indoor-venue",
+          "mountain-venue"
+        ]
       },
       {
-        "text": "event venue"
+        "text": "event venue",
+        "categoryChain": [
+          "space",
+          "venue",
+          "event-venue"
+        ],
+        "disjointWith": [
+          "residential-space",
+          "office-space"
+        ]
       }
     ],
     "constraints": {
@@ -2713,13 +4510,45 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Experienced grant writer specializing in nonprofit arts funding"
+        "text": "Experienced grant writer specializing in nonprofit arts funding",
+        "categoryChain": [
+          "service",
+          "professional-service",
+          "writing-service",
+          "grant-writing",
+          "arts-grant-writing"
+        ],
+        "disjointWith": [
+          "scientific-grant-writing",
+          "government-grant-writing"
+        ]
       },
       {
-        "text": "experienced arts grant writer"
+        "text": "experienced arts grant writer",
+        "categoryChain": [
+          "service",
+          "professional-service",
+          "writing-service",
+          "grant-writing",
+          "arts-grant-writing",
+          "experienced"
+        ],
+        "disjointWith": [
+          "scientific-grant-writing"
+        ]
       },
       {
-        "text": "grant writer"
+        "text": "grant writer",
+        "categoryChain": [
+          "service",
+          "professional-service",
+          "writing-service",
+          "grant-writing"
+        ],
+        "disjointWith": [
+          "copywriter",
+          "technical-writer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2736,10 +4565,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "help writing a NEA grant application"
+        "text": "help writing a NEA grant application",
+        "categoryChain": [
+          "service",
+          "professional-service",
+          "writing-service",
+          "grant-writing",
+          "arts-grant-writing",
+          "nea-grant"
+        ],
+        "disjointWith": [
+          "private-foundation-grant"
+        ]
       },
       {
-        "text": "grant writer"
+        "text": "grant writer",
+        "categoryChain": [
+          "service",
+          "professional-service",
+          "writing-service",
+          "grant-writing"
+        ],
+        "disjointWith": [
+          "copywriter",
+          "technical-writer"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2756,10 +4606,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "6 hours of studio recording time I'm not using this month"
+        "text": "6 hours of studio recording time I'm not using this month",
+        "categoryChain": [
+          "space",
+          "production-space",
+          "recording-studio",
+          "studio-time",
+          "available"
+        ],
+        "disjointWith": [
+          "rehearsal-space"
+        ]
       },
       {
-        "text": "studio time"
+        "text": "studio time",
+        "categoryChain": [
+          "space",
+          "production-space",
+          "recording-studio",
+          "studio-time"
+        ],
+        "disjointWith": [
+          "live-venue",
+          "rehearsal-space"
+        ]
       }
     ],
     "constraints": {
@@ -2785,10 +4655,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "about 10 hours of professional recording studio time"
+        "text": "about 10 hours of professional recording studio time",
+        "categoryChain": [
+          "space",
+          "production-space",
+          "recording-studio",
+          "studio-time",
+          "professional-grade",
+          "wanted"
+        ],
+        "disjointWith": [
+          "home-studio"
+        ]
       },
       {
-        "text": "studio time"
+        "text": "studio time",
+        "categoryChain": [
+          "space",
+          "production-space",
+          "recording-studio",
+          "studio-time"
+        ],
+        "disjointWith": [
+          "live-venue",
+          "rehearsal-space"
+        ]
       }
     ],
     "constraints": {
@@ -2812,10 +4703,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "I inherited my grandfather's woodworking tools"
+        "text": "I inherited my grandfather's woodworking tools",
+        "categoryChain": [
+          "goods",
+          "tools",
+          "hand-tools",
+          "woodworking-tools"
+        ],
+        "disjointWith": [
+          "services",
+          "digital-goods"
+        ]
       },
       {
-        "text": "woodworking tools"
+        "text": "woodworking tools",
+        "categoryChain": [
+          "goods",
+          "tools",
+          "hand-tools",
+          "woodworking-tools"
+        ],
+        "disjointWith": [
+          "power-tools",
+          "metalworking-tools"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2832,16 +4743,52 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone who won't judge me"
+        "text": "someone who won't judge me",
+        "categoryChain": [
+          "services",
+          "personal-services",
+          "emotional-support"
+        ],
+        "disjointWith": [
+          "goods"
+        ]
       },
       {
-        "text": "therapist"
+        "text": "therapist",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "healthcare",
+          "mental-health",
+          "therapist"
+        ],
+        "disjointWith": [
+          "unlicensed-counselor"
+        ]
       },
       {
-        "text": "support group"
+        "text": "support group",
+        "categoryChain": [
+          "services",
+          "personal-services",
+          "emotional-support",
+          "peer-support",
+          "support-group"
+        ],
+        "disjointWith": [
+          "individual-therapy"
+        ]
       },
       {
-        "text": "friend"
+        "text": "friend",
+        "categoryChain": [
+          "relationships",
+          "personal-connections",
+          "friendship"
+        ],
+        "disjointWith": [
+          "professional-services"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2859,16 +4806,49 @@
     "type": "need",
     "expressions": [
       {
-        "text": "ISO something fun to do"
+        "text": "ISO something fun to do",
+        "categoryChain": [
+          "experiences",
+          "leisure",
+          "recreation"
+        ],
+        "disjointWith": [
+          "work",
+          "obligations"
+        ]
       },
       {
-        "text": "activity"
+        "text": "activity",
+        "categoryChain": [
+          "experiences",
+          "leisure",
+          "activity"
+        ],
+        "disjointWith": [
+          "passive-entertainment"
+        ]
       },
       {
-        "text": "event"
+        "text": "event",
+        "categoryChain": [
+          "experiences",
+          "scheduled-happening",
+          "event"
+        ],
+        "disjointWith": [
+          "ongoing-activity"
+        ]
       },
       {
-        "text": "companion"
+        "text": "companion",
+        "categoryChain": [
+          "relationships",
+          "personal-connections",
+          "companionship"
+        ],
+        "disjointWith": [
+          "professional-services"
+        ]
       }
     ],
     "constraints": {
@@ -2890,10 +4870,32 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "microgreens and have fresh batches every week"
+        "text": "microgreens and have fresh batches every week",
+        "categoryChain": [
+          "goods",
+          "food",
+          "produce",
+          "vegetables",
+          "microgreens"
+        ],
+        "disjointWith": [
+          "processed-food",
+          "meat"
+        ]
       },
       {
-        "text": "microgreens"
+        "text": "microgreens",
+        "categoryChain": [
+          "goods",
+          "food",
+          "produce",
+          "vegetables",
+          "microgreens"
+        ],
+        "disjointWith": [
+          "mature-greens",
+          "sprouts"
+        ]
       }
     ],
     "constraints": {
@@ -2916,13 +4918,46 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "birth doula supporting families through pregnancy"
+        "text": "birth doula supporting families through pregnancy",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "healthcare",
+          "maternal-care",
+          "birth-doula"
+        ],
+        "disjointWith": [
+          "postpartum-doula",
+          "midwife"
+        ]
       },
       {
-        "text": "birth doula"
+        "text": "birth doula",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "healthcare",
+          "maternal-care",
+          "birth-doula"
+        ],
+        "disjointWith": [
+          "postpartum-doula",
+          "midwife"
+        ]
       },
       {
-        "text": "doula"
+        "text": "doula",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "healthcare",
+          "maternal-care",
+          "doula"
+        ],
+        "disjointWith": [
+          "midwife",
+          "obstetrician"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2939,10 +4974,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Expecting our first baby and looking for a doula"
+        "text": "Expecting our first baby and looking for a doula",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "healthcare",
+          "maternal-care",
+          "doula"
+        ],
+        "disjointWith": [
+          "midwife"
+        ]
       },
       {
-        "text": "doula"
+        "text": "doula",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "healthcare",
+          "maternal-care",
+          "doula"
+        ],
+        "disjointWith": [
+          "midwife",
+          "obstetrician"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2959,19 +5015,65 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Setting up a new office - need furniture"
+        "text": "Setting up a new office - need furniture",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "office-furniture"
+        ],
+        "disjointWith": [
+          "residential-furniture",
+          "outdoor-furniture"
+        ]
       },
       {
-        "text": "office furniture"
+        "text": "office furniture",
+        "categoryChain": [
+          "goods",
+          "furniture",
+          "office-furniture"
+        ],
+        "disjointWith": [
+          "residential-furniture",
+          "outdoor-furniture"
+        ]
       },
       {
-        "text": "setup it services"
+        "text": "setup it services",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "it-services",
+          "it-setup"
+        ],
+        "disjointWith": [
+          "it-maintenance",
+          "software-development"
+        ]
       },
       {
-        "text": "it services"
+        "text": "it services",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "technology-services",
+          "it-services"
+        ],
+        "disjointWith": [
+          "creative-services"
+        ]
       },
       {
-        "text": "cleaning service"
+        "text": "cleaning service",
+        "categoryChain": [
+          "services",
+          "facility-services",
+          "cleaning-service"
+        ],
+        "disjointWith": [
+          "construction-services"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -2990,10 +5092,31 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Available for seasonal work during the summer months only"
+        "text": "Available for seasonal work during the summer months only",
+        "categoryChain": [
+          "services",
+          "labor",
+          "temporary-work",
+          "seasonal-work",
+          "summer-work"
+        ],
+        "disjointWith": [
+          "permanent-employment",
+          "winter-work"
+        ]
       },
       {
-        "text": "seasonal worker"
+        "text": "seasonal worker",
+        "categoryChain": [
+          "services",
+          "labor",
+          "temporary-work",
+          "seasonal-worker"
+        ],
+        "disjointWith": [
+          "permanent-employee",
+          "full-time-worker"
+        ]
       }
     ],
     "constraints": {
@@ -3017,10 +5140,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a food truck and can travel anywhere in the tri-state area"
+        "text": "a food truck and can travel anywhere in the tri-state area",
+        "categoryChain": [
+          "services",
+          "food-services",
+          "mobile-food",
+          "food-truck"
+        ],
+        "disjointWith": [
+          "restaurant",
+          "catering-only"
+        ]
       },
       {
-        "text": "food truck"
+        "text": "food truck",
+        "categoryChain": [
+          "services",
+          "food-services",
+          "mobile-food",
+          "food-truck"
+        ],
+        "disjointWith": [
+          "brick-and-mortar-restaurant",
+          "food-cart"
+        ]
       }
     ],
     "constraints": {
@@ -3043,10 +5186,31 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "ASL interpreter"
+        "text": "ASL interpreter",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "language-services",
+          "interpretation",
+          "sign-language-interpreter",
+          "asl-interpreter"
+        ],
+        "disjointWith": [
+          "spoken-language-interpreter"
+        ]
       },
       {
-        "text": "interpreter"
+        "text": "interpreter",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "language-services",
+          "interpretation",
+          "interpreter"
+        ],
+        "disjointWith": [
+          "translator"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3063,10 +5227,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "ASL interpreter"
+        "text": "ASL interpreter",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "language-services",
+          "interpretation",
+          "sign-language-interpreter",
+          "asl-interpreter"
+        ],
+        "disjointWith": [
+          "spoken-language-interpreter"
+        ]
       },
       {
-        "text": "interpreter"
+        "text": "interpreter",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "language-services",
+          "interpretation",
+          "interpreter"
+        ],
+        "disjointWith": [
+          "translator"
+        ]
       }
     ],
     "constraints": {
@@ -3088,10 +5273,31 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "process up to 500 payroll entries per month"
+        "text": "process up to 500 payroll entries per month",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "business-services",
+          "financial-services",
+          "payroll-service"
+        ],
+        "disjointWith": [
+          "tax-preparation",
+          "bookkeeping"
+        ]
       },
       {
-        "text": "payroll service"
+        "text": "payroll service",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "business-services",
+          "financial-services",
+          "payroll-service"
+        ],
+        "disjointWith": [
+          "tax-preparation"
+        ]
       }
     ],
     "constraints": {
@@ -3114,13 +5320,39 @@
     "type": "need",
     "expressions": [
       {
-        "text": "not sure if I need a lawyer or an accountant for this situation"
+        "text": "not sure if I need a lawyer or an accountant for this situation",
+        "categoryChain": [
+          "services",
+          "professional-services"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "lawyer"
+        "text": "lawyer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "legal-services",
+          "lawyer"
+        ],
+        "disjointWith": [
+          "accountant",
+          "paralegal"
+        ]
       },
       {
-        "text": "accountant"
+        "text": "accountant",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "financial-services",
+          "accounting",
+          "accountant"
+        ],
+        "disjointWith": [
+          "lawyer",
+          "bookkeeper"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3137,10 +5369,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Selling everything as I'm leaving the country next week"
+        "text": "Selling everything as I'm leaving the country next week",
+        "categoryChain": [
+          "goods",
+          "secondhand-goods",
+          "bulk-sale",
+          "estate-sale"
+        ],
+        "disjointWith": [
+          "new-goods",
+          "single-item-sale"
+        ]
       },
       {
-        "text": "estate sale"
+        "text": "estate sale",
+        "categoryChain": [
+          "goods",
+          "secondhand-goods",
+          "bulk-sale",
+          "estate-sale"
+        ],
+        "disjointWith": [
+          "garage-sale",
+          "auction"
+        ]
       }
     ],
     "constraints": {
@@ -3165,13 +5417,42 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "custom leather bags and wallets"
+        "text": "custom leather bags and wallets",
+        "categoryChain": [
+          "goods",
+          "accessories",
+          "leather-goods",
+          "custom-leather-goods"
+        ],
+        "disjointWith": [
+          "mass-produced-goods",
+          "synthetic-materials"
+        ]
       },
       {
-        "text": "custom leather goods"
+        "text": "custom leather goods",
+        "categoryChain": [
+          "goods",
+          "accessories",
+          "leather-goods",
+          "custom-leather-goods"
+        ],
+        "disjointWith": [
+          "mass-produced-leather",
+          "vegan-leather"
+        ]
       },
       {
-        "text": "leather goods"
+        "text": "leather goods",
+        "categoryChain": [
+          "goods",
+          "accessories",
+          "leather-goods"
+        ],
+        "disjointWith": [
+          "vegan-leather",
+          "synthetic-materials"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3188,10 +5469,32 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Personal chef"
+        "text": "Personal chef",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "food-services",
+          "private-chef",
+          "personal-chef"
+        ],
+        "disjointWith": [
+          "restaurant-chef",
+          "catering-chef"
+        ]
       },
       {
-        "text": "personal chef"
+        "text": "personal chef",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "food-services",
+          "private-chef",
+          "personal-chef"
+        ],
+        "disjointWith": [
+          "restaurant-chef",
+          "catering-chef"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3208,10 +5511,32 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a personal chef for weekly healthy meal prep"
+        "text": "a personal chef for weekly healthy meal prep",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "food-services",
+          "private-chef",
+          "personal-chef",
+          "meal-prep-chef"
+        ],
+        "disjointWith": [
+          "event-catering"
+        ]
       },
       {
-        "text": "personal chef"
+        "text": "personal chef",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "food-services",
+          "private-chef",
+          "personal-chef"
+        ],
+        "disjointWith": [
+          "restaurant-chef",
+          "catering-chef"
+        ]
       }
     ],
     "constraints": {
@@ -3233,19 +5558,73 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "do video production end-to-end: scripting"
+        "text": "do video production end-to-end: scripting",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative-services",
+          "video-production",
+          "full-service-video-production"
+        ],
+        "disjointWith": [
+          "photography-only",
+          "audio-only"
+        ]
       },
       {
-        "text": "video producer"
+        "text": "video producer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative-services",
+          "video-production",
+          "video-producer"
+        ],
+        "disjointWith": [
+          "audio-producer"
+        ]
       },
       {
-        "text": "scriptwriter"
+        "text": "scriptwriter",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative-services",
+          "writing-services",
+          "scriptwriter"
+        ],
+        "disjointWith": [
+          "novelist",
+          "copywriter"
+        ]
       },
       {
-        "text": "videographer"
+        "text": "videographer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative-services",
+          "video-production",
+          "videographer"
+        ],
+        "disjointWith": [
+          "photographer"
+        ]
       },
       {
-        "text": "video editor"
+        "text": "video editor",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "creative-services",
+          "video-production",
+          "post-production",
+          "video-editor"
+        ],
+        "disjointWith": [
+          "audio-editor",
+          "colorist"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3262,10 +5641,28 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone to cover my bar shift this Friday 8pm-2am"
+        "text": "someone to cover my bar shift this Friday 8pm-2am",
+        "categoryChain": [
+          "services",
+          "labor",
+          "temporary-work",
+          "shift-coverage",
+          "hospitality-shift",
+          "bartender-shift"
+        ],
+        "disjointWith": [
+          "permanent-position"
+        ]
       },
       {
-        "text": "bartender"
+        "text": "bartender",
+        "categoryChain": [
+          "services",
+          "hospitality",
+          "food-and-beverage",
+          "bartending"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -3291,10 +5688,27 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "pick up and deliver items within a 10-mile radius of downtown Denver"
+        "text": "pick up and deliver items within a 10-mile radius of downtown Denver",
+        "categoryChain": [
+          "services",
+          "logistics",
+          "delivery",
+          "local-delivery",
+          "denver-local-delivery"
+        ],
+        "disjointWith": [
+          "long-distance-delivery",
+          "national-shipping"
+        ]
       },
       {
-        "text": "delivery service"
+        "text": "delivery service",
+        "categoryChain": [
+          "services",
+          "logistics",
+          "delivery"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -3320,13 +5734,37 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Certified arborist specializing in tree health assessment"
+        "text": "Certified arborist specializing in tree health assessment",
+        "categoryChain": [
+          "services",
+          "outdoor-services",
+          "tree-care",
+          "arborist",
+          "certified-arborist",
+          "tree-health-assessment"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "certified arborist"
+        "text": "certified arborist",
+        "categoryChain": [
+          "services",
+          "outdoor-services",
+          "tree-care",
+          "arborist",
+          "certified-arborist"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "arborist"
+        "text": "arborist",
+        "categoryChain": [
+          "services",
+          "outdoor-services",
+          "tree-care",
+          "arborist"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3343,10 +5781,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "host up to 8 dinner guests at my home restaurant experience"
+        "text": "host up to 8 dinner guests at my home restaurant experience",
+        "categoryChain": [
+          "services",
+          "hospitality",
+          "dining",
+          "private-dining",
+          "supper-club"
+        ],
+        "disjointWith": [
+          "commercial-restaurant"
+        ]
       },
       {
-        "text": "supper club"
+        "text": "supper club",
+        "categoryChain": [
+          "services",
+          "hospitality",
+          "dining",
+          "private-dining",
+          "supper-club"
+        ],
+        "disjointWith": [
+          "commercial-restaurant"
+        ]
       }
     ],
     "constraints": {
@@ -3369,10 +5827,29 @@
     "type": "need",
     "expressions": [
       {
-        "text": "We're a band looking for another band to split a bill with for a show"
+        "text": "We're a band looking for another band to split a bill with for a show",
+        "categoryChain": [
+          "entertainment",
+          "music",
+          "live-performance",
+          "band",
+          "band-seeking-collaboration"
+        ],
+        "disjointWith": [
+          "solo-artist"
+        ]
       },
       {
-        "text": "band"
+        "text": "band",
+        "categoryChain": [
+          "entertainment",
+          "music",
+          "live-performance",
+          "band"
+        ],
+        "disjointWith": [
+          "solo-artist"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3389,10 +5866,21 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "skills but no idea what to do with my life"
+        "text": "skills but no idea what to do with my life",
+        "categoryChain": [
+          "services",
+          "general-labor",
+          "undifferentiated-skills"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "general skills"
+        "text": "general skills",
+        "categoryChain": [
+          "services",
+          "general-labor"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3410,13 +5898,36 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Professional resume and LinkedIn profile writing services"
+        "text": "Professional resume and LinkedIn profile writing services",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "career-services",
+          "resume-writing",
+          "professional-resume-writing"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "professional resume writer"
+        "text": "professional resume writer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "career-services",
+          "resume-writing",
+          "professional-resume-writing"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "resume writer"
+        "text": "resume writer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "career-services",
+          "resume-writing"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3433,10 +5944,25 @@
     "type": "need",
     "expressions": [
       {
-        "text": "help updating my resume for tech jobs"
+        "text": "help updating my resume for tech jobs",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "career-services",
+          "resume-writing",
+          "tech-resume-writing"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "resume writer"
+        "text": "resume writer",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "career-services",
+          "resume-writing"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3453,13 +5979,36 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Fitness coach specializing in postpartum recovery"
+        "text": "Fitness coach specializing in postpartum recovery",
+        "categoryChain": [
+          "services",
+          "health-and-wellness",
+          "fitness",
+          "fitness-coaching",
+          "postpartum-fitness-coaching"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "postpartum fitness coach"
+        "text": "postpartum fitness coach",
+        "categoryChain": [
+          "services",
+          "health-and-wellness",
+          "fitness",
+          "fitness-coaching",
+          "postpartum-fitness-coaching"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "fitness coach"
+        "text": "fitness coach",
+        "categoryChain": [
+          "services",
+          "health-and-wellness",
+          "fitness",
+          "fitness-coaching"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3476,19 +6025,60 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "provide complete childcare: supervision"
+        "text": "provide complete childcare: supervision",
+        "categoryChain": [
+          "services",
+          "personal-services",
+          "childcare",
+          "nanny"
+        ],
+        "disjointWith": [
+          "eldercare"
+        ]
       },
       {
-        "text": "nanny"
+        "text": "nanny",
+        "categoryChain": [
+          "services",
+          "personal-services",
+          "childcare",
+          "nanny"
+        ],
+        "disjointWith": [
+          "eldercare"
+        ]
       },
       {
-        "text": "childcare supervision"
+        "text": "childcare supervision",
+        "categoryChain": [
+          "services",
+          "personal-services",
+          "childcare",
+          "supervision"
+        ],
+        "disjointWith": [
+          "eldercare"
+        ]
       },
       {
-        "text": "homework help"
+        "text": "homework help",
+        "categoryChain": [
+          "services",
+          "education",
+          "tutoring",
+          "homework-help"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "meal prep"
+        "text": "meal prep",
+        "categoryChain": [
+          "services",
+          "personal-services",
+          "food-preparation",
+          "meal-prep"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3505,10 +6095,28 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "only commit to projects that are under 2 weeks"
+        "text": "only commit to projects that are under 2 weeks",
+        "categoryChain": [
+          "services",
+          "general-labor",
+          "short-term-work"
+        ],
+        "disjointWith": [
+          "long-term-employment",
+          "permanent-position"
+        ]
       },
       {
-        "text": "short term worker"
+        "text": "short term worker",
+        "categoryChain": [
+          "services",
+          "general-labor",
+          "short-term-work"
+        ],
+        "disjointWith": [
+          "long-term-employment",
+          "permanent-position"
+        ]
       }
     ],
     "constraints": {
@@ -3532,10 +6140,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Notary public serving the greater Seattle area"
+        "text": "Notary public serving the greater Seattle area",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "legal-services",
+          "notary",
+          "seattle-notary"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "notary"
+        "text": "notary",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "legal-services",
+          "notary"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -3558,10 +6181,22 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "great with animals - worked at a vet clinic and a zoo"
+        "text": "great with animals - worked at a vet clinic and a zoo",
+        "categoryChain": [
+          "services",
+          "animal-services",
+          "animal-care"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "animal care"
+        "text": "animal care",
+        "categoryChain": [
+          "services",
+          "animal-services",
+          "animal-care"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3578,10 +6213,24 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "20 jars of kimchi monthly and sell the extras"
+        "text": "20 jars of kimchi monthly and sell the extras",
+        "categoryChain": [
+          "goods",
+          "food",
+          "fermented-food",
+          "kimchi"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "kimchi"
+        "text": "kimchi",
+        "categoryChain": [
+          "goods",
+          "food",
+          "fermented-food",
+          "kimchi"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -3605,10 +6254,26 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "too much zucchini from my garden, please take some"
+        "text": "too much zucchini from my garden, please take some",
+        "categoryChain": [
+          "goods",
+          "food",
+          "produce",
+          "vegetables",
+          "zucchini"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "zucchini"
+        "text": "zucchini",
+        "categoryChain": [
+          "goods",
+          "food",
+          "produce",
+          "vegetables",
+          "zucchini"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3625,10 +6290,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "proofread and copy-edit documents in English"
+        "text": "proofread and copy-edit documents in English",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "writing-services",
+          "editing",
+          "proofreading"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "editor"
+        "text": "editor",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "writing-services",
+          "editing"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3645,10 +6325,25 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Event DJ"
+        "text": "Event DJ",
+        "categoryChain": [
+          "services",
+          "entertainment",
+          "music",
+          "dj",
+          "event-dj"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "dj"
+        "text": "dj",
+        "categoryChain": [
+          "services",
+          "entertainment",
+          "music",
+          "dj"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3665,10 +6360,23 @@
     "type": "need",
     "expressions": [
       {
-        "text": "someone for a birthday party who can do face painting AND balloon animals"
+        "text": "someone for a birthday party who can do face painting AND balloon animals",
+        "categoryChain": [
+          "services",
+          "entertainment",
+          "party-entertainment",
+          "children-entertainment"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "entertainer"
+        "text": "entertainer",
+        "categoryChain": [
+          "services",
+          "entertainment",
+          "performer"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3684,10 +6392,27 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "teach early morning yoga classes before 7am"
+        "text": "teach early morning yoga classes before 7am",
+        "categoryChain": [
+          "services",
+          "health-and-wellness",
+          "fitness",
+          "yoga",
+          "yoga-instruction",
+          "early-morning-yoga"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "yoga instructor"
+        "text": "yoga instructor",
+        "categoryChain": [
+          "services",
+          "health-and-wellness",
+          "fitness",
+          "yoga",
+          "yoga-instruction"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -3712,13 +6437,40 @@
     "type": "need",
     "expressions": [
       {
-        "text": "in-person guitar lessons somewhere accessible by public transit"
+        "text": "in-person guitar lessons somewhere accessible by public transit",
+        "categoryChain": [
+          "services",
+          "education",
+          "music-lessons",
+          "guitar-lessons",
+          "in-person-guitar-lessons"
+        ],
+        "disjointWith": [
+          "online-lessons"
+        ]
       },
       {
-        "text": "in-person guitar teacher"
+        "text": "in-person guitar teacher",
+        "categoryChain": [
+          "services",
+          "education",
+          "music-lessons",
+          "guitar-lessons",
+          "in-person-guitar-lessons"
+        ],
+        "disjointWith": [
+          "online-lessons"
+        ]
       },
       {
-        "text": "guitar teacher"
+        "text": "guitar teacher",
+        "categoryChain": [
+          "services",
+          "education",
+          "music-lessons",
+          "guitar-lessons"
+        ],
+        "disjointWith": []
       }
     ],
     "constraints": {
@@ -3739,13 +6491,36 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "comfortable with heights"
+        "text": "comfortable with heights",
+        "categoryChain": [
+          "services",
+          "trades",
+          "cleaning",
+          "window-cleaning",
+          "high-rise-window-cleaning"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "high_rise window cleaner"
+        "text": "high_rise window cleaner",
+        "categoryChain": [
+          "services",
+          "trades",
+          "cleaning",
+          "window-cleaning",
+          "high-rise-window-cleaning"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "window cleaner"
+        "text": "window cleaner",
+        "categoryChain": [
+          "services",
+          "trades",
+          "cleaning",
+          "window-cleaning"
+        ],
+        "disjointWith": []
       }
     ],
     "shouldMatchWith": [
@@ -3762,10 +6537,27 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a pressure washer and can do up to 3 driveways per day"
+        "text": "a pressure washer and can do up to 3 driveways per day",
+        "categoryChain": [
+          "services",
+          "trades",
+          "cleaning",
+          "pressure-washing",
+          "driveway-cleaning"
+        ],
+        "disjointWith": []
       },
       {
-        "text": "pressure washing"
+        "text": "pressure washing",
+        "categoryChain": [
+          "services",
+          "cleaning-services",
+          "exterior-cleaning",
+          "pressure-washing"
+        ],
+        "disjointWith": [
+          "interior-cleaning"
+        ]
       }
     ],
     "constraints": {
@@ -3789,10 +6581,28 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "five languages but none of them fluently"
+        "text": "five languages but none of them fluently",
+        "categoryChain": [
+          "skills",
+          "language-skills",
+          "multilingual",
+          "conversational-multilingual"
+        ],
+        "disjointWith": [
+          "monolingual",
+          "fluent-multilingual"
+        ]
       },
       {
-        "text": "multilingual"
+        "text": "multilingual",
+        "categoryChain": [
+          "skills",
+          "language-skills",
+          "multilingual"
+        ],
+        "disjointWith": [
+          "monolingual"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3809,10 +6619,27 @@
     "type": "need",
     "expressions": [
       {
-        "text": "Will work for food"
+        "text": "Will work for food",
+        "categoryChain": [
+          "labor",
+          "informal-labor",
+          "barter-labor",
+          "food-for-work"
+        ],
+        "disjointWith": [
+          "paid-employment"
+        ]
       },
       {
-        "text": "food"
+        "text": "food",
+        "categoryChain": [
+          "goods",
+          "consumables",
+          "food"
+        ],
+        "disjointWith": [
+          "non-consumables"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3830,13 +6657,42 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "furniture assembly and can follow any IKEA instructions"
+        "text": "furniture assembly and can follow any IKEA instructions",
+        "categoryChain": [
+          "services",
+          "assembly-services",
+          "furniture-assembly",
+          "flatpack-assembly"
+        ],
+        "disjointWith": [
+          "furniture-manufacturing",
+          "furniture-disposal"
+        ]
       },
       {
-        "text": "IKEA furniture assembler"
+        "text": "IKEA furniture assembler",
+        "categoryChain": [
+          "services",
+          "assembly-services",
+          "furniture-assembly",
+          "flatpack-assembly",
+          "ikea-assembly"
+        ],
+        "disjointWith": [
+          "custom-furniture-building"
+        ]
       },
       {
-        "text": "furniture assembler"
+        "text": "furniture assembler",
+        "categoryChain": [
+          "services",
+          "assembly-services",
+          "furniture-assembly"
+        ],
+        "disjointWith": [
+          "furniture-manufacturing",
+          "furniture-disposal"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3853,13 +6709,47 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Real estate agent helping first-time buyers in the Portland market"
+        "text": "Real estate agent helping first-time buyers in the Portland market",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "real-estate",
+          "real-estate-agent",
+          "buyer-agent",
+          "first-time-buyer-agent"
+        ],
+        "disjointWith": [
+          "seller-agent",
+          "commercial-real-estate"
+        ]
       },
       {
-        "text": "first_time_buyers real estate agent"
+        "text": "first_time_buyers real estate agent",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "real-estate",
+          "real-estate-agent",
+          "buyer-agent",
+          "first-time-buyer-agent"
+        ],
+        "disjointWith": [
+          "seller-agent",
+          "commercial-real-estate"
+        ]
       },
       {
-        "text": "real estate agent"
+        "text": "real estate agent",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "real-estate",
+          "real-estate-agent"
+        ],
+        "disjointWith": [
+          "property-management",
+          "real-estate-appraiser"
+        ]
       }
     ],
     "constraints": {
@@ -3880,16 +6770,56 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a website: design, development, and hosting all included"
+        "text": "a website: design, development, and hosting all included",
+        "categoryChain": [
+          "services",
+          "digital-services",
+          "web-services",
+          "full-stack-web-services"
+        ],
+        "disjointWith": [
+          "print-design",
+          "offline-services"
+        ]
       },
       {
-        "text": "web designer"
+        "text": "web designer",
+        "categoryChain": [
+          "services",
+          "digital-services",
+          "web-services",
+          "web-design"
+        ],
+        "disjointWith": [
+          "print-design",
+          "backend-development"
+        ]
       },
       {
-        "text": "web developer"
+        "text": "web developer",
+        "categoryChain": [
+          "services",
+          "digital-services",
+          "web-services",
+          "web-development"
+        ],
+        "disjointWith": [
+          "print-design",
+          "hardware-development"
+        ]
       },
       {
-        "text": "web hosting"
+        "text": "web hosting",
+        "categoryChain": [
+          "services",
+          "digital-services",
+          "web-services",
+          "web-hosting"
+        ],
+        "disjointWith": [
+          "on-premise-hosting",
+          "print-services"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3906,13 +6836,39 @@
     "type": "need",
     "expressions": [
       {
-        "text": "a part-time job, 10-15 hours per week maximum"
+        "text": "a part-time job, 10-15 hours per week maximum",
+        "categoryChain": [
+          "employment",
+          "job",
+          "part-time-job",
+          "minimal-hours"
+        ],
+        "disjointWith": [
+          "full-time-job",
+          "freelance-project"
+        ]
       },
       {
-        "text": "part time job"
+        "text": "part time job",
+        "categoryChain": [
+          "employment",
+          "job",
+          "part-time-job"
+        ],
+        "disjointWith": [
+          "full-time-job"
+        ]
       },
       {
-        "text": "job"
+        "text": "job",
+        "categoryChain": [
+          "employment",
+          "job"
+        ],
+        "disjointWith": [
+          "volunteer-work",
+          "self-employment"
+        ]
       }
     ],
     "constraints": {
@@ -3937,13 +6893,43 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "Available for emergency plumbing calls within 30 minutes of Scottsdale"
+        "text": "Available for emergency plumbing calls within 30 minutes of Scottsdale",
+        "categoryChain": [
+          "services",
+          "trade-services",
+          "plumbing",
+          "emergency-plumbing",
+          "rapid-response-plumbing"
+        ],
+        "disjointWith": [
+          "scheduled-plumbing",
+          "plumbing-consultation"
+        ]
       },
       {
-        "text": "emergency plumber"
+        "text": "emergency plumber",
+        "categoryChain": [
+          "services",
+          "trade-services",
+          "plumbing",
+          "emergency-plumbing"
+        ],
+        "disjointWith": [
+          "scheduled-plumbing",
+          "plumbing-consultation"
+        ]
       },
       {
-        "text": "plumber"
+        "text": "plumber",
+        "categoryChain": [
+          "services",
+          "trade-services",
+          "plumbing"
+        ],
+        "disjointWith": [
+          "electrical",
+          "hvac"
+        ]
       }
     ],
     "constraints": {
@@ -3968,10 +6954,30 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "I've managed teams of 50+ people"
+        "text": "I've managed teams of 50+ people",
+        "categoryChain": [
+          "skills",
+          "management-skills",
+          "team-leadership",
+          "large-team-management"
+        ],
+        "disjointWith": [
+          "individual-contributor",
+          "small-team-management"
+        ]
       },
       {
-        "text": "leadership coach"
+        "text": "leadership coach",
+        "categoryChain": [
+          "services",
+          "professional-services",
+          "coaching",
+          "leadership-coaching"
+        ],
+        "disjointWith": [
+          "technical-coaching",
+          "life-coaching"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -3988,10 +6994,31 @@
     "type": "need",
     "expressions": [
       {
-        "text": "ship 500 pounds of equipment to our trade show booth"
+        "text": "ship 500 pounds of equipment to our trade show booth",
+        "categoryChain": [
+          "services",
+          "logistics",
+          "shipping",
+          "freight-shipping",
+          "trade-show-logistics"
+        ],
+        "disjointWith": [
+          "passenger-transport",
+          "digital-delivery"
+        ]
       },
       {
-        "text": "freight shipping"
+        "text": "freight shipping",
+        "categoryChain": [
+          "services",
+          "logistics",
+          "shipping",
+          "freight-shipping"
+        ],
+        "disjointWith": [
+          "parcel-shipping",
+          "passenger-transport"
+        ]
       }
     ],
     "constraints": {
@@ -4014,10 +7041,29 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "music but only weird experimental stuff"
+        "text": "music but only weird experimental stuff",
+        "categoryChain": [
+          "arts",
+          "music",
+          "experimental-music"
+        ],
+        "disjointWith": [
+          "mainstream-music",
+          "classical-music",
+          "commercial-music"
+        ]
       },
       {
-        "text": "musician"
+        "text": "musician",
+        "categoryChain": [
+          "arts",
+          "music",
+          "musician"
+        ],
+        "disjointWith": [
+          "visual-artist",
+          "actor"
+        ]
       }
     ],
     "shouldMatchWith": [
@@ -4035,10 +7081,28 @@
     "type": "capacity",
     "expressions": [
       {
-        "text": "a lot of land and nothing to do with it"
+        "text": "a lot of land and nothing to do with it",
+        "categoryChain": [
+          "real-estate",
+          "land",
+          "undeveloped-land",
+          "unused-land"
+        ],
+        "disjointWith": [
+          "developed-property",
+          "commercial-property"
+        ]
       },
       {
-        "text": "land"
+        "text": "land",
+        "categoryChain": [
+          "real-estate",
+          "land"
+        ],
+        "disjointWith": [
+          "developed-property",
+          "water-rights"
+        ]
       }
     ],
     "shouldMatchWith": [
