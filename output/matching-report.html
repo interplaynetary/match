@@ -57,7 +57,7 @@
     .node { cursor: pointer; transition: opacity 0.2s; }
     .node:hover { opacity: 0.8; }
     .node text { font-size: 8px; fill: #aaa; }
-    .chord { fill-opacity: 0.4; stroke-width: 0.5; transition: fill-opacity 0.2s; }
+    .chord { fill-opacity: 0.4; transition: fill-opacity 0.2s; }
     .chord:hover { fill-opacity: 0.8; }
     .details { background: #0f3460; padding: 15px; border-radius: 8px; font-size: 0.85em; }
     .details p { margin: 5px 0; }
@@ -324,7 +324,7 @@
       path.setAttribute('d', d);
       path.setAttribute('fill', 'none');
       path.setAttribute('stroke', color);
-      path.setAttribute('stroke-width', Math.max(1, match.score * 3));
+      path.setAttribute('stroke-width', Math.max(5, match.score * 12));
       const similarity = match.breakdown.similarity ?? 1;
       path.setAttribute('opacity', String(similarity * similarity));
       path.setAttribute('class', 'chord');
@@ -335,6 +335,167 @@
       path.addEventListener('mouseleave', hideTooltip);
 
       chordGroup.appendChild(path);
+    });
+
+    // Build connection map for hover labels
+    const connections = new Map();
+    data.matches.forEach(match => {
+      if (!connections.has(match.capacityId)) connections.set(match.capacityId, []);
+      if (!connections.has(match.needId)) connections.set(match.needId, []);
+      connections.get(match.capacityId).push(match.needId);
+      connections.get(match.needId).push(match.capacityId);
+    });
+
+    // Container for connected node tooltips
+    const tooltipContainer = document.createElement('div');
+    tooltipContainer.setAttribute('id', 'connected-tooltips');
+    document.body.appendChild(tooltipContainer);
+
+    function showConnectedTooltips(nodeId) {
+      tooltipContainer.innerHTML = '';
+      const connectedIds = connections.get(nodeId) || [];
+      const placedRects = [];
+
+      connectedIds.forEach(id => {
+        // Only show tooltip if the connecting chord is visible
+        const chord = document.querySelector(`.chord[data-cap="${nodeId}"][data-need="${id}"], .chord[data-cap="${id}"][data-need="${nodeId}"]`);
+        if (!chord || chord.style.display === 'none') return;
+
+        const cap = data.capacities.find(c => c.id === id);
+        const need = data.needs.find(n => n.id === id);
+        const item = cap || need;
+        if (!item) return;
+
+        const isCapacity = !!cap;
+        const type = isCapacity ? 'capacity' : 'need';
+
+        // Find the node element to position tooltip near it
+        const nodeEl = document.querySelector(`.node[data-id="${id}"]`);
+        if (!nodeEl) return;
+
+        const rect = nodeEl.getBoundingClientRect();
+        const tipEl = document.createElement('div');
+        tipEl.style.cssText = `
+          position: fixed;
+          background: #0f3460;
+          border: 1px solid #444;
+          padding: 10px;
+          border-radius: 6px;
+          font-size: 12px;
+          pointer-events: none;
+          max-width: 300px;
+          z-index: 1000;
+        `;
+
+        const label = item.label || item.expressions?.join(', ');
+        tipEl.innerHTML = `
+          <strong>${type === 'capacity' ? 'Capacity' : 'Need'} #${item.id}</strong><br>
+          <span style="color: ${categoryColors[item.category]}">${item.category.replace(/_/g, ' ')}</span><br>
+          ${label}
+        `;
+
+        tooltipContainer.appendChild(tipEl);
+
+        // Position after adding to DOM to get dimensions
+        const tipRect = tipEl.getBoundingClientRect();
+        const left = rect.left + rect.width / 2 - tipRect.width / 2;
+        const top = rect.top - tipRect.height - 10;
+
+        placedRects.push({
+          el: tipEl,
+          x: left,
+          y: top,
+          width: tipRect.width,
+          height: tipRect.height
+        });
+      });
+
+      // Include main tooltip in repulsion (but don't move it)
+      const mainTipRect = tooltip.getBoundingClientRect();
+      const mainTip = {
+        x: mainTipRect.left,
+        y: mainTipRect.top,
+        width: mainTipRect.width,
+        height: mainTipRect.height,
+        fixed: true
+      };
+
+      // Force simulation to resolve overlaps
+      const gap = 10;
+      for (let iter = 0; iter < 100; iter++) {
+        let hasOverlap = false;
+
+        // Check connected tooltips against main tooltip
+        for (const rect of placedRects) {
+          const a = rect;
+          const b = mainTip;
+          const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+          const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+          if (overlapX > -gap && overlapY > -gap) {
+            const sepX = overlapX + gap;
+            const sepY = overlapY + gap;
+            if (sepX > 0 && sepY > 0) {
+              hasOverlap = true;
+              const aCx = a.x + a.width / 2, bCx = b.x + b.width / 2;
+              const aCy = a.y + a.height / 2, bCy = b.y + b.height / 2;
+              // Only move the connected tooltip, not the main one
+              if (sepX < sepY) {
+                const shift = sepX + 1;
+                a.x += (aCx <= bCx) ? -shift : shift;
+              } else {
+                const shift = sepY + 1;
+                a.y += (aCy <= bCy) ? -shift : shift;
+              }
+            }
+          }
+        }
+
+        // Check connected tooltips against each other
+        for (let i = 0; i < placedRects.length; i++) {
+          for (let j = i + 1; j < placedRects.length; j++) {
+            const a = placedRects[i];
+            const b = placedRects[j];
+            const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+            const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+            if (overlapX > -gap && overlapY > -gap) {
+              const sepX = overlapX + gap;
+              const sepY = overlapY + gap;
+              if (sepX > 0 && sepY > 0) {
+                hasOverlap = true;
+                const aCx = a.x + a.width / 2, bCx = b.x + b.width / 2;
+                const aCy = a.y + a.height / 2, bCy = b.y + b.height / 2;
+                if (sepX < sepY) {
+                  const shift = sepX / 2 + 0.5;
+                  if (aCx <= bCx) { a.x -= shift; b.x += shift; }
+                  else { a.x += shift; b.x -= shift; }
+                } else {
+                  const shift = sepY / 2 + 0.5;
+                  if (aCy <= bCy) { a.y -= shift; b.y += shift; }
+                  else { a.y += shift; b.y -= shift; }
+                }
+              }
+            }
+          }
+        }
+        if (!hasOverlap) break;
+      }
+
+      // Apply final positions
+      for (const rect of placedRects) {
+        rect.el.style.left = rect.x + 'px';
+        rect.el.style.top = rect.y + 'px';
+      }
+    }
+
+    function hideConnectedTooltips() {
+      tooltipContainer.innerHTML = '';
+    }
+
+    // Add hover handlers to nodes
+    document.querySelectorAll('.node').forEach(node => {
+      const id = node.getAttribute('data-id');
+      node.addEventListener('mouseenter', () => showConnectedTooltips(id));
+      node.addEventListener('mouseleave', hideConnectedTooltips);
     });
 
     function showTooltip(e, item, type) {
