@@ -1,5 +1,6 @@
 import type { Match } from '../types.ts'
 import { MatchBadge } from './MatchBadge.tsx'
+import { ConstraintScores } from './ConstraintScores.tsx'
 
 type ChordTooltipContentProps = {
   match: Match
@@ -40,6 +41,7 @@ export function ChordTooltipContent({
         </div>
         <div className="match-connection-expr">"{capacityText}"</div>
       </div>
+      <ConstraintScores breakdown={match.breakdown} />
     </div>
   )
 }

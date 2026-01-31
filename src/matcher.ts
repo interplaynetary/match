@@ -13,6 +13,9 @@ import {
   computeCategoryScore,
   type CategoryInfo,
 } from './category-matcher'
+import { haversineDistance } from './spatial'
+import { availabilityWindowsOverlapWithTimezone } from './match'
+import type { AvailabilityWindow, DayOfWeek, TimeRange } from './time'
 
 export type MatcherOptions = {
   similarityThreshold?: number  // minimum similarity to consider a match (default 0.6)
@@ -234,28 +237,35 @@ export class Matcher {
   ): { breakdown: Partial<MatchResult['breakdown']> } {
     const breakdown: Partial<MatchResult['breakdown']> = {}
 
-    // Time feasibility
+    // Time feasibility - show if either side has a time constraint
+    // 0.5 score when one side is unspecified (uncertainty, not full flexibility)
     if (need.constraints?.time || capacity.constraints?.time) {
-      breakdown.time = this.computeTimeFeasibility(
+      const detail = this.computeTimeFeasibility(
         need.constraints?.time,
         capacity.constraints?.time
       )
+      breakdown.time = detail.score
+      breakdown.timeDetail = detail
     }
 
-    // Space feasibility
+    // Space feasibility - show if either side has a space constraint
     if (need.constraints?.space || capacity.constraints?.space) {
-      breakdown.space = this.computeSpaceFeasibility(
+      const detail = this.computeSpaceFeasibility(
         need.constraints?.space,
         capacity.constraints?.space
       )
+      breakdown.space = detail.score
+      breakdown.spaceDetail = detail
     }
 
-    // Quantity feasibility
-    if (need.constraints?.quantity && capacity.constraints?.quantity) {
-      breakdown.quantity = this.computeQuantityFeasibility(
-        need.constraints.quantity,
-        capacity.constraints.quantity
+    // Quantity feasibility - show if either side has a quantity constraint
+    if (need.constraints?.quantity || capacity.constraints?.quantity) {
+      const detail = this.computeQuantityFeasibility(
+        need.constraints?.quantity,
+        capacity.constraints?.quantity
       )
+      breakdown.quantity = detail.score
+      breakdown.quantityDetail = detail
     }
 
     return { breakdown }
@@ -264,44 +274,311 @@ export class Matcher {
   private computeTimeFeasibility(
     needTime?: Constraints['time'],
     capacityTime?: Constraints['time']
-  ): number {
-    // TODO: Implement proper time overlap calculation
-    if (!needTime && !capacityTime) return 1.0
-    if (!needTime || !capacityTime) return 0.5
-    return 1.0
+  ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
+    if (!needTime && !capacityTime) {
+      return { score: 1.0, reason: 'No time constraints' }
+    }
+
+    const needDesc = describeTimeConstraint(needTime)
+    const capDesc = describeTimeConstraint(capacityTime)
+
+    if (!needTime) {
+      return { score: 0.5, reason: `Need: any time | Capacity: ${capDesc}`, needDesc: 'any time', capacityDesc: capDesc }
+    }
+    if (!capacityTime) {
+      return { score: 0.5, reason: `Need: ${needDesc} | Capacity: any time`, needDesc, capacityDesc: 'any time' }
+    }
+
+    // Convert to AvailabilityWindow format
+    const needWindow = timeConstraintToAvailabilityWindow(needTime)
+    const capacityWindow = timeConstraintToAvailabilityWindow(capacityTime)
+
+    // Use System 2's timezone-aware overlap function
+    const overlaps = availabilityWindowsOverlapWithTimezone(needWindow, capacityWindow)
+
+    if (overlaps) {
+      return { score: 1.0, reason: `overlaps`, needDesc, capacityDesc: capDesc }
+    }
+    return { score: 0.0, reason: `no overlap`, needDesc, capacityDesc: capDesc }
   }
 
   private computeSpaceFeasibility(
     needSpace?: Constraints['space'],
     capacitySpace?: Constraints['space']
-  ): number {
-    // TODO: Implement proper distance calculation
-    if (!needSpace && !capacitySpace) return 1.0
-    if (!needSpace || !capacitySpace) return 0.5
+  ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
+    const needDesc = describeSpaceConstraint(needSpace)
+    const capDesc = describeSpaceConstraint(capacitySpace)
 
-    if (needSpace.area && capacitySpace.area) {
-      return needSpace.area.toLowerCase() === capacitySpace.area.toLowerCase() ? 1.0 : 0.3
+    if (!needSpace && !capacitySpace) {
+      return { score: 1.0, reason: 'No location constraints' }
+    }
+    if (!needSpace) {
+      return { score: 0.5, reason: `any location vs ${capDesc}`, needDesc: 'any location', capacityDesc: capDesc }
+    }
+    if (!capacitySpace) {
+      return { score: 0.5, reason: `${needDesc} vs any location`, needDesc, capacityDesc: 'any location' }
     }
 
-    // Remote matching
-    if (needSpace.remote && capacitySpace.remote) return 1.0
+    // Remote matching - both remote is perfect
+    if (needSpace.remote && capacitySpace.remote) {
+      return { score: 1.0, reason: 'both remote', needDesc, capacityDesc: capDesc }
+    }
+    // One remote, one not - partial match
+    if (needSpace.remote || capacitySpace.remote) {
+      return { score: 0.7, reason: 'remote vs in-person', needDesc, capacityDesc: capDesc }
+    }
 
-    return 0.5
+    // Distance-based matching using haversineDistance
+    if (needSpace.location && capacitySpace.location) {
+      const distance = haversineDistance(
+        needSpace.location.lat,
+        needSpace.location.lng,
+        capacitySpace.location.lat,
+        capacitySpace.location.lng
+      )
+      const maxRadius = needSpace.maxRadius ?? capacitySpace.maxRadius ?? 50 // default 50km
+      if (distance > maxRadius) {
+        return { score: 0.0, reason: `${distance.toFixed(1)}km apart (max ${maxRadius}km)`, needDesc, capacityDesc: capDesc }
+      }
+      // Linear decay: 1.0 at 0km, 0.0 at maxRadius
+      const score = Math.max(0, 1.0 - distance / maxRadius)
+      return { score, reason: `${distance.toFixed(1)}km apart`, needDesc, capacityDesc: capDesc }
+    }
+
+    // Fallback: area string matching
+    if (needSpace.area && capacitySpace.area) {
+      if (needSpace.area.toLowerCase() === capacitySpace.area.toLowerCase()) {
+        return { score: 1.0, reason: 'same area', needDesc, capacityDesc: capDesc }
+      }
+      return { score: 0.3, reason: 'different areas', needDesc, capacityDesc: capDesc }
+    }
+
+    return { score: 0.5, reason: 'partial info', needDesc, capacityDesc: capDesc }
   }
 
   private computeQuantityFeasibility(
     needQty: NonNullable<Need['constraints']>['quantity'],
     capacityQty: NonNullable<Capacity['constraints']>['quantity']
-  ): number {
-    if (!needQty || !capacityQty) return 1.0
+  ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
+    if (!needQty || !capacityQty) {
+      return { score: 1.0, reason: 'No quantity constraints' }
+    }
+
+    const needDesc = `${needQty.amount}${needQty.unit}`
+    const capDesc = `${capacityQty.amount}${capacityQty.unit}`
 
     // Units must match (TODO: unit conversion)
-    if (needQty.unit !== capacityQty.unit) return 0.0
+    if (needQty.unit !== capacityQty.unit) {
+      return { score: 0.0, reason: `unit mismatch`, needDesc, capacityDesc: capDesc }
+    }
 
     // Capacity must meet or exceed need
-    if (capacityQty.amount >= needQty.amount) return 1.0
+    if (capacityQty.amount >= needQty.amount) {
+      return { score: 1.0, reason: 'sufficient', needDesc, capacityDesc: capDesc }
+    }
 
     // Partial satisfaction
-    return capacityQty.amount / needQty.amount
+    const score = capacityQty.amount / needQty.amount
+    return { score, reason: 'partial', needDesc, capacityDesc: capDesc
+    }
   }
+}
+
+// Helper: Describe a time constraint in human-readable form
+export function describeTimeConstraint(time?: Constraints['time']): string {
+  if (!time) return 'any time'
+
+  // Cast to any to handle various time constraint formats in the data
+  const t = time as Record<string, unknown>
+  const parts: string[] = []
+
+  // Handle days array (e.g., ["Monday", "Tuesday", "Wednesday"])
+  if (Array.isArray(t.days)) {
+    if (t.days.length <= 3) {
+      parts.push(t.days.join(', '))
+    } else {
+      parts.push(`${t.days.slice(0, 2).join(', ')}... (${t.days.length} days)`)
+    }
+  } else if (t.dayOfWeek) {
+    parts.push(String(t.dayOfWeek))
+  }
+
+  // Handle hours object (e.g., { start: "09:00", end: "17:00" })
+  if (t.hours && typeof t.hours === 'object') {
+    const hours = t.hours as { start?: string; end?: string }
+    if (hours.start && hours.end) {
+      parts.push(`${hours.start}-${hours.end}`)
+    }
+  } else if (t.timeOfDay) {
+    parts.push(String(t.timeOfDay))
+  }
+
+  // Handle date range
+  if (t.availableFrom && t.availableTo) {
+    parts.push(`${t.availableFrom} to ${t.availableTo}`)
+  } else if (t.availableFrom) {
+    parts.push(`from ${t.availableFrom}`)
+  } else if (t.availableTo) {
+    parts.push(`until ${t.availableTo}`)
+  }
+
+  // Handle single date
+  if (t.date) {
+    parts.push(String(t.date))
+  }
+
+  // Handle urgency
+  if (t.urgency) {
+    parts.push(String(t.urgency))
+  }
+
+  // Handle deadline
+  if (t.deadline) {
+    if (typeof t.deadline === 'string') {
+      parts.push(`deadline: ${t.deadline}`)
+    } else if (typeof t.deadline === 'object') {
+      const dl = t.deadline as Record<string, number>
+      const unit = Object.keys(dl)[0]
+      if (unit) parts.push(`deadline: ${dl[unit]} ${unit}`)
+    }
+  }
+
+  // Handle duration
+  if (t.duration) {
+    if (typeof t.duration === 'string') {
+      parts.push(`duration: ${t.duration}`)
+    } else if (typeof t.duration === 'object') {
+      const dur = t.duration as Record<string, number>
+      const unit = Object.keys(dur)[0]
+      if (unit) parts.push(`${dur[unit]} ${unit}`)
+    }
+  }
+
+  // Handle frequency
+  if (t.frequency) {
+    if (typeof t.frequency === 'string') {
+      parts.push(t.frequency)
+    } else if (typeof t.frequency === 'object') {
+      const freq = t.frequency as Record<string, number>
+      const key = Object.keys(freq)[0]
+      if (key) parts.push(`${freq[key]}x ${key.replace('per', '/')}`)
+    }
+  }
+
+  // Handle month/season
+  if (t.month) parts.push(String(t.month))
+  if (t.season) parts.push(String(t.season))
+
+  // Handle timeframe
+  if (t.timeframe) parts.push(String(t.timeframe))
+
+  // Handle hours per week
+  if (t.hoursPerWeek && typeof t.hoursPerWeek === 'object') {
+    const h = t.hoursPerWeek as { min?: number; max?: number }
+    if (h.min && h.max) {
+      parts.push(`${h.min}-${h.max} hrs/week`)
+    }
+  }
+
+  // Handle max duration
+  if (t.maxDuration && typeof t.maxDuration === 'object') {
+    const md = t.maxDuration as Record<string, number>
+    const unit = Object.keys(md)[0]
+    if (unit) parts.push(`max ${md[unit]} ${unit}`)
+  }
+
+  // Add timezone if present
+  if (t.timezone && parts.length > 0) {
+    parts.push(`(${t.timezone})`)
+  }
+
+  // Add recurring indicator only if it's a string (not just true)
+  if (t.recurring && typeof t.recurring === 'string') {
+    parts.push(`(${t.recurring})`)
+  }
+
+  return parts.length > 0 ? parts.join(' ') : 'has time constraint'
+}
+
+// Helper: Describe a space constraint in human-readable form
+export function describeSpaceConstraint(space?: Constraints['space']): string {
+  if (!space) return 'any location'
+
+  if (space.remote) return 'remote'
+  if (space.area) return space.area
+  if (space.location) {
+    const radius = space.maxRadius ? ` (${space.maxRadius}km radius)` : ''
+    return `${space.location.lat.toFixed(2)}, ${space.location.lng.toFixed(2)}${radius}`
+  }
+
+  return 'specified location'
+}
+
+// Helper: Describe a quantity constraint in human-readable form
+export function describeQuantityConstraint(qty?: Constraints['quantity']): string {
+  if (!qty) return 'any amount'
+  return `${qty.amount}${qty.unit}`
+}
+
+// Helper: Convert TimeConstraint to AvailabilityWindow format
+function timeConstraintToAvailabilityWindow(
+  constraint: Constraints['time']
+): AvailabilityWindow | undefined {
+  if (!constraint) return undefined
+
+  const result: AvailabilityWindow = {}
+
+  // Parse timeOfDay into TimeRange
+  let timeRanges: TimeRange[] | undefined
+  if (constraint.timeOfDay) {
+    timeRanges = parseTimeOfDay(constraint.timeOfDay)
+  }
+
+  // Parse dayOfWeek
+  if (constraint.dayOfWeek) {
+    const day = constraint.dayOfWeek.toLowerCase()
+    if (isValidDayOfWeek(day)) {
+      result.day_schedules = [{
+        days: [day],
+        time_ranges: timeRanges ?? [{ start_time: '00:00', end_time: '23:59' }]
+      }]
+    }
+  } else if (timeRanges) {
+    // No specific day, just time ranges (apply to all days)
+    result.time_ranges = timeRanges
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+function parseTimeOfDay(timeOfDay: string): TimeRange[] {
+  // Handle named periods
+  const namedPeriods: Record<string, TimeRange> = {
+    'morning': { start_time: '06:00', end_time: '12:00' },
+    'afternoon': { start_time: '12:00', end_time: '18:00' },
+    'evening': { start_time: '18:00', end_time: '22:00' },
+    'night': { start_time: '22:00', end_time: '06:00' },
+    'business': { start_time: '09:00', end_time: '17:00' }
+  }
+
+  const lower = timeOfDay.toLowerCase()
+  if (namedPeriods[lower]) {
+    return [namedPeriods[lower]!]
+  }
+
+  // Handle "HH:MM-HH:MM" format
+  const rangeMatch = timeOfDay.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/)
+  if (rangeMatch) {
+    return [{
+      start_time: rangeMatch[1]!.padStart(5, '0'),
+      end_time: rangeMatch[2]!.padStart(5, '0')
+    }]
+  }
+
+  // Fallback: all day
+  return [{ start_time: '00:00', end_time: '23:59' }]
+}
+
+function isValidDayOfWeek(day: string): day is DayOfWeek {
+  return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(day)
 }

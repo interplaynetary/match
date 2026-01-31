@@ -3,7 +3,7 @@ import {
   findCategoryOverlap,
   hasDisjointConflict,
   computeCategoryScore,
-} from './category-matcher'
+} from '../src/category-matcher'
 
 describe('findCategoryOverlap', () => {
   test('exact match returns distance 0', () => {

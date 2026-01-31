@@ -1,17 +1,32 @@
 import type { PCATransform } from '../semantic-colors.ts'
 
+export type ConstraintDetail = {
+  score: number
+  reason: string
+  needDesc?: string
+  capacityDesc?: string
+}
+
+export type ConstraintSummary = {
+  time?: string
+  space?: string
+  quantity?: string
+}
+
 export type MatchData = {
   capacities: Array<{
     id: string
     expressions: string[]
     label: string
     embedding?: number[]
+    constraints?: ConstraintSummary
   }>
   needs: Array<{
     id: string
     expressions: string[]
     label: string
     embedding?: number[]
+    constraints?: ConstraintSummary
   }>
   pcaTransform: PCATransform
   matches: Array<{
@@ -22,6 +37,9 @@ export type MatchData = {
       time?: number
       space?: number
       quantity?: number
+      timeDetail?: ConstraintDetail
+      spaceDetail?: ConstraintDetail
+      quantityDetail?: ConstraintDetail
       similarity?: number
       priorityWeight?: number
       categoryMatch?: {
@@ -46,6 +64,7 @@ export type NodeItem = {
   expressions: string[]
   label: string
   embedding?: number[]
+  constraints?: ConstraintSummary
 }
 
 export type ConnectedTooltip = {
