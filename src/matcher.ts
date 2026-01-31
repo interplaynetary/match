@@ -14,7 +14,7 @@ import {
   type CategoryInfo,
 } from './category-matcher'
 import { haversineDistance } from './spatial'
-import { availabilityWindowsOverlapWithTimezone } from './match'
+import { availabilityWindowsOverlapWithTimezone } from './matching'
 import type { AvailabilityWindow, DayOfWeek, TimeRange } from './time'
 
 export type MatcherOptions = {
