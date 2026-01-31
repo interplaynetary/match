@@ -14,7 +14,7 @@ import {
     availabilityWindowsOverlapWithTimezone,
     skillsCompatible,
     calculateAvailabilityIntersection
-} from './match.js';
+} from './matching.js';
 import {
     computeH3Index,
     getCellsInRadius,

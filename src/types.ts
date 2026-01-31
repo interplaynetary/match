@@ -103,3 +103,16 @@ export type MatchResult = {
     categoryMatch?: CategoryMatch  // present if category chains overlapped
   }
 }
+
+export type Contact = {
+  id: string
+  skills: { id: string; level?: number }[]
+  [key: string]: any
+}
+
+export type FilterContext = {
+  pubKey?: string
+  [key: string]: any
+}
+
+export type EligibilityFilter = object | boolean;
