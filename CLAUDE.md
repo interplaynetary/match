@@ -1,111 +1,93 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Run visualization server (http://localhost:3000)
+bun --hot src/server.ts
+
+# Run tests
+bun test
+
+# Run a single test file
+bun test src/matcher.test.ts
+
+# Enrich examples with category chains (requires Claude CLI)
+bun scripts/enrich-categories.ts
+
+# Generate embeddings (requires OPENAI_API_KEY in .env)
+bun scripts/generate-embeddings.ts
+```
+
+## Architecture
+
+This is a **semantic matching system** for connecting human capacities (what people offer) with needs (what people need). It finds mutually beneficial matches using embeddings, taxonomy chains, and constraint satisfaction.
+
+### Data Flow
+
+```
+matching-examples.json (raw test cases)
+         │
+         ├──► enrich-categories.ts ──► enriched-examples.json (+ category chains)
+         │
+         └──► generate-embeddings.ts ──► embeddings.json (1536-dim vectors)
+                     │
+                     ▼
+              matcher.ts (combines all signals)
+                     │
+                     ▼
+              match-data.ts ──► /api/matches ──► React visualization
+```
+
+### Key Modules
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | Core types: Expression, Capacity, Need, MatchResult, Constraints |
+| `matcher.ts` | Main engine - combines embedding similarity, category overlap, and constraints |
+| `matching.ts` | Slot-to-slot matching logic (time/location/skill compatibility) |
+| `category-matcher.ts` | Taxonomy chain overlap + disjoint conflict detection (vegan ⊥ meat) |
+| `embeddings.ts` | Cosine similarity, OpenAI embedding provider |
+| `constraints/` | Time, space, quantity constraint evaluation |
+| `semantic-colors.ts` | PCA-based coloring (similar embeddings → similar colors) |
+
+### Matching Algorithm
+
+The matcher combines multiple signals via geometric mean:
+
+1. **Embedding similarity** — Cosine similarity between need/capacity embeddings
+2. **Category matching** — If category chains exist, blends 70% category + 30% embedding
+3. **Priority weight** — Lower priority number = more specific = higher weight
+4. **Constraint scores** — Time overlap, location compatibility, quantity feasibility
+
+Any score of 0 (including disjoint conflict) blocks the match entirely. Unspecified constraints score 0.5 (uncertainty).
+
+### Expression Abstraction Levels
+
+Each capacity/need has multiple expressions at different specificities:
+```typescript
+expressions: [
+  { text: "vegan pizza delivery", priority: 1 },  // most specific
+  { text: "pizza", priority: 2 },
+  { text: "food", priority: 4 }                   // broadest fallback
+]
+```
+
 ## Documentation
 
-See [docs/index.md](docs/index.md) for design documents and specifications.
+See [docs/index.md](docs/index.md) for design documents including dialectic intro, category matching, constraint matching, and semantic colors.
 
 ## Runtime
 
-Default to using Bun instead of Node.js.
+Use Bun for everything:
+- `bun <file>` instead of node/ts-node
+- `bun test` instead of jest/vitest
+- `bun install` instead of npm/yarn
+- Bun auto-loads .env (no dotenv needed)
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
-
-## APIs
-
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
-
-## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
-import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
-```
-
-## Frontend
-
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+Use Bun's native APIs:
+- `Bun.serve()` with HTML imports for React (not vite/express)
+- `Bun.file()` for file operations
+- Import CSS directly in .tsx files
