@@ -1,6 +1,6 @@
 import { Matcher } from './matcher'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
-import examples from '../data/matching-examples.json'
+import examples from '../data/enriched-examples.json'
 import embeddingsData from '../data/embeddings.json'
 
 const embeddings = embeddingsData as EmbeddingsStore
@@ -18,6 +18,17 @@ type MatchData = {
       quantity?: number
       similarity?: number
       priorityWeight?: number
+      categoryMatch?: {
+        overlapCategory: string
+        overlapDistance: number
+        isBlocked: boolean
+      }
+    }
+    matchedExpressions?: {
+      needText: string
+      capacityText: string
+      needChain?: string[]
+      capacityChain?: string[]
     }
   }>
 }
@@ -56,6 +67,12 @@ export function generateMatchData(): MatchData {
         capacityId: result.capacityId,
         score: result.feasibilityScore,
         breakdown: result.breakdown,
+        matchedExpressions: {
+          needText: result.matchedExpressions.need.text,
+          capacityText: result.matchedExpressions.capacity.text,
+          needChain: result.matchedExpressions.need.categoryChain,
+          capacityChain: result.matchedExpressions.capacity.categoryChain,
+        },
       })
     }
   }
@@ -121,26 +138,26 @@ export function generateHTML(data: MatchData): string {
     }
     h1 { font-size: 1.4em; margin-bottom: 10px; }
     h2 { font-size: 1.1em; margin: 20px 0 10px; color: #888; }
-    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
     .stat {
       background: #0f3460;
-      padding: 15px;
-      border-radius: 8px;
+      padding: 8px;
+      border-radius: 6px;
       text-align: center;
     }
-    .stat-value { font-size: 2em; font-weight: bold; }
-    .stat-label { font-size: 0.8em; color: #888; }
-    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .stat-value { font-size: 1.2em; font-weight: bold; }
+    .stat-label { font-size: 0.65em; color: #888; }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 5px;
-      font-size: 0.8em;
+      gap: 4px;
+      font-size: 0.7em;
       background: #0f3460;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 3px 6px;
+      border-radius: 3px;
     }
-    .legend-color { width: 12px; height: 12px; border-radius: 2px; }
+    .legend-color { width: 10px; height: 10px; border-radius: 2px; }
     .node { cursor: pointer; transition: opacity 0.2s; }
     .node:hover { opacity: 0.8; }
     .node text { font-size: 8px; fill: #aaa; }
@@ -149,6 +166,132 @@ export function generateHTML(data: MatchData): string {
     .details { background: #0f3460; padding: 15px; border-radius: 8px; font-size: 0.85em; }
     .details p { margin: 5px 0; }
     .details .label { color: #888; }
+    .match-level {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .match-level-badge {
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 0.8em;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .match-level-exact { background: #4CAF50; color: white; }
+    .match-level-related { background: #2196F3; color: white; }
+    .match-level-embedding { background: #9C27B0; color: white; }
+    .match-connection {
+      background: rgba(0,0,0,0.3);
+      padding: 10px;
+      border-radius: 6px;
+      margin: 8px 0;
+      font-size: 0.85em;
+    }
+    .match-connection-expr {
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      margin: 4px 0;
+    }
+    .match-connection-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #4CAF50;
+      font-size: 0.9em;
+      padding: 4px 0;
+    }
+    .match-connection-link .link-word {
+      background: #4CAF50;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    .category-chain {
+      font-family: monospace;
+      font-size: 0.75em;
+      background: rgba(0,0,0,0.3);
+      padding: 8px;
+      border-radius: 4px;
+      margin: 8px 0;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+    .category-chain .overlap { background: #4CAF50; padding: 1px 4px; border-radius: 2px; color: white; }
+    .criteria-grid { margin-top: 10px; }
+    .criterion {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8em;
+      margin-bottom: 4px;
+    }
+    .criterion-label { width: 55px; color: #888; }
+    .criterion-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .criterion-fill { height: 100%; border-radius: 3px; }
+    .criterion-value { width: 32px; text-align: right; font-size: 0.9em; }
+    .back-button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #0f3460;
+      border: none;
+      color: #4CAF50;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85em;
+      margin-bottom: 15px;
+      transition: background 0.2s;
+    }
+    .back-button:hover { background: #1a4a7a; }
+    .node-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .node-header-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .node-header-icon.capacity { border-radius: 50%; }
+    .node-title { font-size: 1.1em; font-weight: bold; }
+    .node-subtitle { font-size: 0.8em; color: #888; margin-top: 2px; }
+    .match-list { margin-top: 15px; }
+    .match-item {
+      background: rgba(0,0,0,0.2);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .match-item:hover { background: rgba(0,0,0,0.4); }
+    .match-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .match-item-score { color: #4CAF50; font-weight: bold; }
+    .match-item-label { font-size: 0.85em; color: #ccc; }
+    .match-item-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 8px; }
+    .sidebar-view { display: none; }
+    .sidebar-view.active { display: block; }
     .slider-container { background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
     .slider-container label { display: flex; justify-content: space-between; margin-bottom: 8px; }
     .slider-container input[type="range"] { width: 100%; cursor: pointer; }
@@ -175,65 +318,74 @@ export function generateHTML(data: MatchData): string {
       <svg id="chart" viewBox="-400 -400 800 800"></svg>
     </div>
     <div class="sidebar">
-      <h1>Match Visualization</h1>
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-value">${data.capacities.length}</div>
-          <div class="stat-label">Capacities</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${data.needs.length}</div>
-          <div class="stat-label">Needs</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${data.matches.length}</div>
-          <div class="stat-label">Matches</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">${((data.matches.length / Math.max(data.needs.length, 1)) * 100).toFixed(0)}%</div>
-          <div class="stat-label">Match Rate</div>
-        </div>
-      </div>
-
-      <h2>Threshold</h2>
-      <div class="slider-container">
-        <label>
-          <span>Similarity threshold</span>
-          <span class="slider-value" id="threshold-value">60%</span>
-        </label>
-        <input type="range" id="threshold-slider" min="0" max="100" value="60" step="1">
-        <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #666; margin-top: 4px;">
-          <span>0%</span>
-          <span>50%</span>
-          <span>100%</span>
-        </div>
-      </div>
-
-      <h2>Categories</h2>
-      <div class="legend">
-        ${categories.map((cat) => `
-          <div class="legend-item">
-            <div class="legend-color" style="background: ${categoryColors[cat] ?? '#666'}"></div>
-            <span>${cat.replace(/_/g, ' ')}</span>
+      <div id="general-view" class="sidebar-view active">
+        <h1>Match Visualization</h1>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value">${data.capacities.length}</div>
+            <div class="stat-label">Capacities</div>
           </div>
-        `).join('')}
+          <div class="stat">
+            <div class="stat-value">${data.needs.length}</div>
+            <div class="stat-label">Needs</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${data.matches.length}</div>
+            <div class="stat-label">Matches</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${((data.matches.length / Math.max(data.needs.length, 1)) * 100).toFixed(0)}%</div>
+            <div class="stat-label">Match Rate</div>
+          </div>
+        </div>
+
+        <h2>Threshold</h2>
+        <div class="slider-container">
+          <label>
+            <span>Similarity threshold</span>
+            <span class="slider-value" id="threshold-value">75%</span>
+          </label>
+          <input type="range" id="threshold-slider" min="0" max="100" value="75" step="1">
+          <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #666; margin-top: 4px;">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        <h2>Categories</h2>
+        <div class="legend">
+          ${categories.map((cat) => `
+            <div class="legend-item">
+              <div class="legend-color" style="background: ${categoryColors[cat] ?? '#666'}"></div>
+              <span>${cat.replace(/_/g, ' ')}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <h2>Legend</h2>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-color" style="background: #fff; border-radius: 50%;"></div>
+            <span>Capacity (outer ring)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #fff; border-radius: 0;"></div>
+            <span>Need (inner ring)</span>
+          </div>
+        </div>
+
+        <h2>Hover for Details</h2>
+        <div class="details" id="details">
+          <p>Hover over nodes or chords to see details</p>
+        </div>
       </div>
 
-      <h2>Legend</h2>
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-color" style="background: #fff; border-radius: 50%;"></div>
-          <span>Capacity (outer ring)</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #fff; border-radius: 0;"></div>
-          <span>Need (inner ring)</span>
-        </div>
-      </div>
-
-      <h2>Hover for Details</h2>
-      <div class="details" id="details">
-        <p>Hover over nodes or chords to see details</p>
+      <div id="node-view" class="sidebar-view">
+        <button class="back-button" id="back-button">
+          <span>←</span> Back to Overview
+        </button>
+        <div id="node-details"></div>
       </div>
     </div>
   </div>
@@ -245,6 +397,144 @@ export function generateHTML(data: MatchData): string {
     const svg = document.getElementById('chart');
     const tooltip = document.getElementById('tooltip');
     const details = document.getElementById('details');
+    const generalView = document.getElementById('general-view');
+    const nodeView = document.getElementById('node-view');
+    const nodeDetails = document.getElementById('node-details');
+    const backButton = document.getElementById('back-button');
+
+    // State for locked node view
+    let lockedNodeId = null;
+    let currentThreshold = 0.75;
+
+    // Show general view
+    function showGeneralView() {
+      lockedNodeId = null;
+      generalView.classList.add('active');
+      nodeView.classList.remove('active');
+      // Reset chord highlighting
+      document.querySelectorAll('.chord').forEach(c => c.style.opacity = '');
+      document.querySelectorAll('.node').forEach(n => n.style.opacity = '');
+    }
+
+    // Show node detail view
+    function showNodeView(nodeId, isCapacity, isLocked = false) {
+      if (isLocked) lockedNodeId = nodeId;
+
+      const item = isCapacity
+        ? data.capacities.find(c => c.id === nodeId)
+        : data.needs.find(n => n.id === nodeId);
+      if (!item) return;
+
+      // Get matches for this node
+      let matches;
+      if (isCapacity) {
+        matches = data.matches
+          .filter(m => m.capacityId === nodeId && (m.breakdown.similarity ?? 1) >= currentThreshold)
+          .map(m => ({
+            ...m,
+            other: data.needs.find(n => n.id === m.needId),
+            otherType: 'Need'
+          }));
+      } else {
+        matches = data.matches
+          .filter(m => m.needId === nodeId && (m.breakdown.similarity ?? 1) >= currentThreshold)
+          .map(m => ({
+            ...m,
+            other: data.capacities.find(c => c.id === m.capacityId),
+            otherType: 'Capacity'
+          }));
+      }
+      matches.sort((a, b) => b.score - a.score);
+
+      // Only dim when locked (not on hover preview)
+      if (isLocked) {
+        // Highlight connected chords
+        document.querySelectorAll('.chord').forEach(chord => {
+          const capId = chord.getAttribute('data-cap');
+          const needId = chord.getAttribute('data-need');
+          const isConnected = isCapacity ? capId === nodeId : needId === nodeId;
+          chord.style.opacity = isConnected ? '1' : '0.1';
+        });
+
+        // Highlight connected nodes
+        const connectedIds = new Set(matches.map(m => isCapacity ? m.needId : m.capacityId));
+        connectedIds.add(nodeId);
+        document.querySelectorAll('.node').forEach(node => {
+          const id = node.getAttribute('data-id');
+          node.style.opacity = connectedIds.has(id) ? '1' : '0.3';
+        });
+      }
+
+      const color = categoryColors[item.category] || '#666';
+      const iconClass = isCapacity ? 'capacity' : '';
+
+      // Get match description showing what matched
+      const getMatchDesc = (m) => {
+        const cat = m.breakdown?.categoryMatch;
+        const exprs = m.matchedExpressions || {};
+        if (cat && !cat.isBlocked && cat.overlapCategory) {
+          if (cat.overlapDistance === 0) {
+            return '<span class="match-item-badge match-level-exact">Both: ' + cat.overlapCategory + '</span>';
+          }
+          return '<span class="match-item-badge match-level-related">Via: ' + cat.overlapCategory + '</span>';
+        }
+        return '<span class="match-item-badge match-level-embedding">Similar meaning</span>';
+      };
+
+      nodeDetails.innerHTML = \`
+        <div class="node-header">
+          <div class="node-header-icon \${iconClass}" style="background: \${color};"></div>
+          <div>
+            <div class="node-title">\${isCapacity ? 'Capacity' : 'Need'} #\${item.id}</div>
+            <div class="node-subtitle">\${item.category.replace(/_/g, ' ')}</div>
+          </div>
+        </div>
+        <p style="font-size: 0.9em; color: #ccc; margin-bottom: 15px;">\${item.label}</p>
+        <div style="font-size: 0.85em; color: #888;">
+          Expressions: \${item.expressions?.join(', ')}
+        </div>
+        <h2 style="margin-top: 20px;">Top Matches (\${matches.length})</h2>
+        <div class="match-list">
+          \${matches.length === 0 ? '<p style="color: #888;">No matches above threshold</p>' : ''}
+          \${matches.slice(0, 20).map(m => \`
+            <div class="match-item" data-match-cap="\${m.capacityId}" data-match-need="\${m.needId}">
+              <div class="match-item-header">
+                <span>\${m.otherType} #\${m.other?.id}</span>
+                <span class="match-item-score">\${(m.score * 100).toFixed(0)}%</span>
+              </div>
+              <div class="match-item-label">\${m.other?.label || ''}</div>
+              <div style="margin-top: 6px;">\${getMatchDesc(m)}</div>
+            </div>
+          \`).join('')}
+          \${matches.length > 20 ? \`<p style="color: #888; text-align: center;">... and \${matches.length - 20} more</p>\` : ''}
+        </div>
+      \`;
+
+      // Add click handlers to match items
+      nodeDetails.querySelectorAll('.match-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const capId = item.getAttribute('data-match-cap');
+          const needId = item.getAttribute('data-match-need');
+          const match = data.matches.find(m => m.capacityId === capId && m.needId === needId);
+          const cap = data.capacities.find(c => c.id === capId);
+          const need = data.needs.find(n => n.id === needId);
+          if (match && cap && need) {
+            showMatchTooltip({ clientX: window.innerWidth / 2, clientY: 100 }, match, cap, need);
+          }
+        });
+      });
+
+      generalView.classList.remove('active');
+      nodeView.classList.add('active');
+    }
+
+    // Back button handler
+    backButton.addEventListener('click', showGeneralView);
+
+    // Click on SVG background to reset
+    svg.addEventListener('click', (e) => {
+      if (e.target === svg) showGeneralView();
+    });
 
     const outerRadius = 350;
     const innerRadius = 280;
@@ -294,8 +584,22 @@ export function generateHTML(data: MatchData): string {
 
       g.appendChild(circle);
 
-      g.addEventListener('mouseenter', (e) => showTooltip(e, cap, 'capacity'));
-      g.addEventListener('mouseleave', hideTooltip);
+      g.addEventListener('mouseenter', (e) => {
+        showTooltip(e, cap, 'capacity');
+        if (!lockedNodeId) showNodeView(cap.id, true, false);
+      });
+      g.addEventListener('mouseleave', () => {
+        hideTooltip();
+        if (!lockedNodeId) showGeneralView();
+      });
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (lockedNodeId === cap.id) {
+          showGeneralView();
+        } else {
+          showNodeView(cap.id, true, true);
+        }
+      });
 
       svg.appendChild(g);
     });
@@ -320,8 +624,22 @@ export function generateHTML(data: MatchData): string {
 
       g.appendChild(rect);
 
-      g.addEventListener('mouseenter', (e) => showTooltip(e, need, 'need'));
-      g.addEventListener('mouseleave', hideTooltip);
+      g.addEventListener('mouseenter', (e) => {
+        showTooltip(e, need, 'need');
+        if (!lockedNodeId) showNodeView(need.id, false, false);
+      });
+      g.addEventListener('mouseleave', () => {
+        hideTooltip();
+        if (!lockedNodeId) showGeneralView();
+      });
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (lockedNodeId === need.id) {
+          showGeneralView();
+        } else {
+          showNodeView(need.id, false, true);
+        }
+      });
 
       svg.appendChild(g);
     });
@@ -572,57 +890,110 @@ export function generateHTML(data: MatchData): string {
 
     function showMatchTooltip(e, match, cap, need) {
       const b = match.breakdown || {};
-      const breakdownItems = [];
-      if (b.similarity !== undefined) breakdownItems.push(\`Similarity: \${(b.similarity * 100).toFixed(0)}%\`);
-      if (b.priorityWeight !== undefined) breakdownItems.push(\`Priority: \${(b.priorityWeight * 100).toFixed(0)}%\`);
-      if (b.time !== undefined) breakdownItems.push(\`Time: \${(b.time * 100).toFixed(0)}%\`);
-      if (b.space !== undefined) breakdownItems.push(\`Space: \${(b.space * 100).toFixed(0)}%\`);
-      if (b.quantity !== undefined) breakdownItems.push(\`Quantity: \${(b.quantity * 100).toFixed(0)}%\`);
+      const catMatch = b.categoryMatch;
+      const exprs = match.matchedExpressions || {};
 
+      // Determine match type and connection
+      let matchBadge, connectionHtml;
+      const needText = exprs.needText || need.expressions?.[0] || 'Need';
+      const capText = exprs.capacityText || cap.expressions?.[0] || 'Capacity';
+
+      if (catMatch && !catMatch.isBlocked && catMatch.overlapCategory) {
+        if (catMatch.overlapDistance === 0) {
+          // Exact match - both refer to the same thing
+          matchBadge = '<span class="match-level-badge match-level-exact">Both: ' + catMatch.overlapCategory + '</span>';
+          connectionHtml = '<div class="match-connection">' +
+            '<div class="match-connection-expr">"' + needText + '"</div>' +
+            '<div class="match-connection-link"><span class="link-word">' + catMatch.overlapCategory + '</span></div>' +
+            '<div class="match-connection-expr">"' + capText + '"</div>' +
+            '</div>';
+        } else {
+          // Related via common category
+          matchBadge = '<span class="match-level-badge match-level-related">Via: ' + catMatch.overlapCategory + '</span>';
+          connectionHtml = '<div class="match-connection">' +
+            '<div class="match-connection-expr">"' + needText + '"</div>' +
+            '<div class="match-connection-link"><span>both relate to</span> <span class="link-word">' + catMatch.overlapCategory + '</span></div>' +
+            '<div class="match-connection-expr">"' + capText + '"</div>' +
+            '</div>';
+        }
+      } else {
+        // Embedding-only match
+        matchBadge = '<span class="match-level-badge match-level-embedding">Similar meaning</span>';
+        connectionHtml = '<div class="match-connection">' +
+          '<div class="match-connection-expr">"' + needText + '"</div>' +
+          '<div class="match-connection-link"><span>similar to</span></div>' +
+          '<div class="match-connection-expr">"' + capText + '"</div>' +
+          '</div>';
+      }
+
+      // Build category chain HTML (for detailed view)
+      let chainHtml = '';
+      if (exprs.needChain || exprs.capacityChain) {
+        const overlapCat = catMatch?.overlapCategory;
+        const formatChain = (chain, label) => {
+          if (!chain || chain.length === 0) return '';
+          const parts = chain.map(c =>
+            c === overlapCat
+              ? '<span class="overlap">' + c + '</span>'
+              : c
+          ).join(' > ');
+          return '<div><span class="label">' + label + ':</span> ' + parts + '</div>';
+        };
+        const needChainHtml = formatChain(exprs.needChain, 'Need');
+        const capChainHtml = formatChain(exprs.capacityChain, 'Capacity');
+        if (needChainHtml || capChainHtml) {
+          chainHtml = '<div class="category-chain">' + needChainHtml + capChainHtml + '</div>';
+        }
+      }
+
+      // Build criteria bars
+      const criteria = [
+        { key: 'similarity', label: 'Similarity', color: '#4CAF50' },
+        { key: 'priorityWeight', label: 'Priority', color: '#2196F3' },
+        { key: 'time', label: 'Time', color: '#FF9800' },
+        { key: 'space', label: 'Space', color: '#00BCD4' },
+        { key: 'quantity', label: 'Quantity', color: '#9C27B0' },
+      ];
+
+      const criteriaHtml = criteria
+        .filter(c => b[c.key] !== undefined)
+        .map(c => {
+          const pct = Math.round((b[c.key] || 0) * 100);
+          return '<div class="criterion">' +
+            '<span class="criterion-label">' + c.label + '</span>' +
+            '<div class="criterion-bar"><div class="criterion-fill" style="width: ' + pct + '%; background: ' + c.color + ';"></div></div>' +
+            '<span class="criterion-value">' + pct + '%</span>' +
+            '</div>';
+        }).join('');
+
+      // Tooltip
       tooltip.innerHTML = \`
-        <strong>Match</strong> <span style="color: #4CAF50">\${(match.score * 100).toFixed(0)}%</span><br>
-        \${breakdownItems.length > 0 ? \`<div style="font-size: 10px; color: #888; margin-top: 4px;">\${breakdownItems.join(' | ')}</div>\` : ''}
-        <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-          <strong style="color: \${categoryColors[cap.category]}">Capacity #\${cap.id}</strong><br>
-          <span style="color: #aaa">\${cap.category.replace(/_/g, ' ')}</span><br>
-          \${cap.label}
-        </div>
-        <div style="text-align: center; margin: 4px 0; color: #4CAF50;">|</div>
-        <div style="padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-          <strong style="color: \${categoryColors[need.category]}">Need #\${need.id}</strong><br>
-          <span style="color: #aaa">\${need.category.replace(/_/g, ' ')}</span><br>
-          \${need.label}
-        </div>
+        <strong>Match</strong> <span style="color: #4CAF50">\${(match.score * 100).toFixed(0)}%</span>
+        \${matchBadge}
+        \${connectionHtml}
       \`;
       tooltip.style.left = e.clientX + 10 + 'px';
       tooltip.style.top = e.clientY + 10 + 'px';
       tooltip.style.opacity = 1;
 
+      // Sidebar details
       details.innerHTML = \`
-        <p style="text-align: center; font-size: 1.2em; margin-bottom: 15px;">
-          <strong>Match Score:</strong> <span style="color: #4CAF50">\${(match.score * 100).toFixed(0)}%</span>
+        <p style="text-align: center; font-size: 1.2em; margin: 0 0 12px 0;">
+          <strong>Score:</strong> <span style="color: #4CAF50">\${(match.score * 100).toFixed(0)}%</span>
         </p>
-        \${breakdownItems.length > 0 ? \`
-        <div style="background: rgba(76,175,80,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-          <p style="margin: 0 0 8px 0; color: #888; font-size: 0.9em;"><strong>Score Breakdown</strong></p>
-          \${b.similarity !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Similarity:</span> \${(b.similarity * 100).toFixed(0)}%</p>\` : ''}
-          \${b.priorityWeight !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Priority:</span> \${(b.priorityWeight * 100).toFixed(0)}%</p>\` : ''}
-          \${b.time !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Time:</span> \${(b.time * 100).toFixed(0)}%</p>\` : ''}
-          \${b.space !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Space:</span> \${(b.space * 100).toFixed(0)}%</p>\` : ''}
-          \${b.quantity !== undefined ? \`<p style="margin: 3px 0;"><span class="label">Quantity:</span> \${(b.quantity * 100).toFixed(0)}%</p>\` : ''}
+        \${matchBadge}
+        \${connectionHtml}
+        \${chainHtml}
+        <div class="criteria-grid" style="margin-top: 12px;">
+          \${criteriaHtml}
         </div>
-        \` : ''}
-        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; margin-bottom: 10px;">
-          <p style="margin: 0 0 5px 0;"><strong style="color: \${categoryColors[cap.category]}">Capacity #\${cap.id}</strong></p>
-          <p style="margin: 0 0 5px 0;"><span class="label">Category:</span> \${cap.category.replace(/_/g, ' ')}</p>
-          <p style="margin: 0 0 5px 0;"><span class="label">Expressions:</span> \${cap.expressions?.join(', ')}</p>
-          <p style="margin: 0; font-style: italic; color: #ccc;">\${cap.label}</p>
+        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-top: 12px;">
+          <p style="margin: 0 0 4px 0;"><strong style="color: \${categoryColors[cap.category]}">Capacity #\${cap.id}</strong></p>
+          <p style="margin: 0; font-size: 0.9em; color: #ccc;">\${cap.label}</p>
         </div>
-        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
-          <p style="margin: 0 0 5px 0;"><strong style="color: \${categoryColors[need.category]}">Need #\${need.id}</strong></p>
-          <p style="margin: 0 0 5px 0;"><span class="label">Category:</span> \${need.category.replace(/_/g, ' ')}</p>
-          <p style="margin: 0 0 5px 0;"><span class="label">Expressions:</span> \${need.expressions?.join(', ')}</p>
-          <p style="margin: 0; font-style: italic; color: #ccc;">\${need.label}</p>
+        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-top: 8px;">
+          <p style="margin: 0 0 4px 0;"><strong style="color: \${categoryColors[need.category]}">Need #\${need.id}</strong></p>
+          <p style="margin: 0; font-size: 0.9em; color: #ccc;">\${need.label}</p>
         </div>
       \`;
     }
@@ -637,6 +1008,7 @@ export function generateHTML(data: MatchData): string {
 
     function updateThreshold(value) {
       const threshold = value / 100;
+      currentThreshold = threshold;
       thresholdValue.textContent = value + '%';
 
       document.querySelectorAll('.chord').forEach(chord => {
@@ -648,10 +1020,16 @@ export function generateHTML(data: MatchData): string {
           chord.style.display = similarity >= threshold ? '' : 'none';
         }
       });
+
+      // Refresh node view if locked
+      if (lockedNodeId) {
+        const isCapacity = data.capacities.some(c => c.id === lockedNodeId);
+        showNodeView(lockedNodeId, isCapacity, true);
+      }
     }
 
     slider.addEventListener('input', (e) => updateThreshold(e.target.value));
-    updateThreshold(60); // Apply initial threshold
+    updateThreshold(75); // Apply initial threshold
   </script>
 </body>
 </html>`;
