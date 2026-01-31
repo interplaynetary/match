@@ -31,7 +31,6 @@ import { readFileSync, writeFileSync } from "fs";
 
 interface OldExample {
   id: number;
-  category: string;
   naturalLanguage: string;
   type: "capacity" | "need";
   structured: {
@@ -51,7 +50,6 @@ interface OldExample {
 
 interface NewExample {
   id: number;
-  category: string;
   naturalLanguage: string;
   type: "capacity" | "need";
   expressions: Array<{ text: string }>;
@@ -289,7 +287,6 @@ function transformExample(old: OldExample): NewExample {
 
   const result: NewExample = {
     id: old.id,
-    category: old.category,
     naturalLanguage: old.naturalLanguage,
     type: old.type,
     expressions: uniqueExpressions.map((text) => ({ text })),

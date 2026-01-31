@@ -1,13 +1,15 @@
 import { Matcher } from './matcher'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
+import { computePCATransform, type PCATransform } from './semantic-colors'
 import examples from '../data/enriched-examples.json'
 import embeddingsData from '../data/embeddings.json'
 
 const embeddings = embeddingsData as EmbeddingsStore
 
 type MatchData = {
-  capacities: Array<{ id: string; expressions: string[]; category: string; label: string }>
-  needs: Array<{ id: string; expressions: string[]; category: string; label: string }>
+  capacities: Array<{ id: string; expressions: string[]; label: string; embedding?: number[] }>
+  needs: Array<{ id: string; expressions: string[]; label: string; embedding?: number[] }>
+  pcaTransform: PCATransform
   matches: Array<{
     needId: string
     capacityId: string
@@ -38,25 +40,33 @@ export function generateMatchData(): MatchData {
   const matcher = new Matcher({ similarityThreshold: 0.5 })
   const { capacities, needs, byId } = convertExamples(examples as any, embeddings)
 
+  // Collect all embeddings for PCA transform computation
+  const allEmbeddings: number[][] = []
+
   const capacityData = capacities.map((c) => {
     const original = byId.get(c.id)?.original
+    if (c.embedding) allEmbeddings.push(c.embedding)
     return {
       id: c.id,
       expressions: c.expressions.map(e => e.text),
-      category: original?.category ?? 'unknown',
       label: original?.naturalLanguage?.slice(0, 50) ?? c.expressions[0]?.text ?? 'capacity',
+      embedding: c.embedding,
     }
   })
 
   const needData = needs.map((n) => {
     const original = byId.get(n.id)?.original
+    if (n.embedding) allEmbeddings.push(n.embedding)
     return {
       id: n.id,
       expressions: n.expressions.map(e => e.text),
-      category: original?.category ?? 'unknown',
       label: original?.naturalLanguage?.slice(0, 50) ?? n.expressions[0]?.text ?? 'need',
+      embedding: n.embedding,
     }
   })
+
+  // Compute PCA transform from all embeddings
+  const pcaTransform = computePCATransform(allEmbeddings)
 
   const matchData: MatchData['matches'] = []
   for (const need of needs) {
@@ -81,26 +91,11 @@ export function generateMatchData(): MatchData {
     capacities: capacityData,
     needs: needData,
     matches: matchData,
+    pcaTransform,
   }
 }
 
 export function generateHTML(data: MatchData): string {
-  const categories = [...new Set([
-    ...data.capacities.map((c) => c.category),
-    ...data.needs.map((n) => n.category),
-  ])]
-
-  const categoryColors: Record<string, string> = {
-    simple_direct: '#4CAF50',
-    asymmetric_type: '#2196F3',
-    compositional: '#9C27B0',
-    time_constrained: '#FF9800',
-    location_constrained: '#00BCD4',
-    skill_based: '#E91E63',
-    quantity_unit: '#795548',
-    edge_case: '#607D8B',
-    unknown: '#9E9E9E',
-  }
 
   return `<!DOCTYPE html>
 <html>
@@ -353,27 +348,20 @@ export function generateHTML(data: MatchData): string {
           </div>
         </div>
 
-        <h2>Categories</h2>
-        <div class="legend">
-          ${categories.map((cat) => `
-            <div class="legend-item">
-              <div class="legend-color" style="background: ${categoryColors[cat] ?? '#666'}"></div>
-              <span>${cat.replace(/_/g, ' ')}</span>
-            </div>
-          `).join('')}
-        </div>
-
         <h2>Legend</h2>
         <div class="legend">
           <div class="legend-item">
-            <div class="legend-color" style="background: #fff; border-radius: 50%;"></div>
+            <div class="legend-color" style="background: #4CAF50; border-radius: 50%;"></div>
             <span>Capacity (outer ring)</span>
           </div>
           <div class="legend-item">
-            <div class="legend-color" style="background: #fff; border-radius: 0;"></div>
+            <div class="legend-color" style="background: #2196F3; border-radius: 0;"></div>
             <span>Need (inner ring)</span>
           </div>
         </div>
+        <p style="font-size: 0.75em; color: #666; margin-top: 8px;">
+          Node colors derived from semantic embeddings
+        </p>
 
         <h2>Hover for Details</h2>
         <div class="details" id="details">
@@ -392,7 +380,45 @@ export function generateHTML(data: MatchData): string {
 
   <script>
     const data = ${JSON.stringify(data)};
-    const categoryColors = ${JSON.stringify(categoryColors)};
+
+    // Fallback colors when embeddings are missing
+    const defaultCapacityColor = '#4CAF50';
+    const defaultNeedColor = '#2196F3';
+
+    // Semantic color functions (PCA → polar → HSL)
+    function dotProduct(a, b) {
+      let sum = 0;
+      const len = Math.min(a.length, b.length);
+      for (let i = 0; i < len; i++) sum += a[i] * b[i];
+      return sum;
+    }
+
+    function pcaProject(embedding, transform) {
+      const x = dotProduct(transform[0], embedding);
+      const y = dotProduct(transform[1], embedding);
+      return [x, y];
+    }
+
+    function coordinatesToHSL(x, y) {
+      const angle = Math.atan2(y, x);
+      const hue = ((angle / Math.PI + 1) * 180) % 360;
+      const radius = Math.sqrt(x * x + y * y);
+      const saturation = (50 + Math.min(50, radius * 200)) * 0.5;
+      const lightness = 45;
+      return \`hsl(\${hue.toFixed(0)}, \${saturation.toFixed(0)}%, \${lightness}%)\`;
+    }
+
+    function embeddingToColor(embedding) {
+      if (!embedding || !data.pcaTransform) return null;
+      const [x, y] = pcaProject(embedding, data.pcaTransform);
+      return coordinatesToHSL(x, y);
+    }
+
+    // Get color for a node (capacity or need)
+    function getNodeColor(item, isCapacity) {
+      const color = embeddingToColor(item.embedding);
+      return color || (isCapacity ? defaultCapacityColor : defaultNeedColor);
+    }
 
     const svg = document.getElementById('chart');
     const tooltip = document.getElementById('tooltip');
@@ -465,7 +491,7 @@ export function generateHTML(data: MatchData): string {
         });
       }
 
-      const color = categoryColors[item.category] || '#666';
+      const color = getNodeColor(item, isCapacity);
       const iconClass = isCapacity ? 'capacity' : '';
 
       // Get match description showing what matched
@@ -486,7 +512,6 @@ export function generateHTML(data: MatchData): string {
           <div class="node-header-icon \${iconClass}" style="background: \${color};"></div>
           <div>
             <div class="node-title">\${isCapacity ? 'Capacity' : 'Need'} #\${item.id}</div>
-            <div class="node-subtitle">\${item.category.replace(/_/g, ' ')}</div>
           </div>
         </div>
         <p style="font-size: 0.9em; color: #ccc; margin-bottom: 15px;">\${item.label}</p>
@@ -568,7 +593,6 @@ export function generateHTML(data: MatchData): string {
     // Draw capacity nodes (outer ring)
     data.capacities.forEach((cap, i) => {
       const pos = getPosition({ isCapacity: true, index: i }, outerRadius);
-      const color = categoryColors[cap.category] || '#666';
 
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       g.setAttribute('class', 'node capacity');
@@ -578,7 +602,7 @@ export function generateHTML(data: MatchData): string {
       circle.setAttribute('cx', pos.x);
       circle.setAttribute('cy', pos.y);
       circle.setAttribute('r', 8);
-      circle.setAttribute('fill', color);
+      circle.setAttribute('fill', getNodeColor(cap, true));
       circle.setAttribute('stroke', '#fff');
       circle.setAttribute('stroke-width', '1');
 
@@ -607,7 +631,6 @@ export function generateHTML(data: MatchData): string {
     // Draw need nodes (inner ring)
     data.needs.forEach((need, i) => {
       const pos = getPosition({ isCapacity: false, index: i }, needRadius);
-      const color = categoryColors[need.category] || '#666';
 
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       g.setAttribute('class', 'node need');
@@ -618,7 +641,7 @@ export function generateHTML(data: MatchData): string {
       rect.setAttribute('y', pos.y - 6);
       rect.setAttribute('width', 12);
       rect.setAttribute('height', 12);
-      rect.setAttribute('fill', color);
+      rect.setAttribute('fill', getNodeColor(need, false));
       rect.setAttribute('stroke', '#fff');
       rect.setAttribute('stroke-width', '1');
 
@@ -660,7 +683,6 @@ export function generateHTML(data: MatchData): string {
 
       const cap = data.capacities[capIndex];
       const need = data.needs[needIndex];
-      const color = categoryColors[cap.category] || '#666';
 
       // Compute curved path using SVG arc (Lombardi-style)
       const x1 = capPos.x, y1 = capPos.y;
@@ -693,7 +715,8 @@ export function generateHTML(data: MatchData): string {
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', d);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', color);
+      // Use capacity's semantic color for the connection
+      path.setAttribute('stroke', getNodeColor(cap, true));
       path.setAttribute('stroke-width', Math.max(5, match.score * 12));
       const similarity = match.breakdown.similarity ?? 1;
       path.setAttribute('opacity', String(similarity * similarity));
@@ -758,9 +781,9 @@ export function generateHTML(data: MatchData): string {
         \`;
 
         const label = item.label || item.expressions?.join(', ');
+        const color = getNodeColor(item, isCapacity);
         tipEl.innerHTML = \`
-          <strong>\${type === 'capacity' ? 'Capacity' : 'Need'} #\${item.id}</strong><br>
-          <span style="color: \${categoryColors[item.category]}">\${item.category.replace(/_/g, ' ')}</span><br>
+          <strong style="color: \${color}">\${type === 'capacity' ? 'Capacity' : 'Need'} #\${item.id}</strong><br>
           \${label}
         \`;
 
@@ -870,9 +893,9 @@ export function generateHTML(data: MatchData): string {
 
     function showTooltip(e, item, type) {
       const label = item.label || item.expressions?.join(', ');
+      const color = getNodeColor(item, type === 'capacity');
       tooltip.innerHTML = \`
-        <strong>\${type === 'capacity' ? 'Capacity' : 'Need'} #\${item.id}</strong><br>
-        <span style="color: \${categoryColors[item.category]}">\${item.category.replace(/_/g, ' ')}</span><br>
+        <strong style="color: \${color}">\${type === 'capacity' ? 'Capacity' : 'Need'} #\${item.id}</strong><br>
         \${label}
       \`;
       tooltip.style.left = e.clientX + 10 + 'px';
@@ -882,7 +905,6 @@ export function generateHTML(data: MatchData): string {
       details.innerHTML = \`
         <p><span class="label">Type:</span> \${type}</p>
         <p><span class="label">ID:</span> #\${item.id}</p>
-        <p><span class="label">Category:</span> \${item.category.replace(/_/g, ' ')}</p>
         <p><span class="label">Expressions:</span> \${item.expressions?.join(', ')}</p>
         <p style="margin-top: 10px; font-style: italic;">\${item.label}</p>
       \`;
@@ -988,11 +1010,11 @@ export function generateHTML(data: MatchData): string {
           \${criteriaHtml}
         </div>
         <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-top: 12px;">
-          <p style="margin: 0 0 4px 0;"><strong style="color: \${categoryColors[cap.category]}">Capacity #\${cap.id}</strong></p>
+          <p style="margin: 0 0 4px 0;"><strong style="color: \${getNodeColor(cap, true)}">Capacity #\${cap.id}</strong></p>
           <p style="margin: 0; font-size: 0.9em; color: #ccc;">\${cap.label}</p>
         </div>
         <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-top: 8px;">
-          <p style="margin: 0 0 4px 0;"><strong style="color: \${categoryColors[need.category]}">Need #\${need.id}</strong></p>
+          <p style="margin: 0 0 4px 0;"><strong style="color: \${getNodeColor(need, false)}">Need #\${need.id}</strong></p>
           <p style="margin: 0; font-size: 0.9em; color: #ccc;">\${need.label}</p>
         </div>
       \`;

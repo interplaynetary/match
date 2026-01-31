@@ -6,6 +6,8 @@ Technical documentation for the matching system.
 
 - [Dialectic Introduction](dialectic.md) — Conceptual introduction via Q&A
 - [Category Matching](category-matching.md) — Taxonomy-based semantic matching
+- [Constraint Matching](constraint-matching.md) — Time, space, and quantity constraints
+- [Semantic Colors](semantic-colors.md) — Embedding-based visualization coloring
 
 ## Quick Links
 
