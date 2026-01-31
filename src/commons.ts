@@ -1,45 +1,15 @@
 import { z } from 'zod';
 import jsonLogic from 'json-logic-js';
-import { SkillSchema } from './resources';
+import { SkillSchema } from './skills';
 import { AvailabilityWindowSchema } from './time';
 import { nanoid } from 'nanoid';
 
 // =============================================================================
-// ID TYPES
+// IDs
 // =============================================================================
-
-export const CID = z.string().regex(/^[a-f0-9]{64}$/);
-export type CID = z.infer<typeof CID>;
 
 export const NanoId = z.string().min(10).max(32);
 export type NanoId = z.infer<typeof NanoId>;
-
-// =============================================================================
-// CONTENT ADDRESSING
-// =============================================================================
-
-function canonicalize(obj: any): string {
-    if (Array.isArray(obj)) {
-        return '[' + obj.map(canonicalize).join(',') + ']';
-    } else if (obj && typeof obj === 'object' && obj.constructor === Object) {
-        return '{' + Object.keys(obj).sort().map(
-            k => JSON.stringify(k) + ':' + canonicalize(obj[k])
-        ).join(',') + '}';
-    } else {
-        return JSON.stringify(obj);
-    }
-}
-
-async function sha256Hex(str: string): Promise<string> {
-    if (typeof globalThis !== 'undefined' && globalThis.crypto?.subtle) {
-        const buf = new TextEncoder().encode(str);
-        const hashBuf = await globalThis.crypto.subtle.digest('SHA-256', buf);
-        return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    } else {
-        const { createHash } = await import('crypto');
-        return createHash('sha256').update(str).digest('hex');
-    }
-}
 
 // =============================================================================
 // ACCEPTANCE LOGIC
@@ -47,7 +17,7 @@ async function sha256Hex(str: string): Promise<string> {
 
 const AutomaticAcceptance = z.object({
     type: z.literal('automatic'),
-    rule: z.record(z.any()),
+    rule: z.any(),
 });
 
 const GovernedAcceptance = z.object({
@@ -91,34 +61,33 @@ export const CommonsDescription = z.union([
 export type CommonsDescription = z.infer<typeof CommonsDescription>;
 
 // =============================================================================
-// RESOURCE TEMPLATE / CONTEXT SPLIT
+// RESOURCE
 // =============================================================================
-// Template: the hashable, content-addressable definition of WHAT is needed.
-// Context: the instance-specific binding of WHERE/WHEN/WHO.
-//
-// This split is what allows a "need" to be a 1-slot commons, and the same
-// abstract need ("10 hours of childcare") to be instantiated in Portland or
-// Berlin without changing the template hash.
+// Everything about a resource: what it is, constraints, and context.
+// No artificial separation between "definition" and "context".
 
-export const ResourceTemplate = z.object({
+export const Resource = z.object({
+    // What
     type_id: z.string().min(1),
     quantity: z.number().gte(0),
     unit: z.string().optional(),
     emoji: z.string().optional(),
     description: z.string().optional(),
+
+    // Constraints
     min_atomic_size: z.number().positive().optional(),
     max_participation: z.number().int().positive().optional(),
     max_concurrency: z.number().int().positive().optional(),
     min_calendar_duration: z.number().positive().optional(),
     required_skills: z.array(SkillSchema).optional(),
     filter_rule: z.any().optional(),
-    mutual_agreement_required: z.boolean().default(false).optional(),
-});
-export type ResourceTemplate = z.infer<typeof ResourceTemplate>;
+    mutual_agreement_required: z.boolean().optional(),
 
-export const ResourceContext = z.object({
+    // Identity
     author: z.string().optional(),
     offerer: z.string().optional(),
+
+    // Temporal
     time_zone: z.string().optional(),
     start_date: z.string().nullable().optional(),
     end_date: z.string().nullable().optional(),
@@ -126,8 +95,9 @@ export const ResourceContext = z.object({
     recurrence: z.enum(['daily', 'weekly', 'monthly', 'yearly']).nullable().optional(),
     advance_notice_hours: z.number().gte(0).optional(),
     booking_window_hours: z.number().gte(0).optional(),
+
+    // Spatial
     search_radius_km: z.number().gte(0).optional(),
-    hidden_until_request_accepted: z.boolean().optional(),
     location_type: z.string().optional(),
     longitude: z.number().min(-180).max(180).optional(),
     latitude: z.number().min(-90).max(90).optional(),
@@ -139,10 +109,11 @@ export const ResourceContext = z.object({
     online_link: z.string().url().or(z.string().length(0)).optional(),
     h3_index: z.string().optional(),
     h3_resolution: z.number().int().min(0).max(15).optional(),
-    priority: z.number().optional(),
+
+    // Allocation
     priority_distribution: z.record(z.string(), z.number().min(0).max(1)).optional(),
 });
-export type ResourceContext = z.infer<typeof ResourceContext>;
+export type Resource = z.infer<typeof Resource>;
 
 // =============================================================================
 // INPUT DEFINITIONS
@@ -155,83 +126,80 @@ const InputGeneric = z.object({
     description: z.string().optional(),
 });
 
-const InputResource = ResourceTemplate.extend({
-    kind: z.literal('resource').default('resource'),
+const InputResource = Resource.extend({
+    kind: z.literal('resource'),
 });
 
 const InputCommons = z.object({
     kind: z.literal('commons'),
-    template_id: z.string().optional(),
-    instance_id: z.string().optional(),
+    commons_id: z.string().optional(),
 });
 
 export const InputDefinition = z.union([InputGeneric, InputResource, InputCommons]);
 export type InputDefinition = z.infer<typeof InputDefinition>;
+export type InputResource = z.infer<typeof InputResource>;
+export type InputCommons = z.infer<typeof InputCommons>;
+export type InputGeneric = z.infer<typeof InputGeneric>;
+
+// Input helpers
+export const input = {
+    resource: (type_id: string, quantity: number, opts?: Partial<Omit<Resource, 'type_id' | 'quantity'>>) => ({
+        kind: 'resource' as const,
+        type_id,
+        quantity,
+        ...opts,
+    } satisfies InputResource),
+
+    commons: (commons_id?: string) => ({
+        kind: 'commons' as const,
+        commons_id,
+    } satisfies InputCommons),
+
+    generic: (data_type: 'string' | 'number' | 'boolean' | 'option', opts?: { options?: string[], description?: string }) => ({
+        kind: 'generic' as const,
+        data_type,
+        ...opts,
+    } satisfies InputGeneric),
+};
 
 // =============================================================================
-// SLOT (TEMPLATE)
+// SLOT
 // =============================================================================
 
 export const Slot = z.object({
-    id: CID.optional(),
+    id: NanoId,
     name: z.string(),
     description: z.string().optional(),
     input: InputDefinition,
     optional: z.boolean().default(false),
     acceptance_logic: AcceptanceLogic.optional(),
+    filled_by: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()])).optional(),
 });
 export type Slot = z.infer<typeof Slot>;
 
-export const SlotWithId = Slot.required({ id: true });
-export type SlotWithId = z.infer<typeof SlotWithId>;
+export type SlotInput = {
+    name: string;
+    description?: string;
+    input: InputDefinition;
+    optional?: boolean;
+    acceptance_logic?: AcceptanceLogic;
+};
 
 // =============================================================================
-// SLOT (INSTANCE)
-// =============================================================================
-// A slot instance is the stateful side: who filled it, with what context.
-// Status is LOCAL: a slot is actual when it has fills. Period.
-// No transitive graph walk. The fill itself is the social fact.
-//
-// Keyed by instance_id (NanoId), not slot_id (CID). The same slot template
-// can appear multiple times in a commons (e.g. two childcare slots for
-// different days). Each gets its own instance with its own context and fills.
-
-export const SlotInstance = z.object({
-    slot_id: CID,           // what kind of slot (template reference)
-    instance_id: NanoId,    // this particular instantiation (unique key)
-    resource_context: ResourceContext.optional(),
-    filled_by: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()]).optional()).optional(),
-    status: z.enum(['potential', 'actual']).default('potential'),
-});
-export type SlotInstance = z.infer<typeof SlotInstance>;
-
-// =============================================================================
-// COMMONS (TEMPLATE)
+// COMMONS
 // =============================================================================
 
 export const Commons = z.object({
-    id: CID.optional(),
+    id: NanoId,
     name: z.string(),
     description: CommonsDescription.optional(),
-    slots: z.array(SlotWithId),
-});
-export type Commons = z.infer<typeof Commons>;
-
-export const CommonsWithId = Commons.required({ id: true });
-export type CommonsWithId = z.infer<typeof CommonsWithId>;
-
-// =============================================================================
-// COMMONS (INSTANCE)
-// =============================================================================
-
-export const CommonsInstanceCore = z.object({
-    instance_id: NanoId,
-    commons: CommonsWithId,
     author: z.string(),
     offerer: z.string().optional(),
-    slotInstances: z.record(NanoId, SlotInstance), // keyed by slot instance_id
+    slots: z.array(Slot),
+    created_at: z.date(),
+    updated_at: z.date(),
 });
-export type CommonsInstanceCore = z.infer<typeof CommonsInstanceCore>;
+export type Commons = z.infer<typeof Commons>;
 
 export const Progress = z.object({
     requiredSlotsFilled: z.number(),
@@ -240,218 +208,170 @@ export const Progress = z.object({
     totalOptionalSlots: z.number(),
     completionPercentage: z.number().min(0).max(100),
 });
-
 export type Progress = z.infer<typeof Progress>;
 
-export const CommonsInstanceDerived = z.object({
-    status: z.enum(['potential', 'actual']).default('potential'),
-    progress: Progress.optional(),
-});
-
-export type CommonsInstanceDerived = z.infer<typeof CommonsInstanceDerived>;
-
-export const CommonsInstanceMeta = z.object({
-    created_at: z.date(),
-    updated_at: z.date(),
-});
-
-export type CommonsInstanceMeta = z.infer<typeof CommonsInstanceMeta>;
-
-export const CommonsInstance = CommonsInstanceCore.merge(CommonsInstanceDerived).merge(CommonsInstanceMeta);
-export type CommonsInstance = z.infer<typeof CommonsInstance>;
-
-// =============================================================================
-// TEMPLATE FACTORIES
-// =============================================================================
-// Content-addressing is one operation: normalize → strip id → canonicalize → hash.
-// All templates with an `id` field use the same pattern.
-
-async function contentAddress<T extends { id?: string }>(
-    schema: z.ZodType<T>,
-    data: Omit<T, 'id'>,
-): Promise<{ id: CID; data: T }> {
-    const normalized = schema.parse(data) as T;
-    const { id, ...hashable } = normalized;
-    const cid = await sha256Hex(canonicalize(hashable)) as CID;
-    return { id: cid, data: { ...normalized, id: cid } };
-}
-
-export async function createSlotWithId(slotData: Omit<Slot, 'id'>): Promise<SlotWithId> {
-    const { data } = await contentAddress(Slot, slotData);
-    return data as SlotWithId;
-}
-
-export async function createCommonsWithId(data: Omit<Commons, 'id'>): Promise<CommonsWithId> {
-    const { data: result } = await contentAddress(Commons, data);
-    return result as CommonsWithId;
-}
-
-export async function createCommonsFromSlots(
-    name: string,
-    slots: Omit<Slot, 'id'>[],
-    description?: CommonsDescription,
-): Promise<CommonsWithId> {
-    const slotsWithIds = await Promise.all(slots.map(createSlotWithId));
-    return createCommonsWithId({ name, description, slots: slotsWithIds });
-}
-
-// =============================================================================
-// INSTANCE FACTORIES
-// =============================================================================
-
-export function createSlotInstance(slot_id: CID, context?: ResourceContext): SlotInstance {
-    return SlotInstance.parse({
-        slot_id,
-        instance_id: nanoid(),
-        resource_context: context,
-        status: 'potential',
-    });
-}
-
-// =============================================================================
-// FILL EVENT
-// =============================================================================
-// Fills are temporal events. The reference graph between instances can have
-// cycles (reciprocity). The DAG is in the ordering of fill events, not in the
-// structure of references. See: research/commons/cycles-time-and-reciprocity.md
-
-export const FillEvent = z.object({
-    id: NanoId,
-    timestamp: z.date(),
-    commons_instance_id: NanoId,
-    slot_instance_id: NanoId,  // addresses the specific slot instance, not the template
-    filled_by: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()]).optional()),
-    author: z.string(),
-});
-export type FillEvent = z.infer<typeof FillEvent>;
+export type CommonsWithState = Commons & {
+    status: 'potential' | 'actual';
+    progress: Progress;
+};
 
 // =============================================================================
 // MANAGER
 // =============================================================================
-// The manager is simple because the hard constraints are temporal (causal ordering),
-// not structural (graph shape). Cycles in the reference graph are reciprocity.
-// Status is local: a slot is actual when it has fills.
 
 export class CommonsManager {
-    private registry = new Map<NanoId, CommonsInstanceCore & CommonsInstanceMeta>();
-    private fillLog: FillEvent[] = [];
-
-    // --- Reference index (for queries, not for enforcement) ---
+    private registry = new Map<NanoId, Commons>();
     private referencedBy = new Map<NanoId, Set<NanoId>>();
 
-    // Template + context → instance.
-    // slotContexts is parallel to commons.slots (by index), not keyed by CID,
-    // because the same slot template CID can appear multiple times.
-    instantiate(
-        commons: CommonsWithId,
-        author: string,
-        slotContexts?: (ResourceContext | undefined)[],
-        offerer?: string,
-    ): CommonsInstance {
-        const slotInstances: Record<string, SlotInstance> = {};
-        for (let i = 0; i < commons.slots.length; i++) {
-            const slot = commons.slots[i];
-            const inst = createSlotInstance(slot.id, slotContexts?.[i]);
-            slotInstances[inst.instance_id] = inst;
-        }
+    /**
+     * Create a commons.
+     *
+     * @example
+     * manager.create({
+     *   name: 'Block Party',
+     *   author: 'alice',
+     *   slots: [{
+     *     name: 'Childcare',
+     *     input: input.resource('childcare', 10, { city: 'Portland' })
+     *   }]
+     * });
+     */
+    create(data: {
+        name: string;
+        description?: CommonsDescription;
+        author: string;
+        offerer?: string;
+        slots: SlotInput[];
+    }): CommonsWithState {
+        const slots: Slot[] = data.slots.map(s => ({
+            id: nanoid() as NanoId,
+            name: s.name,
+            description: s.description,
+            input: s.input,
+            optional: s.optional ?? false,
+            acceptance_logic: s.acceptance_logic,
+            filled_by: undefined,
+        }));
 
-        const core = CommonsInstanceCore.parse({
-            instance_id: nanoid(),
-            commons,
-            author,
-            offerer,
-            slotInstances,
-        });
+        const commons: Commons = {
+            id: nanoid() as NanoId,
+            name: data.name,
+            description: data.description,
+            author: data.author,
+            offerer: data.offerer,
+            slots,
+            created_at: new Date(),
+            updated_at: new Date(),
+        };
 
-        const now = new Date();
-        this.registry.set(core.instance_id, { ...core, created_at: now, updated_at: now });
+        this.registry.set(commons.id, commons);
         this.rebuildIndex();
-        return this.get(core.instance_id)!;
+        return this.getWithState(commons.id)!;
     }
 
-    // Fill a slot instance. Cycles are allowed — reciprocity is not a bug.
-    // The only causal constraint: the referenced thing must already exist.
+    /** Fill a slot. Cycles allowed (reciprocity). */
     fill(
-        commonsInstanceId: NanoId,
-        slotInstanceId: NanoId,
-        filledBy: Record<string, boolean | number | string | undefined>,
+        commonsId: NanoId,
+        slotId: NanoId,
+        filledBy: Record<string, boolean | number | string>,
         author: string,
-    ): CommonsInstance {
-        const stored = this.registry.get(commonsInstanceId);
-        if (!stored) throw new Error(`Instance ${commonsInstanceId} not found`);
+    ): CommonsWithState {
+        const commons = this.registry.get(commonsId);
+        if (!commons) throw new Error(`Commons ${commonsId} not found`);
 
-        const slotInstance = stored.slotInstances[slotInstanceId];
-        if (!slotInstance) throw new Error(`Slot instance ${slotInstanceId} not found in instance ${commonsInstanceId}`);
+        const slot = commons.slots.find(s => s.id === slotId);
+        if (!slot) throw new Error(`Slot ${slotId} not found`);
 
-        // Causal constraint: referenced instances must exist
+        // Causal constraint: referenced commons must exist
         for (const ref of Object.keys(filledBy)) {
             if (NanoId.safeParse(ref).success && !this.registry.has(ref)) {
-                throw new Error(`Referenced instance ${ref} does not exist (causal violation)`);
+                throw new Error(`Referenced commons ${ref} does not exist`);
             }
         }
 
-        // Record the fill
-        slotInstance.filled_by = { ...slotInstance.filled_by, ...filledBy };
-        slotInstance.status = 'actual';
-        stored.updated_at = new Date();
-
-        // Log the event
-        this.fillLog.push({
-            id: nanoid() as NanoId,
-            timestamp: new Date(),
-            commons_instance_id: commonsInstanceId,
-            slot_instance_id: slotInstanceId,
-            filled_by: filledBy as Record<string, boolean | number | string>,
-            author,
-        });
+        slot.filled_by = { ...slot.filled_by, ...filledBy };
+        commons.updated_at = new Date();
 
         this.rebuildIndex();
-        return this.get(commonsInstanceId)!;
+        return this.getWithState(commonsId)!;
     }
 
-    // Unfill a slot instance. Direct action, no cascading.
-    unfill(commonsInstanceId: NanoId, slotInstanceId: NanoId): CommonsInstance {
-        const stored = this.registry.get(commonsInstanceId);
-        if (!stored) throw new Error(`Instance ${commonsInstanceId} not found`);
+    /**
+     * Fill by slot name (when unique).
+     *
+     * @example
+     * manager.fillByName(commons.id, 'Childcare', { 'bob-id': true }, 'alice');
+     */
+    fillByName(
+        commonsId: NanoId,
+        slotName: string,
+        filledBy: Record<string, boolean | number | string>,
+        author: string,
+    ): CommonsWithState {
+        const commons = this.registry.get(commonsId);
+        if (!commons) throw new Error(`Commons ${commonsId} not found`);
 
-        const slotInstance = stored.slotInstances[slotInstanceId];
-        if (!slotInstance) throw new Error(`Slot instance ${slotInstanceId} not found in instance ${commonsInstanceId}`);
+        const matches = commons.slots.filter(s => s.name === slotName);
+        if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
+        if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
 
-        slotInstance.filled_by = undefined;
-        slotInstance.status = 'potential';
-        stored.updated_at = new Date();
+        return this.fill(commonsId, matches?[0].id, filledBy, author);
+    }
+
+    /** Unfill a slot. */
+    unfill(commonsId: NanoId, slotId: NanoId): CommonsWithState {
+        const commons = this.registry.get(commonsId);
+        if (!commons) throw new Error(`Commons ${commonsId} not found`);
+
+        const slot = commons.slots.find(s => s.id === slotId);
+        if (!slot) throw new Error(`Slot ${slotId} not found`);
+
+        slot.filled_by = undefined;
+        commons.updated_at = new Date();
 
         this.rebuildIndex();
-        return this.get(commonsInstanceId)!;
+        return this.getWithState(commonsId)!;
+    }
+
+    /** Unfill by name. */
+    unfillByName(commonsId: NanoId, slotName: string): CommonsWithState {
+        const commons = this.registry.get(commonsId);
+        if (!commons) throw new Error(`Commons ${commonsId} not found`);
+
+        const matches = commons.slots.filter(s => s.name === slotName);
+        if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
+        if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
+
+        return this.unfill(commonsId, matches[0].id);
     }
 
     // --- Queries ---
 
-    get(id: string): CommonsInstance | undefined {
-        const stored = this.registry.get(id);
-        if (!stored) return undefined;
-        return { ...stored, ...this.computeDerived(stored) };
+    get(id: NanoId): Commons | undefined {
+        return this.registry.get(id);
     }
 
-    all(): CommonsInstance[] {
-        return Array.from(this.registry.values()).map(s => ({ ...s, ...this.computeDerived(s) }));
+    getWithState(id: NanoId): CommonsWithState | undefined {
+        const commons = this.registry.get(id);
+        if (!commons) return undefined;
+        return { ...commons, ...this.computeState(commons) };
     }
 
-    // Who references this instance? (for UI: "these commons depend on you")
+    all(): CommonsWithState[] {
+        return Array.from(this.registry.values()).map(c => ({
+            ...c,
+            ...this.computeState(c),
+        }));
+    }
+
     dependentsOf(id: NanoId): NanoId[] {
         return Array.from(this.referencedBy.get(id) ?? []);
     }
 
-    // What does this instance reference? (for UI: "you depend on these")
     dependenciesOf(id: NanoId): NanoId[] {
-        const stored = this.registry.get(id);
-        if (!stored) return [];
-        return Array.from(this.extractRefs(stored));
-    }
-
-    // Full fill history, ordered by time
-    history(): FillEvent[] {
-        return [...this.fillLog];
+        const commons = this.registry.get(id);
+        if (!commons) return [];
+        return Array.from(this.extractRefs(commons));
     }
 
     remove(id: NanoId): boolean {
@@ -463,29 +383,18 @@ export class CommonsManager {
     clear() {
         this.registry.clear();
         this.referencedBy.clear();
-        this.fillLog = [];
     }
 
-    // --- Derived state ---
-    // Status is LOCAL. A slot is actual when it has fills.
-    // A commons is actual when all required slots are actual.
-    // No transitive graph walk. No supply-chain logic.
+    // --- Derived state: LOCAL status (not transitive) ---
 
-    private computeDerived(stored: CommonsInstanceCore & CommonsInstanceMeta): CommonsInstanceDerived {
-        // Build a lookup from slot template CID → optional flag
-        const templateOptional = new Map<CID, boolean>();
-        for (const slot of stored.commons.slots) {
-            templateOptional.set(slot.id, slot.optional);
-        }
-
+    private computeState(commons: Commons): { status: 'potential' | 'actual'; progress: Progress } {
         let requiredFilled = 0, totalRequired = 0;
         let optionalFilled = 0, totalOptional = 0;
 
-        for (const inst of Object.values(stored.slotInstances)) {
-            const optional = templateOptional.get(inst.slot_id) ?? false;
-            const filled = inst.filled_by && Object.keys(inst.filled_by).length > 0;
+        for (const slot of commons.slots) {
+            const filled = slot.filled_by && Object.keys(slot.filled_by).length > 0;
 
-            if (optional) {
+            if (slot.optional) {
                 totalOptional++;
                 if (filled) optionalFilled++;
             } else {
@@ -508,34 +417,29 @@ export class CommonsManager {
         };
     }
 
-    // --- Index ---
-    // The reference index tracks who-references-whom for queries and notifications.
-    // It does NOT enforce acyclicity. Cycles = reciprocity.
+    // --- Reference index ---
 
     private rebuildIndex() {
         this.referencedBy.clear();
-        for (const [id, stored] of this.registry.entries()) {
-            for (const ref of this.extractRefs(stored)) {
+        for (const [id, commons] of this.registry.entries()) {
+            for (const ref of this.extractRefs(commons)) {
                 if (!this.referencedBy.has(ref)) this.referencedBy.set(ref, new Set());
                 this.referencedBy.get(ref)!.add(id);
             }
         }
     }
 
-    private extractRefs(core: CommonsInstanceCore): Set<NanoId> {
+    private extractRefs(commons: Commons): Set<NanoId> {
         const refs = new Set<NanoId>();
-        for (const inst of Object.values(core.slotInstances)) {
-            if (inst.filled_by) {
-                for (const ref of Object.keys(inst.filled_by)) {
+        for (const slot of commons.slots) {
+            if (slot.filled_by) {
+                for (const ref of Object.keys(slot.filled_by)) {
                     if (NanoId.safeParse(ref).success) refs.add(ref as NanoId);
                 }
             }
-        }
-        // Also check template-level commons references
-        for (const slot of core.commons.slots) {
-            if (slot.input.kind === 'commons' && slot.input.instance_id) {
-                if (NanoId.safeParse(slot.input.instance_id).success) {
-                    refs.add(slot.input.instance_id as NanoId);
+            if (slot.input.kind === 'commons' && slot.input.commons_id) {
+                if (NanoId.safeParse(slot.input.commons_id).success) {
+                    refs.add(slot.input.commons_id as NanoId);
                 }
             }
         }
@@ -544,3 +448,57 @@ export class CommonsManager {
 }
 
 export const commons = new CommonsManager();
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Create a simple single-slot commons (a "need").
+ *
+ * @example
+ * const childcare = need('Childcare', 'alice',
+ *   input.resource('childcare', 10, { city: 'Portland' })
+ * );
+ */
+export function need(
+    name: string,
+    author: string,
+    input: InputDefinition,
+    opts?: { description?: string; offerer?: string }
+): CommonsWithState {
+    return commons.create({
+        name,
+        author,
+        description: opts?.description,
+        offerer: opts?.offerer,
+        slots: [{ name, input }],
+    });
+}
+
+/**
+ * Create a commons with multiple resource slots.
+ *
+ * @example
+ * const party = resources('Block Party', 'alice', [
+ *   ['Childcare', 'childcare', 10, { city: 'Portland' }],
+ *   ['Food', 'food', 50, { city: 'Portland' }],
+ * ]);
+ */
+export function resources(
+    name: string,
+    author: string,
+    slots: Array<[name: string, type_id: string, quantity: number, opts?: Partial<Omit<Resource, 'type_id' | 'quantity'>>]>,
+    opts?: { description?: CommonsDescription; offerer?: string }
+): CommonsWithState {
+    return commons.create({
+        name,
+        author,
+        description: opts?.description,
+        offerer: opts?.offerer,
+        slots: slots.map(([slotName, type_id, quantity, resourceOpts]) => ({
+            name: slotName,
+            input: input.resource(type_id, quantity, resourceOpts),
+        })),
+    });
+}

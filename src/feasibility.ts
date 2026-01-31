@@ -1,9 +1,8 @@
 import * as z from 'zod';
 import {
-    type NeedSlot,
-    type AvailabilitySlot,
+    type Resource,
     type Contact
-} from './resources.js';
+} from './commons';
 import {
     FeasibilityStatusSchema,
     type FeasibilityStatus,
@@ -37,7 +36,7 @@ type GlobalRecognitionWeights = z.infer<typeof GlobalRecognitionWeightsSchema>;
  * Returns 1.0 if meaningful overlap exists, 0.0 if not.
  * HEURISTIC: "Minimum Usable Chunk" - Overlap must be > min_atomic_size.
  */
-function scoreTime(need: NeedSlot, capacity: AvailabilitySlot): number {
+function scoreTime(need: Resource, capacity: Resource): number {
     const overlaps = availabilityWindowsOverlapWithTimezone(
         need.availability_window,
         capacity.availability_window,
@@ -91,7 +90,7 @@ function scoreTime(need: NeedSlot, capacity: AvailabilitySlot): number {
  * Penalizes fragmented time overlaps.
  * HEURISTIC: If avg block size < min_duration, heavily penalize.
  */
-function scoreContinuity(need: NeedSlot, capacity: AvailabilitySlot): number {
+function scoreContinuity(need: Resource, capacity: Resource): number {
     if (!need.availability_window || !capacity.availability_window) return 1.0;
 
     // Calculate intersection
@@ -138,7 +137,7 @@ function scoreContinuity(need: NeedSlot, capacity: AvailabilitySlot): number {
  * 2. LOCATION SCORE (Distance Decay)
  * 1.0 at distance 0, decaying to 0.0 at max_radius.
  */
-function scoreLocation(need: NeedSlot, capacity: AvailabilitySlot): number {
+function scoreLocation(need: Resource, capacity: Resource): number {
     // If either is remote, perfect match
     if (need.h3_index === REMOTE_H3_INDEX || capacity.h3_index === REMOTE_H3_INDEX) {
         return 1.0;
@@ -170,8 +169,8 @@ function scoreLocation(need: NeedSlot, capacity: AvailabilitySlot): number {
  * HEURISTIC: Checks `level` if present.
  */
 function scoreSkills(
-    need: NeedSlot,
-    capacity: AvailabilitySlot,
+    need: Resource,
+    capacity: Resource,
     provider?: Contact,
     seeker?: Contact
 ): number {
@@ -213,8 +212,8 @@ function scoreSkills(
  * HEURISTIC: Tortuosity Factor (1.5x) for real-world travel estimation.
  */
 function scoreTravel(
-    need: NeedSlot,
-    capacity: AvailabilitySlot,
+    need: Resource,
+    capacity: Resource,
     previousCommitment?: { latitude: number; longitude: number; end_time: string }
 ): number {
     if (!previousCommitment) return 1.0; // No previous context = feasible
@@ -284,7 +283,7 @@ function scoreTravel(
  * 5. RESOURCES SCORE (Quantity)
  * 1.0 if enough quantity offered, penalized if partial.
  */
-function scoreResources(need: NeedSlot, capacity: AvailabilitySlot): number {
+function scoreResources(need: Resource, capacity: Resource): number {
     if (capacity.quantity >= need.quantity) return 1.0;
     if (capacity.quantity <= 0) return 0.0;
 
@@ -327,8 +326,8 @@ export interface FeasibilityContext {
 }
 
 export function calculateFeasibility(
-    need: NeedSlot,
-    capacity: AvailabilitySlot,
+    need: Resource,
+    capacity: Resource,
     context: FeasibilityContext = {}
 ): FeasibilityStatus {
     const scores: FeasibilityScores = {

@@ -13,7 +13,8 @@
  * - Pure multi-dimensional design
  */
 
-import type { AvailabilitySlot, NeedSlot,  Contact, Skill } from './resources';
+import type { Resource, Contact } from './commons';
+import type { Skill } from './skills';
 import type {AvailabilityWindow, TimeRange, DayOfWeek, DaySchedule, WeekSchedule, MonthSchedule } from './time';
 import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, REMOTE_H3_INDEX } from './spatial';
 
@@ -34,9 +35,9 @@ import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, REMOTE_H3_INDEX } from './sp
  * @param seeker - The Contact/Entity seeking the need (from needSlot.offered_by)
  */
 export function skillsCompatible(
-	needSlot: NeedSlot,
+	needSlot: Resource,
 	provider: Contact | undefined,
-	capacitySlot: AvailabilitySlot,
+	capacitySlot: Resource,
 	seeker: Contact | undefined
 ): boolean {
 	// 1. FORWARD CHECK: Need requires Provider Skills
@@ -120,7 +121,7 @@ export function getRecurrenceTrack(
  * - If no timezone specified, assumes UTC
  * 
  * **Schema:**
- * Both `AvailabilitySlot` and `NeedSlot` have:
+ * Both `Resource` and `Resource` have:
  * - `time_zone?: string` (IANA timezone, e.g., "America/Chicago")
  * - All times in `availability_window` are interpreted in this timezone
  * 
@@ -1617,14 +1618,14 @@ export function locationsCompatible(
  * Used for verifying min_calendar_duration (physics floor).
  */
 export function calculateMaxContiguousDuration(
-	needSlot: NeedSlot,
-	availabilitySlot: AvailabilitySlot,
+	needSlot: Resource,
+	capacitySlot: Resource,
 	referenceDate: string = '2024-01-01'
 ): number {
 	// If either lacks availability info, assume optimistic full continuity implies sufficient duration
 	// (or should we be pessimistic? For physics floor, optimistic is probably safer for now unless detailed)
 	if (!needSlot.availability_window && !(needSlot as any).start_time) return Infinity; // Infinite theoretical overlap
-	if (!availabilitySlot.availability_window) return Infinity;
+	if (!capacitySlot.availability_window) return Infinity;
 
 	// Simplification: We only check explicit TimeRange intersections for now.
 	// A strictly correct implementation requires intersecting the full day schedules.
@@ -1632,9 +1633,9 @@ export function calculateMaxContiguousDuration(
 	// 1. Get intersection window
 	const intersection = calculateAvailabilityIntersection(
 		needSlot.availability_window || { time_ranges: [] }, // fallback
-		availabilitySlot.availability_window,
+		capacitySlot.availability_window,
 		needSlot.time_zone,
-		availabilitySlot.time_zone,
+		capacitySlot.time_zone,
 		referenceDate
 	);
 
@@ -1672,16 +1673,16 @@ export function calculateMaxContiguousDuration(
  * 5. Fan-In (max_participation)
  */
 export function checkFlowConstraints(
-	needSlot: NeedSlot,
-	availabilitySlot: AvailabilitySlot,
+	needSlot: Resource,
+	capacitySlot: Resource,
 	referenceTime?: string | Date
 ): boolean {
 	// 1. **Granularity (min_atomic_size)**
 	// Can this chunk of Need actually fit into the Capacity's atomic units?
-	if (availabilitySlot.min_atomic_size !== undefined && availabilitySlot.min_atomic_size > 0) {
+	if (capacitySlot.min_atomic_size !== undefined && capacitySlot.min_atomic_size > 0) {
 		// Strict check: Need quantity must be at least one atom
 		// (Allocation algorithm might handle quantization, but if Need < Atomic, it's impossible to serve)
-		if (needSlot.quantity < availabilitySlot.min_atomic_size) {
+		if (needSlot.quantity < capacitySlot.min_atomic_size) {
 			return false;
 		}
 	}
@@ -1691,15 +1692,15 @@ export function checkFlowConstraints(
 
 	// 3. **Physics Floor (min_calendar_duration)**
 	// Do they overlap for long enough to do the thing?
-	if (availabilitySlot.min_calendar_duration !== undefined && availabilitySlot.min_calendar_duration > 0) {
+	if (capacitySlot.min_calendar_duration !== undefined && capacitySlot.min_calendar_duration > 0) {
 		// We calculate the maximum contiguous block of time in their intersection.
 		// If the longest possible session is shorter than the minimum required duration, it's a fail.
 
 		// Optimization: If simple date overlap without time details, assume yes?
 		// We use our helper if structural info exists.
-		const maxOverlap = calculateMaxContiguousDuration(needSlot, availabilitySlot, needSlot.start_date || undefined);
+		const maxOverlap = calculateMaxContiguousDuration(needSlot, capacitySlot, needSlot.start_date || undefined);
 
-		if (maxOverlap < availabilitySlot.min_calendar_duration) {
+		if (maxOverlap < capacitySlot.min_calendar_duration) {
 			return false;
 		}
 	}
@@ -1714,7 +1715,7 @@ export function checkFlowConstraints(
 		// Simplification: Use Need.start_date + Need.start_time (or earliest in window)
 		// Ideally we find the *first intersection point*.
 
-		const earliestStart = getEarliestMatchTime(needSlot, availabilitySlot, refDate);
+		const earliestStart = getEarliestMatchTime(needSlot, capacitySlot, refDate);
 
 		if (earliestStart) {
 			const startMs = earliestStart.getTime();
@@ -1722,16 +1723,16 @@ export function checkFlowConstraints(
 
 			// 4. **Lead Time (advance_notice_hours)**
 			// Only valid if we are booking *enough in advance*
-			if (availabilitySlot.advance_notice_hours !== undefined) {
-				if (diffHours < availabilitySlot.advance_notice_hours) {
+			if (capacitySlot.advance_notice_hours !== undefined) {
+				if (diffHours < capacitySlot.advance_notice_hours) {
 					return false;
 				}
 			}
 
 			// 5. **Booking Window (booking_window_hours)**
 			// Only valid if we are NOT booking *too far in advance*
-			if (availabilitySlot.booking_window_hours !== undefined) {
-				if (diffHours > availabilitySlot.booking_window_hours) {
+			if (capacitySlot.booking_window_hours !== undefined) {
+				if (diffHours > capacitySlot.booking_window_hours) {
 					return false;
 				}
 			}
@@ -1746,8 +1747,8 @@ export function checkFlowConstraints(
  * Used for Lead Time / Booking Window calculations.
  */
 function getEarliestMatchTime(
-	needSlot: NeedSlot,
-	availabilitySlot: AvailabilitySlot,
+	needSlot: Resource,
+	capacitySlot: Resource,
 	refDate: Date
 ): Date | null {
 	// If one-time slot with explicit date, use that
@@ -1794,32 +1795,32 @@ function getEarliestMatchTime(
  * 4. **Generalized Flow Constraints** (Granularity, Duration, Flow controls)
  * 
  * @param needSlot - The need slot to check
- * @param availabilitySlot - The availability slot to check
+ * @param capacitySlot - The availability slot to check
  * @param referenceTime - (Optional) Current time for enforcing Lead Time / Booking Window
  * @returns true if slots are compatible
  */
 export function slotsCompatible(
-	needSlot: NeedSlot,
-	availabilitySlot: AvailabilitySlot,
+	needSlot: Resource,
+	capacitySlot: Resource,
 	referenceTime?: string | Date
 ): boolean {
 	// 1. Type match
-	if (needSlot.type_id !== availabilitySlot.type_id) {
+	if (needSlot.type_id !== capacitySlot.type_id) {
 		return false;
 	}
 
 	// 2. Time compatibility (Basic Overlap)
-	if (!timeRangesOverlap(needSlot, availabilitySlot)) {
+	if (!timeRangesOverlap(needSlot, capacitySlot)) {
 		return false;
 	}
 
 	// 3. Location compatibility
-	if (!locationsCompatible(needSlot, availabilitySlot)) {
+	if (!locationsCompatible(needSlot, capacitySlot)) {
 		return false;
 	}
 
 	// 4. Generalized Flow Constraints (v6)
-	if (!checkFlowConstraints(needSlot, availabilitySlot, referenceTime)) {
+	if (!checkFlowConstraints(needSlot, capacitySlot, referenceTime)) {
 		return false;
 	}
 
@@ -2034,21 +2035,21 @@ export function evaluateFilter(filter: FilterRule | EligibilityFilter | null | u
  * - Both must pass for allocation to occur
  * 
  * @param needSlot - Recipient's need slot (with optional filter on providers)
- * @param availabilitySlot - Provider's availability slot (with optional filter on recipients)
+ * @param capacitySlot - Provider's availability slot (with optional filter on recipients)
  * @param providerContext - Provider's context for evaluation
  * @param recipientContext - Recipient's context for evaluation
  * @returns true if both filters pass (or no filters present)
  */
 export function passesSlotFilters(
-	needSlot: NeedSlot,
-	availabilitySlot: AvailabilitySlot,
+	needSlot: Resource,
+	capacitySlot: Resource,
 	providerContext: FilterContext,
 	recipientContext: FilterContext
 ): boolean {
 	// Check availability slot filter (who can receive from provider)
 	// Provider is checking if recipient passes their filter
-	if (availabilitySlot.filter_rule) {
-		if (!evaluateFilter(availabilitySlot.filter_rule, recipientContext)) {
+	if (capacitySlot.filter_rule) {
+		if (!evaluateFilter(capacitySlot.filter_rule, recipientContext)) {
 			console.log(`[FILTER-BILATERAL-REJECT] Recipient ${recipientContext.pubKey.slice(0, 8)} failed provider's capacity filter`);
 			return false;
 		}
@@ -2097,7 +2098,7 @@ export function passesSlotFilters(
  * @param slot - Availability or need slot
  * @returns Time bucket key (e.g., "2024-06" or "any-time")
  */
-export function getTimeBucketKey(slot: AvailabilitySlot | NeedSlot): string {
+export function getTimeBucketKey(slot: Resource | Resource): string {
 	if (slot.start_date) {
 		// Month-level bucketing: "YYYY-MM"
 		return slot.start_date.substring(0, 7);
@@ -2112,7 +2113,7 @@ export function getTimeBucketKey(slot: AvailabilitySlot | NeedSlot): string {
  * @param slot - Availability or need slot
  * @returns Location bucket key (e.g., "remote", "san-francisco", "usa", "unknown")
  */
-export function getLocationBucketKey(slot: AvailabilitySlot | NeedSlot): string {
+export function getLocationBucketKey(slot: Resource | Resource): string {
 	// Remote slots are universally compatible
 	if (slot.location_type?.toLowerCase().includes('remote') ||
 		slot.location_type?.toLowerCase().includes('online') ||
@@ -2144,7 +2145,7 @@ export function getLocationBucketKey(slot: AvailabilitySlot | NeedSlot): string 
  * @returns Space-time signature string
  */
 export function getSpaceTimeSignature(
-	slot: AvailabilitySlot | NeedSlot
+	slot: Resource | Resource
 ): string {
 	// Time component
 	let timeKey: string;
@@ -2232,7 +2233,7 @@ export function getSpaceTimeSignature(
  * @param slots - Array of slots to group
  * @returns Map of signature -> aggregated quantity
  */
-export function groupSlotsBySpaceTime<T extends AvailabilitySlot | NeedSlot>(
+export function groupSlotsBySpaceTime<T extends Resource | Resource>(
 	slots: T[]
 ): Map<string, { quantity: number; slots: T[] }> {
 	const groups = new Map<string, { quantity: number; slots: T[] }>();
@@ -2266,7 +2267,7 @@ export function groupSlotsBySpaceTime<T extends AvailabilitySlot | NeedSlot>(
  * For allocation purposes, the algorithm handles compatibility per-slot.
  * This is useful for reporting/display purposes only.
  */
-export function calculateTotalQuantity(slots: (NeedSlot | AvailabilitySlot)[]): number {
+export function calculateTotalQuantity(slots: (Resource | Resource)[]): number {
 	return slots.reduce((sum, slot) => sum + slot.quantity, 0);
 }
 
@@ -2280,7 +2281,7 @@ export function calculateTotalQuantity(slots: (NeedSlot | AvailabilitySlot)[]): 
  * @param slots - Array of slots to profile
  * @returns Array of space-time combinations with aggregated quantities
  */
-export function getSpaceTimeProfile<T extends NeedSlot | AvailabilitySlot>(
+export function getSpaceTimeProfile<T extends Resource | Resource>(
 	slots: T[]
 ): Array<{
 	signature: string;

@@ -1,3 +1,23 @@
+import { z } from 'zod';
+
+// Future: This will likely evolve into a Verifiable Credential (VC) structure
+// where the skill claim is cryptographically signed by an issuer.
+// For now, it is a self-attested structured data object.
+export const SkillSchema = z.object({
+    id: z.string().min(1), // URI or unique identifier (e.g. ESCO URI)
+    name: z.string().optional(),
+    category: z.string().optional(),
+    level: z.union([z.number(), z.string()]).optional(),
+    // Future VC fields:
+    // context: z.array(z.string()).optional(),
+    // type: z.array(z.string()).optional(),
+    // issuer: z.string().optional(),
+    // issuanceDate: z.string().optional(),
+    // proof: z.any().optional()
+});
+
+export type Skill = z.infer<typeof SkillSchema>;
+
 /**
  * Static Skill Definitions for Info-Game Skill Tree
  */

@@ -9,7 +9,7 @@
  */
 
 import * as h3 from 'h3-js';
-import type { AvailabilitySlot, NeedSlot } from './resources';
+import type { Resource } from './commons';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -143,7 +143,7 @@ export function isRemoteSlot(slot: {
  * @param slot - Slot to ensure has H3 index
  * @returns The slot with h3_index populated
  */
-export function ensureH3Index<T extends AvailabilitySlot | NeedSlot>(slot: T): T {
+export function ensureH3Index<T extends Resource>(slot: T): T {
 	if (!slot.h3_index) {
 		try {
 			slot.h3_index = computeH3Index(slot);
