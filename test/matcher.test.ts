@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'bun:test'
-import { Matcher } from './matcher'
-import type { Capacity, Need } from './types'
-import { cosineSimilarity, generateEmbeddingText } from './embeddings'
+import { Matcher } from '../src/matcher'
+import type { Capacity, Need } from '../src/types'
+import { cosineSimilarity, generateEmbeddingText } from '../src/embeddings'
 
 describe('Cosine Similarity', () => {
   test('identical vectors have similarity 1', () => {
