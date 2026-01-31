@@ -16,10 +16,14 @@ import {
   Node,
   OverviewSidebar,
   DetailSidebar,
+  TaxonomyTreeView,
 } from './components/index.ts'
+
+type ViewMode = 'chord' | 'taxonomy'
 
 function App(): React.ReactElement {
   const { data, error } = useMatchData()
+  const [viewMode, setViewMode] = useState<ViewMode>('chord')
   const [threshold, setThreshold] = useState(0.75)
   const [lockedNodeId, setLockedNodeId] = useState<string | null>(null)
   const [hoveredNode, setHoveredNode] = useState<{
@@ -204,98 +208,116 @@ function App(): React.ReactElement {
 
       <div className="container">
         <div className="viz">
-          <svg
-            ref={svgRef}
-            id="chart"
-            viewBox="-400 -400 800 800"
-            onClick={handleSvgClick}
-          >
-            {/* Chords */}
-            <g id="chords">
-              {data.matches.map((match) => {
-                const capIndex = data.capacities.findIndex(
-                  (c) => c.id === match.capacityId
-                )
-                const needIndex = data.needs.findIndex(
-                  (n) => n.id === match.needId
-                )
-                if (capIndex === -1 || needIndex === -1) return null
+          {viewMode === 'taxonomy' ? (
+            <TaxonomyTreeView />
+          ) : (
+            <svg
+              ref={svgRef}
+              id="chart"
+              viewBox="-400 -400 800 800"
+              onClick={handleSvgClick}
+            >
+              {/* Chords */}
+              <g id="chords">
+                {data.matches.map((match) => {
+                  const capIndex = data.capacities.findIndex(
+                    (c) => c.id === match.capacityId
+                  )
+                  const needIndex = data.needs.findIndex(
+                    (n) => n.id === match.needId
+                  )
+                  if (capIndex === -1 || needIndex === -1) return null
 
-                const cap = data.capacities[capIndex]
-                const need = data.needs[needIndex]
-                if (!cap || !need) return null
+                  const cap = data.capacities[capIndex]
+                  const need = data.needs[needIndex]
+                  if (!cap || !need) return null
 
-                const capPos = getPosition(capIndex, data.capacities.length, OUTER_RADIUS)
-                const needPos = getPosition(needIndex, data.needs.length, NEED_RADIUS)
-                const color = getNodeColor(cap.embedding, data.pcaTransform, true)
+                  const capPos = getPosition(capIndex, data.capacities.length, OUTER_RADIUS)
+                  const needPos = getPosition(needIndex, data.needs.length, NEED_RADIUS)
+                  const color = getNodeColor(cap.embedding, data.pcaTransform, true)
 
-                return (
-                  <Chord
-                    key={`${match.capacityId}-${match.needId}`}
-                    match={match}
-                    capacity={cap}
-                    need={need}
-                    capPos={capPos}
-                    needPos={needPos}
-                    color={color}
-                    threshold={threshold}
-                    lockedNodeId={lockedNodeId}
-                    activeNodeId={activeNodeId}
-                    activeIsCapacity={activeIsCapacity}
-                    onShowTooltip={tooltip.show}
-                    onHideTooltip={tooltip.hide}
-                  />
-                )
-              })}
-            </g>
+                  return (
+                    <Chord
+                      key={`${match.capacityId}-${match.needId}`}
+                      match={match}
+                      capacity={cap}
+                      need={need}
+                      capPos={capPos}
+                      needPos={needPos}
+                      color={color}
+                      threshold={threshold}
+                      lockedNodeId={lockedNodeId}
+                      activeNodeId={activeNodeId}
+                      activeIsCapacity={activeIsCapacity}
+                      onShowTooltip={tooltip.show}
+                      onHideTooltip={tooltip.hide}
+                    />
+                  )
+                })}
+              </g>
 
-            {/* Capacity nodes (outer ring) */}
-            {data.capacities.map((cap, i) => (
-              <Node
-                key={cap.id}
-                item={cap}
-                index={i}
-                total={data.capacities.length}
-                radius={OUTER_RADIUS}
-                isCapacity={true}
-                color={getNodeColor(cap.embedding, data.pcaTransform, true)}
-                isConnected={connectedIds.has(cap.id)}
-                lockedNodeId={lockedNodeId}
-                onSelect={handleNodeSelect}
-                onHover={handleNodeHover}
-                onLeave={handleNodeLeave}
-                onShowTooltip={tooltip.show}
-                onHideTooltip={tooltip.hide}
-                onShowConnectedTooltips={connectedTooltips.show}
-                onHideConnectedTooltips={connectedTooltips.hide}
-              />
-            ))}
+              {/* Capacity nodes (outer ring) */}
+              {data.capacities.map((cap, i) => (
+                <Node
+                  key={cap.id}
+                  item={cap}
+                  index={i}
+                  total={data.capacities.length}
+                  radius={OUTER_RADIUS}
+                  isCapacity={true}
+                  color={getNodeColor(cap.embedding, data.pcaTransform, true)}
+                  isConnected={connectedIds.has(cap.id)}
+                  lockedNodeId={lockedNodeId}
+                  onSelect={handleNodeSelect}
+                  onHover={handleNodeHover}
+                  onLeave={handleNodeLeave}
+                  onShowTooltip={tooltip.show}
+                  onHideTooltip={tooltip.hide}
+                  onShowConnectedTooltips={connectedTooltips.show}
+                  onHideConnectedTooltips={connectedTooltips.hide}
+                />
+              ))}
 
-            {/* Need nodes (inner ring) */}
-            {data.needs.map((need, i) => (
-              <Node
-                key={need.id}
-                item={need}
-                index={i}
-                total={data.needs.length}
-                radius={NEED_RADIUS}
-                isCapacity={false}
-                color={getNodeColor(need.embedding, data.pcaTransform, false)}
-                isConnected={connectedIds.has(need.id)}
-                lockedNodeId={lockedNodeId}
-                onSelect={handleNodeSelect}
-                onHover={handleNodeHover}
-                onLeave={handleNodeLeave}
-                onShowTooltip={tooltip.show}
-                onHideTooltip={tooltip.hide}
-                onShowConnectedTooltips={connectedTooltips.show}
-                onHideConnectedTooltips={connectedTooltips.hide}
-              />
-            ))}
-          </svg>
+              {/* Need nodes (inner ring) */}
+              {data.needs.map((need, i) => (
+                <Node
+                  key={need.id}
+                  item={need}
+                  index={i}
+                  total={data.needs.length}
+                  radius={NEED_RADIUS}
+                  isCapacity={false}
+                  color={getNodeColor(need.embedding, data.pcaTransform, false)}
+                  isConnected={connectedIds.has(need.id)}
+                  lockedNodeId={lockedNodeId}
+                  onSelect={handleNodeSelect}
+                  onHover={handleNodeHover}
+                  onLeave={handleNodeLeave}
+                  onShowTooltip={tooltip.show}
+                  onHideTooltip={tooltip.hide}
+                  onShowConnectedTooltips={connectedTooltips.show}
+                  onHideConnectedTooltips={connectedTooltips.hide}
+                />
+              ))}
+            </svg>
+          )}
         </div>
 
         <div className="sidebar">
+          <div className="view-toggle">
+            <button
+              className={viewMode === 'chord' ? 'active' : ''}
+              onClick={() => setViewMode('chord')}
+            >
+              Matches
+            </button>
+            <button
+              className={viewMode === 'taxonomy' ? 'active' : ''}
+              onClick={() => setViewMode('taxonomy')}
+            >
+              Taxonomy
+            </button>
+          </div>
           {!activeNodeId ? (
             <OverviewSidebar
               data={data}
