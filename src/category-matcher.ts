@@ -3,6 +3,8 @@
  * See docs/category-matching.md for specification.
  */
 
+import { cosineSimilarity } from './embeddings'
+
 export type CategoryOverlap = {
   category: string      // where chains intersected
   distance: number      // 0 = exact, 1 = sibling, 2+ = ancestor
@@ -112,4 +114,75 @@ export function computeSpecificity(matchDepthA: number, matchDepthB: number): nu
   const balance = minDepth / maxDepth
 
   return (minDepth / MAX_DEPTH) * balance
+}
+
+export type SemanticOverlap = {
+  nodeA: string           // node from chain A that matched
+  nodeB: string           // node from chain B that matched (the wormhole target)
+  similarity: number      // embedding similarity between the nodes
+  blurDistance: number    // how far we blurred from A's leaf (0 = leaf match)
+  matchDepthA: number     // depth of match in chain A (1-indexed)
+  matchDepthB: number     // depth of match in chain B (1-indexed)
+}
+
+/**
+ * Find semantic overlap between two category chains using embedding similarity.
+ *
+ * This is the "wormhole" algorithm: instead of requiring exact string matches,
+ * we blur upward from chain A's leaf and look for similar-enough nodes anywhere
+ * in chain B.
+ *
+ * @param chainA - First category chain (e.g., ["products", "grocery", "egg"])
+ * @param chainB - Second category chain
+ * @param embeddingsA - Embeddings for each node in chainA (same order)
+ * @param embeddingsB - Embeddings for each node in chainB (same order)
+ * @param threshold - Minimum similarity to count as a match (default 0.8)
+ */
+export function findSemanticOverlap(
+  chainA: string[],
+  chainB: string[],
+  embeddingsA: (number[] | undefined)[],
+  embeddingsB: (number[] | undefined)[],
+  threshold = 0.8
+): SemanticOverlap | null {
+  if (chainA.length === 0 || chainB.length === 0) {
+    return null
+  }
+
+  // Start from most specific (leaf), blur upward
+  for (let blurDistance = 0; blurDistance < chainA.length; blurDistance++) {
+    const i = chainA.length - 1 - blurDistance
+    const nodeA = chainA[i]!
+    const embA = embeddingsA[i]
+
+    if (!embA) continue
+
+    // Find best matching node in chain B
+    let bestSim = 0
+    let bestJ = -1
+
+    for (let j = 0; j < chainB.length; j++) {
+      const embB = embeddingsB[j]
+      if (!embB) continue
+
+      const sim = cosineSimilarity(embA, embB)
+      if (sim > bestSim) {
+        bestSim = sim
+        bestJ = j
+      }
+    }
+
+    if (bestSim >= threshold && bestJ >= 0) {
+      return {
+        nodeA,
+        nodeB: chainB[bestJ]!,
+        similarity: bestSim,
+        blurDistance,
+        matchDepthA: i + 1,
+        matchDepthB: bestJ + 1,
+      }
+    }
+  }
+
+  return null
 }
