@@ -186,8 +186,8 @@ export class Matcher {
           }
         }
 
-        // Try semantic matching if embeddings available and no exact match yet
-        if (this.embeddings && !exactOverlap) {
+        // Try semantic matching if embeddings available (may find better match than exact)
+        if (this.embeddings) {
           const needEmbs = needExpr.categoryChain.map(c => this.embeddings![c])
           const capEmbs = capacityExpr.categoryChain.map(c => this.embeddings![c])
 
