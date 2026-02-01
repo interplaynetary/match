@@ -223,8 +223,61 @@ Higher similarity = better. More blur = worse. Both factors matter.
 
 ---
 
+## Experiment Results
+
+We implemented Approach B (soft matching) and compared it to exact matching.
+
+### Setup
+
+- Generated embeddings for all 396 unique category names
+- Implemented `findSemanticOverlap` in [src/category-matcher.ts](../src/category-matcher.ts)
+- Matcher tries both exact and semantic, picks the more specific match
+- Semantic threshold: 0.8 (category names must be 80%+ similar)
+
+### Findings
+
+**Synonym pairs discovered** (22 pairs with >0.8 similarity):
+
+| Pair | Similarity | Cross-matching potential |
+|------|------------|-------------------------|
+| meal-prep ≈ meal-preparation | 0.898 | Yes |
+| agent ≈ agents | 0.875 | Yes |
+| doula ≈ birth-doula | 0.822 | Yes |
+| wedding ≈ weddings | 0.818 | Yes |
+| career-support ≈ career-development | 0.819 | Yes |
+| home-repair ≈ home-renovation | 0.835 | Yes |
+
+**Key insight**: Many synonym pairs share a common ancestor (like "services"), so exact matching already works—just at a less specific level.
+
+**44 matches improved** by semantic matching:
+
+| Need | Capacity | Before | After |
+|------|----------|--------|-------|
+| doula services | birth doula | healthcare (dist 1) | doula≈birth-doula (dist 0) |
+| wedding photographer | event DJ | services (dist 3) | wedding≈weddings (dist 1) |
+| emergency plumber | furniture assembly | services (dist 2) | home-repair≈home-improvement (dist 1) |
+| actor representation | real estate agent | services (dist 3) | agent≈agents (dist 0) |
+
+### Interpretation
+
+Semantic matching helps most when:
+1. **Synonyms exist across need/capacity divide** — One side says "wedding", other says "weddings"
+2. **Exact matching falls back to generic roots** — "services" is true but unhelpful
+
+The 0.8 threshold is conservative. Lower thresholds (0.75) found more matches but included questionable ones like "event-services" ≈ "event-venues" (0.77).
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| [src/category-matcher.ts](../src/category-matcher.ts) | `findSemanticOverlap` implementation |
+| [scripts/compare-matching.ts](../scripts/compare-matching.ts) | Comparison analysis |
+| [scripts/generate-embeddings.ts](../scripts/generate-embeddings.ts) | Generates embeddings for items + categories |
+
+---
+
 ## Next Steps
 
-1. **Generate embeddings for category names** — Add to embeddings.json cache
-2. **Implement `findOverlapWithWormholes`** — Replace or augment `findCategoryOverlap`
-3. **Compare results** — Same test cases, measure match quality improvement
+1. **Tune threshold** — Test 0.85 vs 0.8 vs 0.75 on real user feedback
+2. **Surface wormholes in UI** — Show when a match used semantic similarity
+3. **Monitor false positives** — Watch for bad matches like "agent" (talent) ≈ "agents" (real estate)
