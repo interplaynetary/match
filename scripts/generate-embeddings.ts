@@ -1,9 +1,10 @@
 /*
- * Generate embeddings for enriched examples
+ * Generate embeddings for enriched examples and category names
  *
- * Uses OpenAI's text-embedding-3-small model to create embeddings from
- * each example's expressions. Embeddings are stored separately in embeddings.json
- * keyed by content-addressable ID.
+ * Uses OpenAI's text-embedding-3-small model to create embeddings.
+ * Embeddings are stored in embeddings.json keyed by:
+ * - Example ID (e.g., "1", "2") for item embeddings
+ * - Category name (e.g., "food", "services") for taxonomy node embeddings
  *
  * Usage:
  *   bun scripts/generate-embeddings.ts
@@ -21,7 +22,7 @@ type EnrichedExample = {
   id: string
   naturalLanguage: string
   type: 'capacity' | 'need'
-  expressions: Array<{ text: string; categoryChain: string[] }>
+  expressions: Array<{ text: string; categoryChain?: string[] }>
 }
 
 type EnrichedData = {
@@ -32,6 +33,23 @@ type EmbeddingsStore = Record<string, number[]>
 
 function embeddingText(example: EnrichedExample): string {
   return example.expressions.map(e => e.text).join(' | ')
+}
+
+/**
+ * Extract all unique category names from the examples.
+ */
+function extractCategoryNames(examples: EnrichedExample[]): string[] {
+  const categories = new Set<string>()
+  for (const example of examples) {
+    for (const expr of example.expressions) {
+      if (expr.categoryChain) {
+        for (const category of expr.categoryChain) {
+          categories.add(category)
+        }
+      }
+    }
+  }
+  return Array.from(categories)
 }
 
 async function main() {
@@ -48,20 +66,38 @@ async function main() {
 
   console.log(`Loaded ${examples.length} examples, ${Object.keys(existingEmbeddings).length} existing embeddings`)
 
-  // Check which examples need embeddings
-  const needsEmbedding = examples.filter(e => !existingEmbeddings[e.id])
-  console.log(`${needsEmbedding.length} examples need embeddings`)
+  // Collect all texts that need embeddings
+  const textsToEmbed: Array<{ key: string; text: string }> = []
 
-  if (needsEmbedding.length === 0) {
-    console.log('All examples already have embeddings')
+  // Check which examples need embeddings
+  for (const example of examples) {
+    if (!existingEmbeddings[example.id]) {
+      textsToEmbed.push({
+        key: example.id,
+        text: embeddingText(example),
+      })
+    }
+  }
+  console.log(`${textsToEmbed.length} examples need embeddings`)
+
+  // Check which category names need embeddings
+  const categoryNames = extractCategoryNames(examples)
+  let categoriesNeeded = 0
+  for (const category of categoryNames) {
+    if (!existingEmbeddings[category]) {
+      textsToEmbed.push({
+        key: category,
+        text: category, // embed the category name itself
+      })
+      categoriesNeeded++
+    }
+  }
+  console.log(`${categoriesNeeded} category names need embeddings (${categoryNames.length} total)`)
+
+  if (textsToEmbed.length === 0) {
+    console.log('All embeddings up to date')
     return
   }
-
-  // Generate text for each example that needs embedding
-  const textsToEmbed = needsEmbedding.map(example => ({
-    id: example.id,
-    text: embeddingText(example),
-  }))
 
   console.log(`Generating ${textsToEmbed.length} embeddings...`)
 
@@ -80,7 +116,7 @@ async function main() {
     const batchEmbeddings = await provider.embedBatch(texts)
 
     for (let j = 0; j < batch.length; j++) {
-      existingEmbeddings[batch[j]!.id] = batchEmbeddings[j]!
+      existingEmbeddings[batch[j]!.key] = batchEmbeddings[j]!
     }
   }
 

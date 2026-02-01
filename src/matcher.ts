@@ -9,6 +9,7 @@ import type {
 import { cosineSimilarity } from './embeddings'
 import {
   findCategoryOverlap,
+  findSemanticOverlap,
   hasDisjointConflict,
   computeCategoryScore,
   computeSpecificity,
@@ -18,15 +19,23 @@ import { haversineDistance } from './spatial'
 import { availabilityWindowsOverlapWithTimezone } from './matching'
 import type { AvailabilityWindow, DayOfWeek, TimeRange } from './time'
 
+export type EmbeddingsLookup = Record<string, number[]>
+
 export type MatcherOptions = {
   similarityThreshold?: number  // minimum similarity to consider a match (default 0.6)
+  embeddings?: EmbeddingsLookup  // all embeddings (items + category names)
+  semanticThreshold?: number    // similarity threshold for wormhole matching (default 0.8)
 }
 
 export class Matcher {
   private similarityThreshold: number
+  private embeddings: EmbeddingsLookup | null
+  private semanticThreshold: number
 
   constructor(options: MatcherOptions = {}) {
     this.similarityThreshold = options.similarityThreshold ?? 0.6
+    this.embeddings = options.embeddings ?? null
+    this.semanticThreshold = options.semanticThreshold ?? 0.8
   }
 
   /**
@@ -160,21 +169,50 @@ export class Matcher {
           }
         }
 
-        // Find overlap
-        const overlap = findCategoryOverlap(needExpr.categoryChain, capacityExpr.categoryChain)
-        if (overlap) {
-          const specificity = computeSpecificity(overlap.matchDepthA, overlap.matchDepthB)
+        // Try exact matching first
+        const exactOverlap = findCategoryOverlap(needExpr.categoryChain, capacityExpr.categoryChain)
+        if (exactOverlap) {
+          const specificity = computeSpecificity(exactOverlap.matchDepthA, exactOverlap.matchDepthB)
           const match: CategoryMatch = {
-            overlapCategory: overlap.category,
-            overlapDistance: overlap.distance,
+            overlapCategory: exactOverlap.category,
+            overlapDistance: exactOverlap.distance,
             isBlocked: false,
             specificity,
           }
 
-          // Keep the match with lowest distance (highest specificity on tie)
-          if (!bestMatch || overlap.distance < bestMatch.overlapDistance ||
-              (overlap.distance === bestMatch.overlapDistance && specificity > bestMatch.specificity)) {
+          if (!bestMatch || exactOverlap.distance < bestMatch.overlapDistance ||
+              (exactOverlap.distance === bestMatch.overlapDistance && specificity > bestMatch.specificity)) {
             bestMatch = match
+          }
+        }
+
+        // Try semantic matching if embeddings available and no exact match yet
+        if (this.embeddings && !exactOverlap) {
+          const needEmbs = needExpr.categoryChain.map(c => this.embeddings![c])
+          const capEmbs = capacityExpr.categoryChain.map(c => this.embeddings![c])
+
+          const semanticOverlap = findSemanticOverlap(
+            needExpr.categoryChain,
+            capacityExpr.categoryChain,
+            needEmbs,
+            capEmbs,
+            this.semanticThreshold
+          )
+
+          if (semanticOverlap) {
+            const specificity = computeSpecificity(semanticOverlap.matchDepthA, semanticOverlap.matchDepthB)
+            // Use similarity as a factor in the score
+            const match: CategoryMatch = {
+              overlapCategory: `${semanticOverlap.nodeA}≈${semanticOverlap.nodeB}`,
+              overlapDistance: semanticOverlap.blurDistance,
+              isBlocked: false,
+              specificity: specificity * semanticOverlap.similarity,
+            }
+
+            if (!bestMatch || semanticOverlap.blurDistance < bestMatch.overlapDistance ||
+                (semanticOverlap.blurDistance === bestMatch.overlapDistance && match.specificity > bestMatch.specificity)) {
+              bestMatch = match
+            }
           }
         }
       }
