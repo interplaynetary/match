@@ -14,8 +14,8 @@ bun test
 # Run a single test file
 bun test src/matcher.test.ts
 
-# Enrich examples with category chains (requires Claude CLI)
-bun scripts/enrich-categories.ts
+# Enrich user inputs with LLM (requires OPENAI_API_KEY in .env)
+bun scripts/run-enrichment.ts --output data/enriched.json
 
 # Generate embeddings (requires OPENAI_API_KEY in .env)
 bun scripts/generate-embeddings.ts
@@ -27,18 +27,17 @@ This is a **semantic matching system** for connecting human capacities (what peo
 
 ### Data Flow
 
+**Static pipeline (UI):**
 ```
-matching-examples.json (raw test cases)
-         │
-         ├──► enrich-categories.ts ──► enriched-examples.json (+ category chains)
-         │
-         └──► generate-embeddings.ts ──► embeddings.json (1536-dim vectors)
-                     │
-                     ▼
-              matcher.ts (combines all signals)
-                     │
-                     ▼
-              match-data.ts ──► /api/matches ──► React visualization
+matching-examples.json ──► enriched-examples.json ──► embeddings.json
+                                    │
+                                    ▼
+                          matcher.ts ──► /api/matches ──► React UI
+```
+
+**Live enrichment pipeline:**
+```
+user-inputs.json ──► run-enrichment.ts (gpt-4o-mini, concurrency=25) ──► enriched output
 ```
 
 ### Key Modules

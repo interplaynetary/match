@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import OpenAI from 'openai'
+import { zodResponseFormat } from 'openai/helpers/zod'
 
 /**
  * Generic AI pipe for structured output generation
@@ -242,17 +244,19 @@ Original request: ${options.prompt}`
 
 /**
  * OpenAI provider with native structured output support
+ * Uses OpenAI SDK's zodResponseFormat for Zod 4 compatibility
  */
 export class OpenAIProvider implements LLMProvider {
-  private apiKey: string
+  private client: OpenAI
   private model: string
 
   constructor(config?: { apiKey?: string; model?: string }) {
-    this.apiKey = config?.apiKey ?? process.env.OPENAI_API_KEY ?? ''
-    this.model = config?.model ?? 'gpt-4o-2024-08-06'
-    if (!this.apiKey) {
+    const apiKey = config?.apiKey ?? process.env.OPENAI_API_KEY ?? ''
+    if (!apiKey) {
       throw new Error('OPENAI_API_KEY is required')
     }
+    this.client = new OpenAI({ apiKey })
+    this.model = config?.model ?? 'gpt-4o-2024-08-06'
   }
 
   async call(
@@ -264,121 +268,36 @@ export class OpenAIProvider implements LLMProvider {
       schema?: z.ZodType
     }
   ): Promise<unknown> {
-    // Convert Zod schema to JSON Schema for OpenAI's structured output
-    const jsonSchema = options?.schema
-      ? this.zodToJsonSchema(options.schema)
-      : undefined
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+      { role: 'user' as const, content: prompt },
+    ]
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-          { role: 'user', content: prompt },
-        ],
-        ...(jsonSchema
-          ? {
-              response_format: {
-                type: 'json_schema',
-                json_schema: {
-                  name: 'response',
-                  strict: true,
-                  schema: jsonSchema,
-                },
-              },
-            }
-          : { response_format: { type: 'json_object' } }),
-        temperature: options?.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? 4096,
-      }),
+    // GPT-5 detection heuristic (as of 2026-01):
+    // - GPT-5 models use max_completion_tokens instead of max_tokens
+    // - GPT-5 models only support temperature=1 (default), other values cause errors
+    // - This heuristic may need updating for future model naming conventions
+    const isGpt5 = this.model.startsWith('gpt-5')
+    const modelParams = isGpt5
+      ? { max_completion_tokens: options?.maxTokens ?? 4096 }
+      : { max_tokens: options?.maxTokens ?? 4096, temperature: options?.temperature ?? 0.7 }
+
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      messages,
+      ...modelParams,
+      // Use zodResponseFormat for structured output when schema provided
+      ...(options?.schema
+        ? { response_format: zodResponseFormat(options.schema as z.ZodObject<z.ZodRawShape>, 'response') }
+        : { response_format: { type: 'json_object' as const } }),
     })
 
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`OpenAI API error: ${response.status} ${error}`)
-    }
-
-    const data = (await response.json()) as {
-      choices: Array<{
-        message: {
-          content: string
-        }
-      }>
-    }
-
-    const content = data.choices[0]?.message?.content
+    const content = response.choices[0]?.message?.content
     if (!content) {
       throw new Error('No content in response')
     }
 
     return JSON.parse(content)
-  }
-
-  /**
-   * Simple Zod to JSON Schema converter (basic implementation)
-   * For production, consider using a library like zod-to-json-schema
-   */
-  private zodToJsonSchema(schema: z.ZodType): unknown {
-    // Basic conversion - extend as needed for your schemas
-    const def = (schema as any)._def
-
-    if (schema instanceof z.ZodObject) {
-      const shape = def.shape()
-      const properties: Record<string, unknown> = {}
-      const required: string[] = []
-
-      for (const [key, value] of Object.entries(shape)) {
-        properties[key] = this.zodToJsonSchema(value as z.ZodType)
-        if (!(value instanceof z.ZodOptional)) {
-          required.push(key)
-        }
-      }
-
-      return {
-        type: 'object',
-        properties,
-        required,
-        additionalProperties: false,
-      }
-    }
-
-    if (schema instanceof z.ZodArray) {
-      return {
-        type: 'array',
-        items: this.zodToJsonSchema(def.type),
-      }
-    }
-
-    if (schema instanceof z.ZodString) {
-      return { type: 'string' }
-    }
-
-    if (schema instanceof z.ZodNumber) {
-      return { type: 'number' }
-    }
-
-    if (schema instanceof z.ZodBoolean) {
-      return { type: 'boolean' }
-    }
-
-    if (schema instanceof z.ZodOptional) {
-      return this.zodToJsonSchema(def.innerType)
-    }
-
-    if (schema instanceof z.ZodEnum) {
-      return {
-        type: 'string',
-        enum: def.values,
-      }
-    }
-
-    // Fallback
-    return { type: 'object' }
   }
 }
 
