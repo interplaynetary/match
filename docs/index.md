@@ -53,6 +53,7 @@ bun --hot src/server.ts
 - [Constraint Matching](constraint-matching.md) — Time, space, and quantity constraints
 - [Semantic Colors](semantic-colors.md) — Embedding-based visualization coloring
 - [Taxonomy Merging](taxonomy-merging.md) — Category consolidation and cohesion metrics
+- [Taxonomy Quality](taxonomy-quality.md) — Approaches for improving category matching (experimental)
 
 ## Quick Links
 

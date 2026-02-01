@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import * as d3 from 'd3'
-import type { TaxonomyNode } from '../../taxonomy-tree.ts'
+import type { TaxonomyNode, CohesionScore } from '../../taxonomy-tree.ts'
 
 export type TreemapRect = {
   id: string
@@ -14,6 +14,7 @@ export type TreemapRect = {
   expressionCount: number
   parent: string | null
   embedding?: number[]
+  cohesion?: CohesionScore
 }
 
 export function useForceSimulation(
@@ -71,6 +72,7 @@ export function useForceSimulation(
       expressionCount: node.data.expressionCount,
       parent: node.parent?.data.id ?? null,
       embedding: node.data.embedding,
+      cohesion: node.data.cohesion,
     }))
 
     setRects(newRects)

@@ -2,6 +2,14 @@
  * Builds a taxonomy tree from category chains found in expressions.
  */
 
+import { cosineSimilarity } from './embeddings'
+
+export type CohesionScore = {
+  parentChildSim: number   // similarity between parent and children
+  siblingCohesion: number  // pairwise similarity among siblings
+  combined: number         // parentChildSim × siblingCohesion
+}
+
 export type TaxonomyNode = {
   id: string           // path: "root/goods/food"
   name: string         // display name: "food"
@@ -9,6 +17,7 @@ export type TaxonomyNode = {
   expressionCount: number
   depth: number
   embedding?: number[] // average embedding of all expressions in this category
+  cohesion?: CohesionScore // cohesion metrics for this node's children
 }
 
 type ExampleWithExpressions = {
@@ -114,7 +123,55 @@ export function buildTaxonomyTree(examples: ExampleWithExpressions[]): TaxonomyN
   }
   sortChildren(finalRoot)
 
+  // Compute cohesion scores
+  computeCohesionScores(finalRoot)
+
   return finalRoot
+}
+
+/**
+ * Compute cohesion scores for all nodes in the tree.
+ */
+function computeCohesionScores(node: TaxonomyNode): void {
+  const parentEmb = node.embedding
+  if (node.children.length > 0 && parentEmb) {
+    const childrenWithEmb = node.children.filter(c => c.embedding)
+    const childEmbs = childrenWithEmb.map(c => c.embedding!)
+
+    if (childEmbs.length > 0) {
+      // Parent-child similarity
+      let parentChildTotal = 0
+      for (const childEmb of childEmbs) {
+        parentChildTotal += cosineSimilarity(parentEmb, childEmb)
+      }
+      const parentChildSim = parentChildTotal / childEmbs.length
+
+      // Sibling cohesion (pairwise similarity)
+      let siblingCohesion = 1
+      if (childEmbs.length >= 2) {
+        let pairTotal = 0
+        let pairCount = 0
+        for (let i = 0; i < childEmbs.length; i++) {
+          for (let j = i + 1; j < childEmbs.length; j++) {
+            pairTotal += cosineSimilarity(childEmbs[i], childEmbs[j])
+            pairCount++
+          }
+        }
+        siblingCohesion = pairTotal / pairCount
+      }
+
+      node.cohesion = {
+        parentChildSim,
+        siblingCohesion,
+        combined: parentChildSim * siblingCohesion,
+      }
+    }
+  }
+
+  // Recurse
+  for (const child of node.children) {
+    computeCohesionScores(child)
+  }
 }
 
 /**

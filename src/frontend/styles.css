@@ -447,6 +447,36 @@ h2 { font-size: 1.1em; margin: 20px 0 10px; color: #888; }
   flex-direction: column;
 }
 
+.treemap-controls {
+  padding: 8px 12px;
+  background: #16213e;
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #333;
+}
+
+.mode-toggle {
+  padding: 4px 12px;
+  background: #0f3460;
+  border: 1px solid #333;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.mode-toggle:hover {
+  background: #1a4a7a;
+  color: #aaa;
+}
+
+.mode-toggle.active {
+  background: #1a4a7a;
+  color: #fff;
+  border-color: #4a8aba;
+}
+
 .treemap-breadcrumb {
   padding: 8px 12px;
   background: #0f3460;
@@ -454,6 +484,11 @@ h2 { font-size: 1.1em; margin: 20px 0 10px; color: #888; }
   font-size: 12px;
   border-bottom: 1px solid #333;
   min-height: 32px;
+}
+
+.cohesion-info {
+  color: #6a6a8a;
+  font-size: 11px;
 }
 
 .taxonomy-treemap {
