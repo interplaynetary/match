@@ -4,7 +4,7 @@ import './styles.css'
 
 import type { MatchWithOther } from './types.ts'
 import { OUTER_RADIUS, NEED_RADIUS } from './constants.ts'
-import { getNodeColor, getPosition } from './utils.ts'
+import { getNodeColor, getPosition, matchPassesThreshold } from './utils.ts'
 import {
   useMatchData,
   useTooltip,
@@ -24,7 +24,7 @@ type ViewMode = 'chord' | 'taxonomy'
 function App(): React.ReactElement {
   const { data, error } = useMatchData()
   const [viewMode, setViewMode] = useState<ViewMode>('chord')
-  const [threshold, setThreshold] = useState(0.75)
+  const [threshold, setThreshold] = useState(0.8)
   const [lockedNodeId, setLockedNodeId] = useState<string | null>(null)
   const [hoveredNode, setHoveredNode] = useState<{
     id: string
@@ -58,7 +58,7 @@ function App(): React.ReactElement {
   // Get filtered matches based on threshold
   const filteredMatches = useMemo(() => {
     if (!data) return []
-    return data.matches.filter((m) => (m.breakdown.similarity ?? 1) >= threshold)
+    return data.matches.filter((m) => matchPassesThreshold(m, threshold))
   }, [data, threshold])
 
   // Get matches for a specific node
@@ -217,9 +217,9 @@ function App(): React.ReactElement {
               viewBox="-400 -400 800 800"
               onClick={handleSvgClick}
             >
-              {/* Chords */}
+              {/* Chords - uses filteredMatches so same filtering as stats */}
               <g id="chords">
-                {data.matches.map((match) => {
+                {filteredMatches.map((match) => {
                   const capIndex = data.capacities.findIndex(
                     (c) => c.id === match.capacityId
                   )
@@ -245,7 +245,6 @@ function App(): React.ReactElement {
                       capPos={capPos}
                       needPos={needPos}
                       color={color}
-                      threshold={threshold}
                       lockedNodeId={lockedNodeId}
                       activeNodeId={activeNodeId}
                       activeIsCapacity={activeIsCapacity}

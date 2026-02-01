@@ -147,9 +147,10 @@ describe('Quantity Constraint Descriptions', () => {
     return matches[0]?.breakdown.quantityDetail
   }
 
-  test('one side has no quantity - shows 0.5 score (uncertainty)', () => {
+  test('need has quantity, capacity unlimited - assume capacity can handle it', () => {
     const detail = getQuantityDetail({ amount: 2, unit: 'kg' }, undefined)
-    expect(detail?.score).toBe(0.5)
+    expect(detail?.score).toBe(1.0)
+    expect(detail?.reason).toBe('capacity unlimited')
     expect(detail?.needDesc).toBe('2kg')
     expect(detail?.capacityDesc).toBe('any amount')
   })

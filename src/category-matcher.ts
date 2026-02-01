@@ -75,12 +75,22 @@ export function hasDisjointConflict(a: CategoryInfo, b: CategoryInfo): boolean {
 }
 
 /**
- * Compute category score based on overlap distance.
- * Score decreases by 0.1 for each step away from exact match.
- * Minimum score is 0.5.
+ * Maximum distance to consider for category matching.
+ * Distance 2+ typically means matching at a generic root like "services"
+ * which provides little signal.
  */
-export function computeCategoryScore(distance: number): number {
-  return Math.max(0.5, 1.0 - distance * 0.1)
+export const MAX_CATEGORY_DISTANCE = 1
+
+/**
+ * Compute category score based on overlap distance.
+ * Score decreases by 0.2 for each step away from exact match.
+ * Returns null if distance exceeds MAX_CATEGORY_DISTANCE.
+ */
+export function computeCategoryScore(distance: number): number | null {
+  if (distance > MAX_CATEGORY_DISTANCE) {
+    return null  // too generic, don't use category matching
+  }
+  return Math.max(0.5, 1.0 - distance * 0.2)
 }
 
 const MAX_DEPTH = 6

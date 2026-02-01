@@ -125,14 +125,13 @@ describe('computeCategoryScore', () => {
     expect(computeCategoryScore(0)).toBe(1.0)
   })
 
-  it('decreases by 0.1 per step', () => {
-    expect(computeCategoryScore(1)).toBe(0.9)
-    expect(computeCategoryScore(2)).toBe(0.8)
-    expect(computeCategoryScore(3)).toBe(0.7)
+  it('returns 0.8 for distance 1', () => {
+    expect(computeCategoryScore(1)).toBe(0.8)
   })
 
-  it('has minimum of 0.5', () => {
-    expect(computeCategoryScore(5)).toBe(0.5)
-    expect(computeCategoryScore(10)).toBe(0.5)
+  it('returns null for distance > MAX_CATEGORY_DISTANCE (too generic)', () => {
+    expect(computeCategoryScore(2)).toBeNull()
+    expect(computeCategoryScore(3)).toBeNull()
+    expect(computeCategoryScore(5)).toBeNull()
   })
 })

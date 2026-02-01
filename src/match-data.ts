@@ -68,6 +68,7 @@ export type MatchData = {
         overlapCategory: string
         overlapDistance: number
         isBlocked: boolean
+        specificity: number
       }
     }
     matchedExpressions?: {

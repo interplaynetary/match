@@ -281,3 +281,31 @@ The 0.8 threshold is conservative. Lower thresholds (0.75) found more matches bu
 1. **Tune threshold** — Test 0.85 vs 0.8 vs 0.75 on real user feedback
 2. **Surface wormholes in UI** — Show when a match used semantic similarity
 3. **Monitor false positives** — Watch for bad matches like "agent" (talent) ≈ "agents" (real estate)
+
+---
+
+## Known Taxonomy Issues
+
+### Category name collisions
+
+Some category names are semantically overloaded — the same word means different things in different contexts.
+
+**Example: "location"**
+```
+services > events > film-production > location  ← filming location (a place to shoot)
+services > legal > notary > location > seattle  ← service area (coverage region)
+```
+
+These match at distance 0 ("Both: location") even though they mean completely different things. A film shoot needs a filming location; the notary's "location" describes where they operate.
+
+**Proposed fix:** More specific category names:
+- `film-location` or `shoot-venue` for filming locations
+- `service-area` or `coverage` for where services are provided
+
+**Impact:** False positive matches scoring 80%+ between unrelated domains.
+
+### Other potential collisions to watch
+
+- "equipment" — film equipment vs kitchen equipment vs gym equipment
+- "delivery" — food delivery vs package delivery
+- "support" — tech support vs emotional support

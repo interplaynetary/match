@@ -119,21 +119,14 @@ describe('computeCategoryScore', () => {
     expect(computeCategoryScore(0)).toBe(1.0)
   })
 
-  test('sibling match (distance 1) returns 0.9', () => {
-    expect(computeCategoryScore(1)).toBe(0.9)
+  test('distance 1 returns 0.8', () => {
+    expect(computeCategoryScore(1)).toBe(0.8)
   })
 
-  test('parent match (distance 2) returns 0.8', () => {
-    expect(computeCategoryScore(2)).toBe(0.8)
-  })
-
-  test('grandparent match (distance 3) returns 0.7', () => {
-    expect(computeCategoryScore(3)).toBe(0.7)
-  })
-
-  test('score never goes below 0.5', () => {
-    expect(computeCategoryScore(10)).toBe(0.5)
-    expect(computeCategoryScore(100)).toBe(0.5)
+  test('distance > 1 returns null (too generic)', () => {
+    expect(computeCategoryScore(2)).toBeNull()
+    expect(computeCategoryScore(3)).toBeNull()
+    expect(computeCategoryScore(10)).toBeNull()
   })
 })
 

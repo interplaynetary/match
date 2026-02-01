@@ -1,5 +1,14 @@
 import { embeddingToColor, type PCATransform } from '../semantic-colors.ts'
 import { DEFAULT_CAPACITY_COLOR, DEFAULT_NEED_COLOR } from './constants.ts'
+import type { Match } from './types.ts'
+
+/**
+ * Check if a match passes the threshold filter.
+ * Uses the combined feasibility score (match.score), not raw similarity.
+ */
+export function matchPassesThreshold(match: Match, threshold: number): boolean {
+  return match.score >= threshold
+}
 
 export function getNodeColor(
   embedding: number[] | undefined,

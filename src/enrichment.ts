@@ -101,9 +101,12 @@ Given a user input, extract:
    - Use 2-4 expressions per input
 
 2. **categoryChain**: Taxonomy path from general to specific
-   - 2-5 levels deep
+   - 3-5 levels deep (minimum 3 levels)
    - Use lowercase, hyphenated terms
    - Be consistent: same concepts should use same category names
+   - IMPORTANT: Always include the specific domain, even for broad expressions
+     - Bad: ["services", "education"] - too generic, matches unrelated education
+     - Good: ["services", "education", "music-instruction"] - includes domain
 
 3. **constraints**: Structured data (only if present in input)
    - quantity: amounts, minimums, maximums
@@ -128,6 +131,10 @@ Bad categories don't help:
 - "thing" - too abstract
 - "person" - doesn't help match
 
+**Minimum specificity**: Never stop at generic levels like "services", "education", or "goods" alone. Always include the domain:
+- "woodworking instruction" → ["services", "education", "skills-instruction", "woodworking"] ✓
+- "woodworking instruction" → ["services", "education"] ✗ (would match math tutors!)
+
 ## Examples
 
 Input: "I'm a professional piano teacher with 15 years experience"
@@ -137,8 +144,8 @@ Output:
 {
   "expressions": [
     {"text": "professional piano teacher", "categoryChain": ["services", "education", "music-instruction", "piano"]},
-    {"text": "piano instruction", "categoryChain": ["services", "education", "music-instruction"]},
-    {"text": "music teacher", "categoryChain": ["services", "education"]}
+    {"text": "piano instruction", "categoryChain": ["services", "education", "music-instruction", "piano"]},
+    {"text": "music teacher", "categoryChain": ["services", "education", "music-instruction"]}
   ],
   "shouldMatchWith": ["piano students", "music lesson seekers", "parents seeking music education"],
   "notes": "Teacher matches student needs, not other teachers"

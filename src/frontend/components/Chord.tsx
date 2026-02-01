@@ -9,7 +9,6 @@ type ChordProps = {
   capPos: { x: number; y: number }
   needPos: { x: number; y: number }
   color: string
-  threshold: number
   lockedNodeId: string | null
   activeNodeId: string | null
   activeIsCapacity: boolean | undefined
@@ -24,35 +23,17 @@ export function Chord({
   capPos,
   needPos,
   color,
-  threshold,
   lockedNodeId,
   activeNodeId,
   activeIsCapacity,
   onShowTooltip,
   onHideTooltip,
-}: ChordProps): React.ReactElement | null {
-  // Threshold filters on similarity (match quality) - determines if match appears
-  const similarity = match.breakdown.similarity ?? 1
-  const isVisible = similarity >= threshold
+}: ChordProps): React.ReactElement {
+  // Filtering is done in App.tsx via filteredMatches - this component always renders
 
   // Opacity uses specificity (match precision) - determines visual emphasis
+  const similarity = match.breakdown.similarity ?? 1
   const specificity = match.breakdown.specificity ?? similarity
-
-  if (!isVisible) {
-    return (
-      <path
-        d={computeChordPath(capPos.x, capPos.y, needPos.x, needPos.y)}
-        fill="none"
-        stroke={color}
-        strokeWidth={Math.max(5, match.score * 12)}
-        opacity={0}
-        className="chord"
-        data-cap={match.capacityId}
-        data-need={match.needId}
-        style={{ display: 'none' }}
-      />
-    )
-  }
 
   const isHighlighted =
     !lockedNodeId ||

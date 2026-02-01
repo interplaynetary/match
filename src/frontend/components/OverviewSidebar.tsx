@@ -43,7 +43,7 @@ export function OverviewSidebar({
       <h2>Threshold</h2>
       <div className="slider-container">
         <label>
-          <span>Similarity threshold</span>
+          <span>Match threshold</span>
           <span className="slider-value">{Math.round(threshold * 100)}%</span>
         </label>
         <input
