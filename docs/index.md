@@ -4,47 +4,46 @@ Technical documentation for the matching system.
 
 ## Data Pipeline
 
-The system has two data sources:
-
-### Static Data (UI)
-
-Pre-computed examples that feed the visualization UI:
-
 ```
-data/matching-examples.json     Raw test cases with expressions
-         │
-         ├──► scripts/enrich-categories.ts ──► data/enriched-examples.json
-         │
-         └──► scripts/generate-embeddings.ts ──► data/embeddings.json
-                     │
-                     ▼
-              src/server.ts ──► React visualization
-```
-
-### Live Enrichment Pipeline
-
-On-demand enrichment of user inputs using LLM:
-
-```
-data/user-inputs.json           Simple {naturalLanguage, type} inputs
+data/user-inputs.json              Simple {naturalLanguage, type} inputs
          │
          ▼
-scripts/run-enrichment.ts       AI enrichment with gpt-4o-mini
-         │                      (concurrency=25, ~30s for 145 inputs)
+scripts/run-enrichment.ts          AI enrichment (gpt-4o-mini, concurrency=25)
+         │                         + Taxonomy merging (deeper root wins)
          │
-         ├──► Enriched data with category chains + constraints
+         ▼
+data/enriched-full.json            Enriched with merged category chains
          │
-         └──► Statistics report (root distribution, depth, bad roots)
+         ▼
+scripts/generate-embeddings.ts     OpenAI text-embedding-3-small
+         │
+         ▼
+data/embeddings.json               Keyed by content-addressable ID
+         │
+         ▼
+src/server.ts ──► React UI         Graph view + Taxonomy treemap
+```
+
+**Run the full pipeline:**
+```bash
+bun scripts/run-pipeline.ts
 ```
 
 **Key files:**
 - [src/enrichment.ts](../src/enrichment.ts) — Zod schemas and enrichment prompt
+- [src/taxonomy-merge.ts](../src/taxonomy-merge.ts) — Taxonomy consolidation (deeper root wins)
 - [src/ai-pipe.ts](../src/ai-pipe.ts) — Generic LLM integration with structured output
-- [src/canonical-roots.ts](../src/canonical-roots.ts) — Single source of truth for root categories
 
-**Usage:**
+**Individual steps:**
 ```bash
-bun scripts/run-enrichment.ts --output data/enriched.json
+# Enrich only (with taxonomy merging)
+bun scripts/run-enrichment.ts --output data/enriched-full.json
+
+# Generate embeddings only
+bun scripts/generate-embeddings.ts
+
+# Start server
+bun --hot src/server.ts
 ```
 
 ## Design Documents
