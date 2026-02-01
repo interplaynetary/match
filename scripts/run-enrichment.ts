@@ -16,7 +16,6 @@ import { createOpenAIPipe } from '../src/ai-pipe'
 function contentId(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 12)
 }
-import { CANONICAL_ROOTS } from '../src/canonical-roots'
 import {
   UserInput,
   EnrichedExample,
@@ -25,6 +24,7 @@ import {
   type UserInputType,
   type EnrichedExampleType,
 } from '../src/enrichment'
+import { TaxonomyTree, compareToTaxonomy, resolveConflict } from '../src/taxonomy-merge'
 
 // Parse args
 const args = process.argv.slice(2)
@@ -115,12 +115,41 @@ console.log(`Succeeded: ${results.length}`)
 console.log(`Failed: ${failures.length}`)
 console.log()
 
+// Run taxonomy merging
+const tree = new TaxonomyTree()
+let conflicts = 0
+let extensions = 0
+
+for (const example of results) {
+  for (const expr of example.expressions) {
+    const result = compareToTaxonomy(tree, expr.categoryChain)
+    if (result.type === 'conflict') {
+      const resolved = resolveConflict(tree, expr.categoryChain, result)
+      tree.addPath(resolved)
+      expr.categoryChain = resolved
+      conflicts++
+    } else if (result.type === 'extension') {
+      tree.addPath(expr.categoryChain)
+      extensions++
+    } else {
+      tree.addPath(expr.categoryChain)
+    }
+  }
+}
+
+const finalRoots = new Set(tree.getAllPaths().map(p => p[0]))
+
+console.log('Taxonomy Merging:')
+console.log(`  Conflicts resolved: ${conflicts}`)
+console.log(`  Extensions added: ${extensions}`)
+console.log(`  Final roots: ${finalRoots.size} (${[...finalRoots].join(', ')})`)
+console.log()
+
 console.log('Root Distribution:')
 const sortedRoots = [...stats.rootCounts.entries()].sort((a, b) => b[1] - a[1])
 for (const [root, count] of sortedRoots) {
-  const marker = (CANONICAL_ROOTS as readonly string[]).includes(root) ? 'OK' : 'BAD'
   const pct = ((count / stats.totalExpressions) * 100).toFixed(1)
-  console.log(`  [${marker}] ${root}: ${count} (${pct}%)`)
+  console.log(`  ${root}: ${count} (${pct}%)`)
 }
 console.log()
 
@@ -129,14 +158,6 @@ console.log(`  Min: ${stats.depths.min}`)
 console.log(`  Max: ${stats.depths.max}`)
 console.log(`  Avg: ${stats.depths.avg.toFixed(2)}`)
 console.log()
-
-if (stats.badRoots.length > 0) {
-  console.log('Bad Roots Found:')
-  for (const root of stats.badRoots) {
-    console.log(`  - ${root}`)
-  }
-  console.log()
-}
 
 if (failures.length > 0) {
   console.log('Failures:')

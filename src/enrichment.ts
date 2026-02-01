@@ -9,7 +9,6 @@
  */
 
 import { z } from 'zod'
-import { CANONICAL_ROOTS, type CanonicalRoot } from './canonical-roots'
 
 // =============================================================================
 // Schemas
@@ -102,9 +101,9 @@ Given a user input, extract:
    - Use 2-4 expressions per input
 
 2. **categoryChain**: Taxonomy path from general to specific
-   - Start with: services, goods, spaces, skills, or opportunities
    - 2-5 levels deep
    - Use lowercase, hyphenated terms
+   - Be consistent: same concepts should use same category names
 
 3. **constraints**: Structured data (only if present in input)
    - quantity: amounts, minimums, maximums
@@ -174,7 +173,6 @@ export type ConstraintsType = z.infer<typeof Constraints>
 
 export interface CategoryStats {
   rootCounts: Map<string, number>
-  badRoots: string[]
   depths: {
     min: number
     max: number
@@ -189,7 +187,6 @@ export interface CategoryStats {
 export function collectCategoryStats(examples: EnrichedExampleType[]): CategoryStats {
   const rootCounts = new Map<string, number>()
   const depths: number[] = []
-  const badRootsSet = new Set<string>()
 
   for (const example of examples) {
     for (const expr of example.expressions) {
@@ -197,23 +194,13 @@ export function collectCategoryStats(examples: EnrichedExampleType[]): CategoryS
       if (chain.length === 0) continue
 
       const root = chain[0]
-
-      // Count roots
       rootCounts.set(root, (rootCounts.get(root) || 0) + 1)
-
-      // Track bad roots
-      if (!CANONICAL_ROOTS.includes(root as CanonicalRoot)) {
-        badRootsSet.add(root)
-      }
-
-      // Track depths
       depths.push(chain.length)
     }
   }
 
   return {
     rootCounts,
-    badRoots: [...badRootsSet],
     depths: {
       min: depths.length > 0 ? Math.min(...depths) : 0,
       max: depths.length > 0 ? Math.max(...depths) : 0,
