@@ -8,7 +8,9 @@
 import index from './frontend/index.html'
 import { generateMatchData } from './match-data.ts'
 import { buildTaxonomyTree } from './taxonomy-tree.ts'
-import examples from '../data/enriched-examples.json'
+import enrichedData from '../data/enriched-full.json'
+
+const examples = enrichedData.results
 import embeddingsData from '../data/embeddings.json'
 
 type EmbeddingsStore = Record<string, number[]>
