@@ -1,15 +1,42 @@
 # Taxonomy Quality: Approaches Under Consideration
 
 > **Status: Experimental**
-> This document describes approaches we're exploring but haven't committed to. The goal is to improve how category chains help matching. We're evaluating two fundamentally different strategies.
+> This document describes approaches we're exploring but haven't committed to. The goal is to improve how category chains help matching.
+
+## The Purpose of the Taxonomy
+
+The taxonomy is a **blur ladder**, not a classification system.
+
+When matching needs to capacities, you don't traverse down from some root to find things. You start at the most specific level (the item itself) and blur upward until two paths overlap.
+
+```
+Need: "organic sourdough bread"
+     ↑ blur to "bread"
+     ↑ blur to "baked-goods"  ← overlap!
+
+Capacity: "artisanal baked goods"
+     ↑ blur to "baked-goods"  ← overlap!
+```
+
+The purpose: Provide a larger surface area for soft matches without immediately falling back to the mega-fuzziness of raw embeddings.
+
+The current algorithm (in `category-matcher.ts`) already works this way:
+```typescript
+// Start from the end (most specific) and work backwards
+for (let i = chainA.length - 1; i >= 0; i--) {
+  if (setB.has(category)) {
+    const distance = chainA.length - 1 - i  // how much we blurred
+```
 
 ## The Problem
 
-When matching needs to capacities, category chains provide structure beyond raw embedding similarity. But the LLM-generated chains have issues:
+The LLM-generated chains have issues:
 
 - Inconsistent naming ("services" vs "service")
 - Arbitrary placement decisions
 - No guarantee of optimal organization
+
+And the current matcher requires **exact string matches** at each blur level. So "services" ≠ "service" means no overlap, even though they're semantically identical.
 
 **Question**: Should we fix the taxonomy structure, or work around it?
 
@@ -64,19 +91,33 @@ cohesion = parentChildSimilarity × siblingCohesion
 
 | File | Purpose |
 |------|---------|
-| [src/category-cohesion.ts](../src/category-cohesion.ts) | Cohesion computation functions |
 | [scripts/analyze-cohesion.ts](../scripts/analyze-cohesion.ts) | Analysis CLI |
 | [src/taxonomy-tree.ts](../src/taxonomy-tree.ts) | Tree building with cohesion scores |
 
 ---
 
-## Approach B: DAG with Similarity Traversal
+## Approach B: Soft Matching with Wormholes
 
-**Philosophy**: Don't fix the structure. Embrace redundancy, let similarity handle matching.
+**Philosophy**: Don't fix the structure. Keep the blur ladder, but replace exact matching with similarity matching.
 
 ### The Idea
 
-Instead of a clean tree, build a DAG that keeps all observed paths. Each node gets one embedding. Synonymous nodes act as **soft identities**—they don't need to be merged, because their high embedding similarity creates natural "wormholes" between paths.
+Instead of requiring exact string matches at each blur level, use embedding similarity to find "close enough" nodes. Synonymous nodes act as **wormholes**—they connect paths that don't share exact strings.
+
+### Example: Synonym Wormholes
+
+Two completely different-looking paths can connect:
+```
+Capacity: goods > food > groceries > eggs > organic-eggs
+Need:     products > grocery > egg
+```
+
+No nodes match exactly. But with similarity matching:
+- "egg" ≈ "eggs" (0.99) ← wormhole at blur distance 0
+
+Without wormholes, you'd blur all the way up ("egg" → "grocery" → "products") and never find overlap.
+
+With wormholes, the match happens immediately at the leaf level.
 
 ### Example: Piano Lessons
 
@@ -89,133 +130,101 @@ Path C: skills > music > piano-teaching
 
 A need comes in with:
 ```
-Query: services > education > music > piano
+Need: services > education > music > piano
 ```
 
-**Exact matching** would only find Path A (partial overlap).
+**Exact matching** would only find Path A (partial overlap at "music").
 
-**Similarity traversal** can find all three:
-
-1. Start at query node "services"
-2. Find similar nodes in DAG: "services" (1.0), "service" (0.98), "skills" (0.7)
-3. For each, descend to children similar to "education": "education" (1.0), "teaching" (0.95), "music" (0.8)
-4. Continue descending...
-
-The traversal "jumps" between paths through synonym wormholes:
+**Similarity matching** finds all three by recognizing wormholes:
 ```
-Query:  services ──► education ──► music ──► piano
-           │            │            │          │
-           ▼            ▼            ▼          ▼
-Path A: services ── education ── music ── piano-lessons  (direct match)
-           ↓            ↓
-Path B: service ─── teaching ─── musical-instruction ── piano  (via wormholes)
-
-Path C: skills ───────────────── music ── piano-teaching  (partial wormhole)
+Need:   ...music ──► piano
+                       │
+                       ▼
+Path A: ...music ── piano-lessons  (piano ≈ piano-lessons, 0.95)
+Path B: ...musical-instruction ── piano  (exact match)
+Path C: ...music ── piano-teaching  (piano ≈ piano-teaching, 0.93)
 ```
 
-### Example: Synonym Wormholes
+At each blur step, instead of checking "does this exact string exist?", we check "is there a similar-enough node?"
 
-Two completely different-looking paths can connect:
-```
-Capacity: goods > food > groceries > eggs > organic-eggs
-Need:     products > grocery > egg
-```
-
-No nodes match exactly. But:
-- "goods" ≈ "products" (0.85)
-- "food" → "groceries" ≈ "grocery" (0.92)
-- "eggs" ≈ "egg" (0.99)
-
-The traversal scores this highly despite zero exact matches.
-
-### Example: Specificity Gradient
-
-A general need should match specific capacities:
-```
-Need:     services > home-maintenance
-Capacity: services > home-maintenance > plumbing > drain-cleaning
-```
-
-The need path is a prefix. Traversal naturally handles this—matching the prefix exactly, then exploring all children of `home-maintenance`.
-
-### Traversal Algorithm (Sketch)
+### Algorithm Sketch
 
 ```
-function findMatchingPaths(queryPath, dag):
-  candidates = []
+function findOverlapWithWormholes(needChain, capacityChain, embeddings):
+  // Start from most specific, blur upward
+  for blurDistance = 0 to needChain.length - 1:
+    needNode = needChain[needChain.length - 1 - blurDistance]
+    needEmb = embeddings[needNode]
 
-  // Start with nodes similar to query[0]
-  for node in dag.roots:
-    if similarity(node, queryPath[0]) > threshold:
-      explore(node, queryPath, 1, score=similarity, candidates)
+    // Find best matching node in capacity chain
+    bestSim = 0
+    bestMatch = null
+    for capNode in capacityChain:
+      sim = cosineSimilarity(needEmb, embeddings[capNode])
+      if sim > bestSim:
+        bestSim = sim
+        bestMatch = capNode
 
-  return candidates.sortByScore()
+    if bestSim > threshold:
+      return {
+        overlapNode: bestMatch,
+        blurDistance: blurDistance,
+        similarity: bestSim
+      }
 
-function explore(currentNode, queryPath, queryIndex, score, candidates):
-  if queryIndex >= queryPath.length:
-    // Reached end of query - this is a match
-    candidates.add(currentNode.path, score)
-    // Also explore children (need might be more general)
-    for child in currentNode.children:
-      explore(child, queryPath, queryIndex, score * 0.9, candidates)
-    return
-
-  // Continue matching query
-  for child in currentNode.children:
-    sim = similarity(child, queryPath[queryIndex])
-    if sim > threshold:
-      explore(child, queryPath, queryIndex + 1, score * sim, candidates)
+  return null  // no overlap found
 ```
+
+### Scoring
+
+Current scoring:
+```typescript
+categoryScore = 1.0 - distance * 0.1  // minimum 0.5
+```
+
+New scoring could incorporate similarity:
+```typescript
+categoryScore = similarity * (1.0 - distance * 0.1)
+```
+
+Higher similarity = better. More blur = worse. Both factors matter.
 
 ### Key Properties
 
-1. **One embedding per node** — Simple, cacheable.
+1. **Bottom-up** — Same direction as current algorithm. Blur until match.
 
-2. **No merging** — "services" and "service" stay separate. Their similarity handles it.
+2. **Best match per level** — At each blur level, find the most similar node.
 
 3. **Wormholes are implicit** — High-similarity nodes create connections without explicit edges.
 
-4. **Scores degrade gracefully** — More wormhole jumps = lower similarity product = lower score.
+4. **Scores degrade gracefully** — More blur = higher distance = lower score. Wormhole similarity < 1.0 = slightly lower score.
 
-5. **Prefix matching works** — General queries match specific paths naturally.
+5. **No restructuring needed** — "services" and "service" stay separate. Their similarity handles it.
 
 ### Open Questions
 
-1. **Threshold tuning** — What similarity cutoff for considering a wormhole?
+1. **Threshold tuning** — What similarity cutoff for considering a wormhole? 0.8? 0.9?
 
-2. **Scoring function** — Multiply similarities? Weighted average? Min?
+2. **Efficiency** — Comparing every need node to every capacity node is O(n×m). Acceptable for short chains.
 
-3. **Efficiency** — With many nodes, how to prune the search space?
-
-4. **Combining with item similarity** — Path score × item embedding similarity?
-
-### Not Yet Implemented
-
-Next steps:
-1. Build DAG from current enriched data (keep all paths)
-2. Generate embeddings for all unique category names
-3. Implement traversal with scoring
-4. Compare results to current tree-based matching
+3. **Embeddings for category names** — We need embeddings for strings like "music", "education". Currently only items have embeddings. Could generate on-demand or precompute for all unique category names.
 
 ---
 
 ## Comparison
 
-| Aspect | Cohesion Optimization | DAG Traversal |
-|--------|----------------------|---------------|
-| Structure | Clean tree | Messy DAG |
-| Synonyms | Merge them | Keep them |
-| Build-time work | Restructuring | Minimal |
-| Query-time work | Tree lookup | Similarity search |
-| LLM consistency | Required | Tolerated |
-| Complexity | Moderate | Unknown |
+| Aspect | Current | Cohesion Optimization | Soft Matching |
+|--------|---------|----------------------|---------------|
+| Direction | Bottom-up | Bottom-up | Bottom-up |
+| String matching | Exact | Exact (after cleanup) | Similarity |
+| Synonyms | Must match exactly | Merge them | Wormhole through |
+| Build-time work | None | Restructuring | Generate category embeddings |
+| Query-time work | Set lookup | Set lookup | Similarity computation |
 
 ---
 
 ## Next Steps
 
-Before committing to either approach:
-
-1. **Define success metric** — How do we know matching improved?
-2. **Build minimal DAG prototype** — See if traversal is tractable
-3. **Compare on test cases** — Same needs/capacities, different approaches
+1. **Generate embeddings for category names** — Add to embeddings.json cache
+2. **Implement `findOverlapWithWormholes`** — Replace or augment `findCategoryOverlap`
+3. **Compare results** — Same test cases, measure match quality improvement
