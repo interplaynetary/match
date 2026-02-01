@@ -1,9 +1,9 @@
 /*
- * Generate embeddings for all examples in matching-examples.json
+ * Generate embeddings for enriched examples
  *
  * Uses OpenAI's text-embedding-3-small model to create embeddings from
  * each example's expressions. Embeddings are stored separately in embeddings.json
- * to keep the main examples file readable.
+ * keyed by content-addressable ID.
  *
  * Usage:
  *   bun scripts/generate-embeddings.ts
@@ -12,27 +12,31 @@
  *   OPENAI_API_KEY environment variable (Bun auto-loads from .env)
  */
 
-import { OpenAIEmbeddingProvider, generateEmbeddingText } from '../src/embeddings'
-import { convertExamples } from '../src/example-converter'
+import { OpenAIEmbeddingProvider } from '../src/embeddings'
 
-const EXAMPLES_FILE = './data/matching-examples.json'
+const ENRICHED_FILE = './data/enriched-full.json'
 const EMBEDDINGS_FILE = './data/embeddings.json'
 
-type RawExample = {
-  id: number
-  category: string
+type EnrichedExample = {
+  id: string
   naturalLanguage: string
   type: 'capacity' | 'need'
-  expressions: Array<{ text: string; priority?: number }>
-  constraints?: Record<string, unknown>
-  shouldMatchWith?: string[]
-  notes?: string
+  expressions: Array<{ text: string; categoryChain: string[] }>
+}
+
+type EnrichedData = {
+  results: EnrichedExample[]
 }
 
 type EmbeddingsStore = Record<string, number[]>
 
+function embeddingText(example: EnrichedExample): string {
+  return example.expressions.map(e => e.text).join(' | ')
+}
+
 async function main() {
-  const examples: RawExample[] = await Bun.file(EXAMPLES_FILE).json()
+  const data: EnrichedData = await Bun.file(ENRICHED_FILE).json()
+  const examples = data.results
 
   // Load existing embeddings if any
   let existingEmbeddings: EmbeddingsStore = {}
@@ -45,7 +49,7 @@ async function main() {
   console.log(`Loaded ${examples.length} examples, ${Object.keys(existingEmbeddings).length} existing embeddings`)
 
   // Check which examples need embeddings
-  const needsEmbedding = examples.filter(e => !existingEmbeddings[String(e.id)])
+  const needsEmbedding = examples.filter(e => !existingEmbeddings[e.id])
   console.log(`${needsEmbedding.length} examples need embeddings`)
 
   if (needsEmbedding.length === 0) {
@@ -53,18 +57,11 @@ async function main() {
     return
   }
 
-  // Convert to our types to use generateEmbeddingText
-  const { byId } = convertExamples(examples)
-
   // Generate text for each example that needs embedding
-  const textsToEmbed: Array<{ id: string; text: string }> = []
-  for (const example of needsEmbedding) {
-    const item = byId.get(String(example.id))
-    if (item) {
-      const text = generateEmbeddingText(item.converted)
-      textsToEmbed.push({ id: String(example.id), text })
-    }
-  }
+  const textsToEmbed = needsEmbedding.map(example => ({
+    id: example.id,
+    text: embeddingText(example),
+  }))
 
   console.log(`Generating ${textsToEmbed.length} embeddings...`)
 

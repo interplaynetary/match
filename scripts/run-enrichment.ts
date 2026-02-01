@@ -10,7 +10,12 @@
  *   --concurrency N Process N inputs in parallel (default: 25)
  */
 
+import { createHash } from 'crypto'
 import { createOpenAIPipe } from '../src/ai-pipe'
+
+function contentId(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 12)
+}
 import { CANONICAL_ROOTS } from '../src/canonical-roots'
 import {
   UserInput,
@@ -60,6 +65,7 @@ async function processOne(input: UserInputType): Promise<ProcessResult> {
 
   if (result.success) {
     const enriched = {
+      id: contentId(input.naturalLanguage),
       ...result.data,
       naturalLanguage: input.naturalLanguage,
       type: input.type,
