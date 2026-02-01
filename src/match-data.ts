@@ -6,7 +6,9 @@ import { Matcher, describeTimeConstraint, describeSpaceConstraint, describeQuant
 import type { Constraints } from './types'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
 import { computePCATransform, type PCATransform } from './semantic-colors'
-import examples from '../data/enriched-examples.json'
+import enrichedData from '../data/enriched-full.json'
+
+const examples = enrichedData.results
 import embeddingsData from '../data/embeddings.json'
 
 const embeddings = embeddingsData as EmbeddingsStore

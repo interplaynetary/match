@@ -1,11 +1,10 @@
 import type { Capacity, Need, Expression } from './types'
 
 export type RawExample = {
-  id: number
-  category: string
+  id: string
   naturalLanguage: string
   type: 'capacity' | 'need'
-  expressions: Array<{ text: string; priority?: number }>
+  expressions: Array<{ text: string; categoryChain?: string[]; disjointWith?: string | null }>
   constraints?: Record<string, unknown>
   shouldMatchWith?: string[]
   notes?: string
@@ -18,7 +17,7 @@ export function convertToCapacity(example: RawExample, embedding?: number[]): Ca
   if (!example.expressions || example.expressions.length === 0) return null
 
   return {
-    id: String(example.id),
+    id: example.id,
     expressions: example.expressions as Expression[],
     constraints: example.constraints as Capacity['constraints'],
     embedding,
@@ -30,7 +29,7 @@ export function convertToNeed(example: RawExample, embedding?: number[]): Need |
   if (!example.expressions || example.expressions.length === 0) return null
 
   return {
-    id: String(example.id),
+    id: example.id,
     expressions: example.expressions as Expression[],
     constraints: example.constraints as Need['constraints'],
     embedding,
@@ -50,7 +49,7 @@ export function convertExamples(
   const byId = new Map<string, { original: RawExample; converted: Capacity | Need }>()
 
   for (const example of examples) {
-    const id = String(example.id)
+    const id = example.id
     const embedding = embeddings[id]
 
     if (example.type === 'capacity') {
