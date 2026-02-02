@@ -5,7 +5,8 @@
 import { Matcher, describeTimeConstraint, describeSpaceConstraint, describeQuantityConstraint } from './matcher'
 import type { Constraints } from './types'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
-import { computePCATransform, type PCATransform } from './semantic-colors'
+import { computePCATransform } from './semantic-colors'
+import type { MatchData, ConstraintSummary } from './frontend/types'
 import enrichedData from '../data/enriched-full.json'
 
 const examples = enrichedData.results
@@ -34,51 +35,8 @@ function summarizeConstraints(constraints?: Constraints): ConstraintSummary | un
   return Object.keys(summary).length > 0 ? summary : undefined
 }
 
-type ConstraintDetail = {
-  score: number
-  reason: string
-  needDesc?: string
-  capacityDesc?: string
-}
-
-type ConstraintSummary = {
-  time?: string
-  space?: string
-  quantity?: string
-}
-
-export type MatchData = {
-  capacities: Array<{ id: string; expressions: string[]; label: string; embedding?: number[]; constraints?: ConstraintSummary }>
-  needs: Array<{ id: string; expressions: string[]; label: string; embedding?: number[]; constraints?: ConstraintSummary }>
-  pcaTransform: PCATransform
-  matches: Array<{
-    needId: string
-    capacityId: string
-    score: number
-    breakdown: {
-      time?: number
-      space?: number
-      quantity?: number
-      timeDetail?: ConstraintDetail
-      spaceDetail?: ConstraintDetail
-      quantityDetail?: ConstraintDetail
-      similarity?: number
-      priorityWeight?: number
-      categoryMatch?: {
-        overlapCategory: string
-        overlapDistance: number
-        isBlocked: boolean
-        specificity: number
-      }
-    }
-    matchedExpressions?: {
-      needText: string
-      capacityText: string
-      needChain?: string[]
-      capacityChain?: string[]
-    }
-  }>
-}
+// Re-export the canonical MatchData type
+export type { MatchData } from './frontend/types'
 
 export function generateMatchData(): MatchData {
   // Use low threshold to get all potential matches; UI slider filters client-side

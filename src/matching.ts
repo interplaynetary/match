@@ -13,7 +13,7 @@
 import jsonLogic from 'json-logic-js';
 import type { Resource } from './commons';
 import type { AvailabilityWindow, TimeRange, DayOfWeek, DaySchedule, WeekSchedule, MonthSchedule } from './time';
-import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM } from './spatial';
+import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, haversineDistance } from './spatial';
 import type { FilterContext, EligibilityFilter, Contact } from './types';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -300,15 +300,12 @@ export function timeRangesOverlap(
 
         // CASE 1: Both recurring
         if (track1 === 'recurring' && track2 === 'recurring') {
-            if (slot1.time_zone || slot2.time_zone) {
-                return availabilityWindowsOverlapWithTimezone(
-                    slot1.availability_window,
-                    slot2.availability_window,
-                    slot1.time_zone,
-                    slot2.time_zone
-                );
-            }
-            return availabilityWindowsOverlap(slot1.availability_window, slot2.availability_window);
+            return availabilityWindowsOverlapWithTimezone(
+                slot1.availability_window,
+                slot2.availability_window,
+                slot1.time_zone,
+                slot2.time_zone
+            );
         }
 
         // CASE 2: One recurring, one one-time
@@ -349,16 +346,6 @@ export function getRecurrenceTrack(slot: { recurrence?: string | null }): 'recur
         return 'recurring';
     }
     return 'onetime';
-}
-
-function availabilityWindowsOverlap(window1?: AvailabilityWindow, window2?: AvailabilityWindow): boolean {
-    if (!window1 || !window2) return true;
-
-    // Hierarchy check: Month -> Week -> Day -> Time
-    // Simplified implementation for same-timezone assumption (see match.ts for full recursive logic if needed, 
-    // but here we focus on the core logic structure).
-    // For brevity in this refactor, delegating to the timezone-aware version with default date is safer/more robust anyway.
-    return availabilityWindowsOverlapWithTimezone(window1, window2, undefined, undefined);
 }
 
 export function availabilityWindowsOverlapWithTimezone(
@@ -712,17 +699,6 @@ function getDateStringForDayOfWeek(targetDay: DayOfWeek, referenceDate: string):
     const m = String(targetDate.getMonth() + 1).padStart(2, '0');
     const d = String(targetDate.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
-}
-
-export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
 }
 
 // ═══════════════════════════════════════════════════════════════════
