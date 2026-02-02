@@ -585,8 +585,8 @@ export function describeSpaceConstraint(space?: Constraints['space']): string {
 
 // Helper: Describe a quantity constraint in human-readable form
 export function describeQuantityConstraint(qty?: Constraints['quantity']): string {
-  if (!qty) return 'any amount'
-  return `${qty.amount}${qty.unit}`
+  if (!qty || (qty.amount == null && qty.unit == null)) return 'any amount'
+  return `${qty.amount ?? ''} ${qty.unit ?? ''}`.trim()
 }
 
 // Helper: Check if time constraint has any meaningful values
