@@ -6,6 +6,8 @@ export interface SearchResult {
   type: 'capacity' | 'need'
 }
 
+export type TypeFilter = 'all' | 'capacity' | 'need'
+
 export interface SearchBarProps {
   threshold: number
   onResults: (results: SearchResult[]) => void
@@ -15,11 +17,25 @@ export interface SearchBarProps {
 export function SearchBar({ threshold, onResults, onClear }: SearchBarProps) {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [rawResults, setRawResults] = useState<SearchResult[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const queryRef = useRef(query)
+  queryRef.current = query
+
+  // Apply type filter and notify parent
+  const applyFilter = useCallback(
+    (results: SearchResult[], filter: TypeFilter) => {
+      const filtered = filter === 'all' ? results : results.filter((r) => r.type === filter)
+      onResults(filtered)
+    },
+    [onResults]
+  )
 
   const doSearch = useCallback(
     async (searchQuery: string) => {
       if (!searchQuery.trim()) {
+        setRawResults([])
         onClear()
         return
       }
@@ -37,7 +53,8 @@ export function SearchBar({ threshold, onResults, onClear }: SearchBarProps) {
           return
         }
         if (data.results) {
-          onResults(data.results)
+          setRawResults(data.results)
+          applyFilter(data.results, typeFilter)
         }
       } catch (err) {
         console.error('Search failed:', err)
@@ -45,8 +62,15 @@ export function SearchBar({ threshold, onResults, onClear }: SearchBarProps) {
         setIsSearching(false)
       }
     },
-    [threshold, onResults, onClear]
+    [threshold, typeFilter, onClear, applyFilter]
   )
+
+  // Re-apply filter when typeFilter changes
+  useEffect(() => {
+    if (rawResults.length > 0) {
+      applyFilter(rawResults, typeFilter)
+    }
+  }, [typeFilter, rawResults, applyFilter])
 
   const handleChange = useCallback(
     (value: string) => {
@@ -72,15 +96,16 @@ export function SearchBar({ threshold, onResults, onClear }: SearchBarProps) {
 
   const handleClear = useCallback(() => {
     setQuery('')
+    setRawResults([])
     onClear()
   }, [onClear])
 
   // Re-run search when threshold changes (if there's an active query)
   useEffect(() => {
-    if (query.trim()) {
-      doSearch(query)
+    if (queryRef.current.trim()) {
+      doSearch(queryRef.current)
     }
-  }, [threshold]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [threshold, doSearch])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -142,9 +167,42 @@ export function SearchBar({ threshold, onResults, onClear }: SearchBarProps) {
             ×
           </button>
         )}
+        {isSearching && (
+          <span
+            style={{
+              position: 'absolute',
+              right: 32,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#888',
+              fontSize: 12,
+            }}
+          >
+            ...
+          </span>
+        )}
       </div>
-      {isSearching && (
-        <span style={{ color: '#888', fontSize: 12 }}>...</span>
+      {query && (
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['all', 'capacity', 'need'] as const).map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setTypeFilter(filter)}
+              style={{
+                padding: '6px 10px',
+                background: typeFilter === filter ? 'rgba(100, 150, 200, 0.8)' : 'rgba(15, 52, 96, 0.7)',
+                border: '1px solid #444',
+                borderRadius: 12,
+                color: typeFilter === filter ? '#fff' : '#aaa',
+                fontSize: 11,
+                cursor: 'pointer',
+                textTransform: 'capitalize',
+              }}
+            >
+              {filter === 'all' ? 'All' : filter === 'capacity' ? 'Offers' : 'Needs'}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )

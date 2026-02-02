@@ -9,7 +9,8 @@ import index from './frontend/index.html'
 import { generateMatchData, type MatchData } from './match-data.ts'
 import { buildTaxonomyTree } from './taxonomy-tree.ts'
 import { createOpenAIPipe } from './ai-pipe'
-import { OpenAIEmbeddingProvider, cosineSimilarity } from './embeddings'
+import { OpenAIEmbeddingProvider } from './embeddings'
+import { search } from './search'
 import { enrichSingleItem } from './enrichment-ops'
 import { embedSingleItem, embedSingleItemCategories } from './embedding-ops'
 import { loadTaxonomy, saveTaxonomy } from './taxonomy-store'
@@ -85,33 +86,16 @@ Bun.serve({
             return Response.json({ results: [] })
           }
 
-          // Generate embedding for search query
           const provider = getEmbeddingProvider()
           const queryEmbedding = await provider.embed(query.trim())
 
-          // Find similar items
-          const results: Array<{ id: string; score: number; type: 'capacity' | 'need' }> = []
-
-          for (const item of matchData.capacities) {
-            if (item.embedding) {
-              const score = cosineSimilarity(queryEmbedding, item.embedding)
-              if (score >= threshold) {
-                results.push({ id: item.id, score, type: 'capacity' })
-              }
-            }
-          }
-
-          for (const item of matchData.needs) {
-            if (item.embedding) {
-              const score = cosineSimilarity(queryEmbedding, item.embedding)
-              if (score >= threshold) {
-                results.push({ id: item.id, score, type: 'need' })
-              }
-            }
-          }
-
-          // Sort by score descending
-          results.sort((a, b) => b.score - a.score)
+          const results = search({
+            query: query.trim(),
+            queryEmbedding,
+            threshold,
+            items: enrichedData.results,
+            embeddings,
+          })
 
           return Response.json({ results })
         } catch (err) {

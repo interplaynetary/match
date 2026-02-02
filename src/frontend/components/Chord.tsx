@@ -43,8 +43,8 @@ export function Chord({
       ? match.capacityId === activeNodeId
       : match.needId === activeNodeId)
 
-  // Square specificity for visual emphasis
-  const baseOpacity = specificity * specificity
+  // Square specificity for visual emphasis, with minimum visibility
+  const baseOpacity = Math.max(0.15, specificity * specificity)
   // When locked to a node, hide non-highlighted edges completely
   // When searching, dim chords where neither endpoint matches
   const dimmedByLock = lockedNodeId && !isHighlighted

@@ -168,6 +168,14 @@ function App(): React.ReactElement {
     return new Set(searchResults.map((r) => r.id))
   }, [searchResults])
 
+  // When searching, filter matches to only show connections involving search results
+  const visibleMatches = useMemo(() => {
+    if (!searchMatchIds) return filteredMatches
+    return filteredMatches.filter(
+      (m) => searchMatchIds.has(m.capacityId) || searchMatchIds.has(m.needId)
+    )
+  }, [filteredMatches, searchMatchIds])
+
   if (error) {
     return (
       <div
@@ -253,9 +261,9 @@ function App(): React.ReactElement {
               viewBox="-400 -400 800 800"
               onClick={handleSvgClick}
             >
-              {/* Chords - uses filteredMatches so same filtering as stats */}
+              {/* Chords - uses visibleMatches (filtered by search when active) */}
               <g id="chords">
-                {filteredMatches.map((match) => {
+                {visibleMatches.map((match) => {
                   const capIndex = data.capacities.findIndex(
                     (c) => c.id === match.capacityId
                   )
