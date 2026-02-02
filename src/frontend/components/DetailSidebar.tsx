@@ -3,6 +3,7 @@ import type { NodeItem, MatchWithOther, ConstraintSummary } from '../types.ts'
 import { getNodeColor } from '../utils.ts'
 import { MatchBadge } from './MatchBadge.tsx'
 import { ConstraintScores } from './ConstraintScores.tsx'
+import { ItemCard } from './ItemCard.tsx'
 
 type DetailSidebarProps = {
   activeItem: NodeItem
@@ -66,27 +67,27 @@ export function DetailSidebar({
         {activeMatches.length === 0 && (
           <p style={{ color: '#888' }}>No matches above threshold</p>
         )}
-        {activeMatches.slice(0, 20).map((m) => (
-          <div key={`${m.capacityId}-${m.needId}`} className="match-item">
-            <div className="match-item-header">
-              <span>
-                {m.otherType} #{m.other?.id}
-              </span>
-              <span className="match-item-score">
-                {(m.score * 100).toFixed(0)}%
-              </span>
-            </div>
-            <div className="match-item-label">{m.other?.label || ''}</div>
-            <div style={{ marginTop: '6px' }}>
-              <MatchBadge match={m} />
-            </div>
-            <ConstraintScores
-              breakdown={m.breakdown}
-              compact
-              showSide={activeIsCapacity ? 'need' : 'capacity'}
-            />
-          </div>
-        ))}
+        {activeMatches.slice(0, 20).map((m) => {
+          if (!m.other) return null
+          return (
+            <ItemCard
+              key={`${m.capacityId}-${m.needId}`}
+              item={m.other}
+              isCapacity={m.otherType === 'Capacity'}
+              transform={transform}
+              score={m.score}
+            >
+              <div style={{ marginTop: '6px' }}>
+                <MatchBadge match={m} />
+              </div>
+              <ConstraintScores
+                breakdown={m.breakdown}
+                compact
+                showSide={activeIsCapacity ? 'need' : 'capacity'}
+              />
+            </ItemCard>
+          )
+        })}
         {activeMatches.length > 20 && (
           <p style={{ color: '#888', textAlign: 'center' }}>
             ... and {activeMatches.length - 20} more

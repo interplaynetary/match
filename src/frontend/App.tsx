@@ -16,6 +16,7 @@ import {
   Node,
   OverviewSidebar,
   DetailSidebar,
+  SearchSidebar,
   TaxonomyTreeView,
   AddEntryDialog,
   SearchBar,
@@ -209,7 +210,7 @@ function App(): React.ReactElement {
 
   return (
     <>
-      <AddEntryDialog onSubmit={handleAddEntry} />
+      {viewMode === 'chord' && <AddEntryDialog onSubmit={handleAddEntry} />}
       <div
         id="tooltip"
         ref={tooltip.ref}
@@ -235,7 +236,9 @@ function App(): React.ReactElement {
 
       <div className="container">
         <div className="viz">
-          <SearchBar threshold={threshold} onResults={handleSearchResults} onClear={handleSearchClear} />
+          {viewMode === 'chord' && (
+            <SearchBar threshold={threshold} onResults={handleSearchResults} onClear={handleSearchClear} />
+          )}
           {viewMode === 'taxonomy' ? (
             <TaxonomyTreeView />
           ) : (
@@ -373,24 +376,37 @@ function App(): React.ReactElement {
               Taxonomy
             </button>
           </div>
-          {!activeNodeId ? (
-            <OverviewSidebar
-              data={data}
-              filteredMatches={filteredMatches}
-              needsWithMatches={needsWithMatches}
-              capacitiesWithMatches={capacitiesWithMatches}
-              threshold={threshold}
-              onThresholdChange={setThreshold}
-            />
-          ) : activeItem ? (
-            <DetailSidebar
-              activeItem={activeItem}
-              activeIsCapacity={activeIsCapacity ?? false}
-              activeMatches={activeMatches}
-              transform={data.pcaTransform}
-              onBack={handleBackToOverview}
-            />
-          ) : null}
+          {viewMode === 'chord' && (
+            <>
+              {lockedNodeId && activeItem ? (
+                <DetailSidebar
+                  activeItem={activeItem}
+                  activeIsCapacity={activeIsCapacity ?? false}
+                  activeMatches={activeMatches}
+                  transform={data.pcaTransform}
+                  onBack={handleBackToOverview}
+                />
+              ) : searchResults ? (
+                <SearchSidebar
+                  searchResults={searchResults}
+                  data={data}
+                  transform={data.pcaTransform}
+                  threshold={threshold}
+                  onThresholdChange={setThreshold}
+                  onClear={handleSearchClear}
+                />
+              ) : (
+                <OverviewSidebar
+                  data={data}
+                  filteredMatches={filteredMatches}
+                  needsWithMatches={needsWithMatches}
+                  capacitiesWithMatches={capacitiesWithMatches}
+                  threshold={threshold}
+                  onThresholdChange={setThreshold}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
     </>
