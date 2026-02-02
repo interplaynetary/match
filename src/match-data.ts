@@ -55,7 +55,7 @@ export function generateMatchData({ examples, embeddings }: GenerateMatchDataInp
     return {
       id: c.id,
       expressions: c.expressions.map(e => e.text),
-      label: original?.naturalLanguage?.slice(0, 50) ?? c.expressions[0]?.text ?? 'capacity',
+      label: original?.naturalLanguage ?? c.expressions[0]?.text ?? 'capacity',
       embedding: c.embedding,
       constraints: summarizeConstraints(c.constraints),
     }
@@ -67,7 +67,7 @@ export function generateMatchData({ examples, embeddings }: GenerateMatchDataInp
     return {
       id: n.id,
       expressions: n.expressions.map(e => e.text),
-      label: original?.naturalLanguage?.slice(0, 50) ?? n.expressions[0]?.text ?? 'need',
+      label: original?.naturalLanguage ?? n.expressions[0]?.text ?? 'need',
       embedding: n.embedding,
       constraints: summarizeConstraints(n.constraints),
     }
