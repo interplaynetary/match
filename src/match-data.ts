@@ -7,12 +7,6 @@ import type { Constraints } from './types'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
 import { computePCATransform } from './semantic-colors'
 import type { MatchData, ConstraintSummary } from './frontend/types'
-import enrichedData from '../data/enriched-full.json'
-
-const examples = enrichedData.results
-import embeddingsData from '../data/embeddings.json'
-
-const embeddings = embeddingsData as EmbeddingsStore
 
 function summarizeConstraints(constraints?: Constraints): ConstraintSummary | undefined {
   if (!constraints) return undefined
@@ -38,7 +32,16 @@ function summarizeConstraints(constraints?: Constraints): ConstraintSummary | un
 // Re-export the canonical MatchData type
 export type { MatchData } from './frontend/types'
 
-export function generateMatchData(): MatchData {
+interface GenerateMatchDataInput {
+  examples: any[]
+  embeddings: EmbeddingsStore
+}
+
+/**
+ * Generate match data from provided examples and embeddings.
+ */
+export function generateMatchData({ examples, embeddings }: GenerateMatchDataInput): MatchData {
+
   // Use low threshold to get all potential matches; UI slider filters client-side
   const matcher = new Matcher({ similarityThreshold: 0.5 })
   const { capacities, needs, byId } = convertExamples(examples as any, embeddings)

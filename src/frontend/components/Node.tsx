@@ -11,6 +11,7 @@ type NodeProps = {
   color: string
   isConnected: boolean
   lockedNodeId: string | null
+  searchMatch: boolean | null // null = no search active, true/false = matches search
   onSelect: (id: string) => void
   onHover: (id: string, isCapacity: boolean) => void
   onLeave: () => void
@@ -29,6 +30,7 @@ export function Node({
   color,
   isConnected,
   lockedNodeId,
+  searchMatch,
   onSelect,
   onHover,
   onLeave,
@@ -38,7 +40,9 @@ export function Node({
   onHideConnectedTooltips,
 }: NodeProps): React.ReactElement {
   const pos = getPosition(index, total, radius)
-  const opacity = lockedNodeId && !isConnected ? 0.3 : 1
+  // Dim if: locked and not connected, OR search active and not matching
+  const dimmed = (lockedNodeId && !isConnected) || (searchMatch === false)
+  const opacity = dimmed ? 0.15 : 1
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()

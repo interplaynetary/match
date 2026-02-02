@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-01T22:46:06.919Z",
+  "timestamp": "2026-02-02T09:09:25.025Z",
   "model": "gpt-4o-mini",
   "total": 145,
   "completed": 145,
@@ -8182,6 +8182,50 @@
         "recreational land users"
       ],
       "notes": "Owner may want to explore various uses for the land."
+    },
+    {
+      "id": "23df1738df30",
+      "naturalLanguage": "I offer audio ML tech & product leadership and development for startups",
+      "type": "capacity",
+      "expressions": [
+        {
+          "text": "audio ML technology leadership",
+          "categoryChain": [
+            "services",
+            "technology",
+            "machine-learning",
+            "audio"
+          ],
+          "disjointWith": null
+        },
+        {
+          "text": "product development for audio ML",
+          "categoryChain": [
+            "services",
+            "technology",
+            "product-development",
+            "audio-ml"
+          ],
+          "disjointWith": null
+        },
+        {
+          "text": "technical leadership for startups",
+          "categoryChain": [
+            "services",
+            "business",
+            "consulting",
+            "startup"
+          ],
+          "disjointWith": null
+        }
+      ],
+      "constraints": null,
+      "shouldMatchWith": [
+        "startups needing tech leadership",
+        "companies looking for audio ML expertise",
+        "entrepreneurs seeking product development guidance"
+      ],
+      "notes": "Focus on audio ML and product development for startups."
     }
   ]
 }

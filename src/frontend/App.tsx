@@ -17,12 +17,15 @@ import {
   OverviewSidebar,
   DetailSidebar,
   TaxonomyTreeView,
+  AddEntryDialog,
+  SearchBar,
+  type SearchResult,
 } from './components/index.ts'
 
 type ViewMode = 'chord' | 'taxonomy'
 
 function App(): React.ReactElement {
-  const { data, error } = useMatchData()
+  const { data, error, refetch } = useMatchData()
   const [viewMode, setViewMode] = useState<ViewMode>('chord')
   const [threshold, setThreshold] = useState(0.8)
   const [lockedNodeId, setLockedNodeId] = useState<string | null>(null)
@@ -30,6 +33,7 @@ function App(): React.ReactElement {
     id: string
     isCapacity: boolean
   } | null>(null)
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
   const tooltip = useTooltip()
@@ -134,6 +138,36 @@ function App(): React.ReactElement {
     []
   )
 
+  const handleAddEntry = useCallback(
+    async (entry: { naturalLanguage: string; type: 'capacity' | 'need' }) => {
+      const res = await fetch('/api/add-entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to add entry')
+      }
+      await refetch()
+    },
+    [refetch]
+  )
+
+  const handleSearchResults = useCallback((results: SearchResult[]) => {
+    setSearchResults(results)
+  }, [])
+
+  const handleSearchClear = useCallback(() => {
+    setSearchResults(null)
+  }, [])
+
+  // Build set of matching IDs from search
+  const searchMatchIds = useMemo(() => {
+    if (!searchResults) return null
+    return new Set(searchResults.map((r) => r.id))
+  }, [searchResults])
+
   if (error) {
     return (
       <div
@@ -183,6 +217,7 @@ function App(): React.ReactElement {
 
   return (
     <>
+      <AddEntryDialog onSubmit={handleAddEntry} />
       <div
         id="tooltip"
         ref={tooltip.ref}
@@ -208,6 +243,7 @@ function App(): React.ReactElement {
 
       <div className="container">
         <div className="viz">
+          <SearchBar threshold={threshold} onResults={handleSearchResults} onClear={handleSearchClear} />
           {viewMode === 'taxonomy' ? (
             <TaxonomyTreeView />
           ) : (
@@ -236,6 +272,11 @@ function App(): React.ReactElement {
                   const needPos = getPosition(needIndex, data.needs.length, NEED_RADIUS)
                   const color = getNodeColor(cap.embedding, data.pcaTransform, true)
 
+                  // Chord matches search if either endpoint matches
+                  const chordSearchMatch = searchMatchIds
+                    ? searchMatchIds.has(match.capacityId) || searchMatchIds.has(match.needId)
+                    : null
+
                   return (
                     <Chord
                       key={`${match.capacityId}-${match.needId}`}
@@ -248,6 +289,7 @@ function App(): React.ReactElement {
                       lockedNodeId={lockedNodeId}
                       activeNodeId={activeNodeId}
                       activeIsCapacity={activeIsCapacity}
+                      searchMatch={chordSearchMatch}
                       onShowTooltip={tooltip.show}
                       onHideTooltip={tooltip.hide}
                     />
@@ -267,6 +309,7 @@ function App(): React.ReactElement {
                   color={getNodeColor(cap.embedding, data.pcaTransform, true)}
                   isConnected={connectedIds.has(cap.id)}
                   lockedNodeId={lockedNodeId}
+                  searchMatch={searchMatchIds ? searchMatchIds.has(cap.id) : null}
                   onSelect={handleNodeSelect}
                   onHover={handleNodeHover}
                   onLeave={handleNodeLeave}
@@ -289,6 +332,7 @@ function App(): React.ReactElement {
                   color={getNodeColor(need.embedding, data.pcaTransform, false)}
                   isConnected={connectedIds.has(need.id)}
                   lockedNodeId={lockedNodeId}
+                  searchMatch={searchMatchIds ? searchMatchIds.has(need.id) : null}
                   onSelect={handleNodeSelect}
                   onHover={handleNodeHover}
                   onLeave={handleNodeLeave}

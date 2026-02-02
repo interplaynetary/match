@@ -15,17 +15,14 @@
 
 import { OpenAIEmbeddingProvider } from '../src/embeddings'
 import type { EmbeddingsStore } from '../src/example-converter'
-import { extractCategoryNames, type EnrichedExampleWithId } from '../src/enrichment'
+import type { EnrichedExampleWithId } from '../src/enrichment'
+import { embedBatch } from '../src/embedding-ops'
 
 const ENRICHED_FILE = './data/enriched-full.json'
 const EMBEDDINGS_FILE = './data/embeddings.json'
 
 type EnrichedData = {
   results: EnrichedExampleWithId[]
-}
-
-function embeddingText(example: EnrichedExampleWithId): string {
-  return example.expressions.map(e => e.text).join(' | ')
 }
 
 async function main() {
@@ -42,64 +39,29 @@ async function main() {
 
   console.log(`Loaded ${examples.length} examples, ${Object.keys(existingEmbeddings).length} existing embeddings`)
 
-  // Collect all texts that need embeddings
-  const textsToEmbed: Array<{ key: string; text: string }> = []
+  // Initialize provider
+  const provider = new OpenAIEmbeddingProvider()
 
-  // Check which examples need embeddings
-  for (const example of examples) {
-    if (!existingEmbeddings[example.id]) {
-      textsToEmbed.push({
-        key: example.id,
-        text: embeddingText(example),
-      })
-    }
-  }
-  console.log(`${textsToEmbed.length} examples need embeddings`)
+  // Run batch embedding with progress reporting
+  const allEmbeddings = await embedBatch(examples, existingEmbeddings, provider, {
+    batchSize: 100,
+    onProgress: (completed, total) => {
+      const batchNum = Math.ceil(completed / 100)
+      const totalBatches = Math.ceil(total / 100)
+      console.log(`  Batch ${batchNum}/${totalBatches}...`)
+    },
+  })
 
-  // Check which category names need embeddings
-  const categoryNames = extractCategoryNames(examples)
-  let categoriesNeeded = 0
-  for (const category of categoryNames) {
-    if (!existingEmbeddings[category]) {
-      textsToEmbed.push({
-        key: category,
-        text: category, // embed the category name itself
-      })
-      categoriesNeeded++
-    }
-  }
-  console.log(`${categoriesNeeded} category names need embeddings (${categoryNames.length} total)`)
-
-  if (textsToEmbed.length === 0) {
+  const newCount = Object.keys(allEmbeddings).length - Object.keys(existingEmbeddings).length
+  if (newCount === 0) {
     console.log('All embeddings up to date')
     return
   }
 
-  console.log(`Generating ${textsToEmbed.length} embeddings...`)
-
-  // Initialize provider
-  const provider = new OpenAIEmbeddingProvider()
-
-  // Batch embed (OpenAI supports up to 2048 inputs per request)
-  const batchSize = 100
-
-  for (let i = 0; i < textsToEmbed.length; i += batchSize) {
-    const batch = textsToEmbed.slice(i, i + batchSize)
-    const texts = batch.map(t => t.text)
-
-    console.log(`  Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(textsToEmbed.length / batchSize)}...`)
-
-    const batchEmbeddings = await provider.embedBatch(texts)
-
-    for (let j = 0; j < batch.length; j++) {
-      existingEmbeddings[batch[j]!.key] = batchEmbeddings[j]!
-    }
-  }
-
   // Write embeddings file
-  await Bun.write(EMBEDDINGS_FILE, JSON.stringify(existingEmbeddings))
+  await Bun.write(EMBEDDINGS_FILE, JSON.stringify(allEmbeddings))
 
-  console.log(`Done! ${Object.keys(existingEmbeddings).length} embeddings saved to ${EMBEDDINGS_FILE}`)
+  console.log(`Done! ${Object.keys(allEmbeddings).length} embeddings saved to ${EMBEDDINGS_FILE}`)
 }
 
 main().catch(console.error)

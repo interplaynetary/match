@@ -12,6 +12,7 @@ type ChordProps = {
   lockedNodeId: string | null
   activeNodeId: string | null
   activeIsCapacity: boolean | undefined
+  searchMatch: boolean | null // null = no search, true = at least one endpoint matches
   onShowTooltip: (e: React.MouseEvent, content: React.ReactNode) => void
   onHideTooltip: () => void
 }
@@ -26,6 +27,7 @@ export function Chord({
   lockedNodeId,
   activeNodeId,
   activeIsCapacity,
+  searchMatch,
   onShowTooltip,
   onHideTooltip,
 }: ChordProps): React.ReactElement {
@@ -44,7 +46,10 @@ export function Chord({
   // Square specificity for visual emphasis
   const baseOpacity = specificity * specificity
   // When locked to a node, hide non-highlighted edges completely
-  const opacity = lockedNodeId && !isHighlighted ? 0 : baseOpacity
+  // When searching, dim chords where neither endpoint matches
+  const dimmedByLock = lockedNodeId && !isHighlighted
+  const dimmedBySearch = searchMatch === false
+  const opacity = dimmedByLock ? 0 : dimmedBySearch ? 0.05 : baseOpacity
 
   const handleMouseEnter = (e: React.MouseEvent) => {
     const exprs = match.matchedExpressions
