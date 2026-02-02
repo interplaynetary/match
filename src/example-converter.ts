@@ -12,26 +12,13 @@ export type RawExample = {
 
 export type EmbeddingsStore = Record<string, number[]>
 
-export function convertToCapacity(example: RawExample, embedding?: number[]): Capacity | null {
-  if (example.type !== 'capacity') return null
+function convertExample(example: RawExample, embedding?: number[]): Capacity | Need | null {
   if (!example.expressions || example.expressions.length === 0) return null
 
   return {
     id: example.id,
     expressions: example.expressions as Expression[],
     constraints: example.constraints as Capacity['constraints'],
-    embedding,
-  }
-}
-
-export function convertToNeed(example: RawExample, embedding?: number[]): Need | null {
-  if (example.type !== 'need') return null
-  if (!example.expressions || example.expressions.length === 0) return null
-
-  return {
-    id: example.id,
-    expressions: example.expressions as Expression[],
-    constraints: example.constraints as Need['constraints'],
     embedding,
   }
 }
@@ -49,31 +36,16 @@ export function convertExamples(
   const byId = new Map<string, { original: RawExample; converted: Capacity | Need }>()
 
   for (const example of examples) {
-    const id = example.id
-    const embedding = embeddings[id]
+    const converted = convertExample(example, embeddings[example.id])
+    if (!converted) continue
 
     if (example.type === 'capacity') {
-      const capacity = convertToCapacity(example, embedding)
-      if (capacity) {
-        capacities.push(capacity)
-        byId.set(id, { original: example, converted: capacity })
-      }
+      capacities.push(converted)
     } else {
-      const need = convertToNeed(example, embedding)
-      if (need) {
-        needs.push(need)
-        byId.set(id, { original: example, converted: need })
-      }
+      needs.push(converted)
     }
+    byId.set(example.id, { original: example, converted })
   }
 
   return { capacities, needs, byId }
 }
-
-// Known matching pairs based on consecutive IDs and compatible expressions
-export const KNOWN_PAIRS: Array<{ needId: number; capacityId: number; reason: string }> = [
-  { needId: 2, capacityId: 1, reason: 'flour need ↔ flour capacity' },
-  { needId: 4, capacityId: 3, reason: 'lawnmower need ↔ lawnmower capacity' },
-  { needId: 6, capacityId: 5, reason: 'piano student ↔ piano teacher' },
-  { needId: 9, capacityId: 10, reason: 'bicycle buyer ↔ bicycle seller' },
-]
