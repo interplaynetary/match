@@ -12,8 +12,8 @@ import enrichedData from '../data/enriched-full.json'
 
 const examples = enrichedData.results
 import embeddingsData from '../data/embeddings.json'
+import type { EmbeddingsStore } from './example-converter.ts'
 
-type EmbeddingsStore = Record<string, number[]>
 const embeddings = embeddingsData as EmbeddingsStore
 
 // Cache data (regenerate by restarting server)

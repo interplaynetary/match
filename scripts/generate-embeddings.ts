@@ -14,42 +14,18 @@
  */
 
 import { OpenAIEmbeddingProvider } from '../src/embeddings'
+import type { EmbeddingsStore } from '../src/example-converter'
+import { extractCategoryNames, type EnrichedExampleWithId } from '../src/enrichment'
 
 const ENRICHED_FILE = './data/enriched-full.json'
 const EMBEDDINGS_FILE = './data/embeddings.json'
 
-type EnrichedExample = {
-  id: string
-  naturalLanguage: string
-  type: 'capacity' | 'need'
-  expressions: Array<{ text: string; categoryChain?: string[] }>
-}
-
 type EnrichedData = {
-  results: EnrichedExample[]
+  results: EnrichedExampleWithId[]
 }
 
-type EmbeddingsStore = Record<string, number[]>
-
-function embeddingText(example: EnrichedExample): string {
+function embeddingText(example: EnrichedExampleWithId): string {
   return example.expressions.map(e => e.text).join(' | ')
-}
-
-/**
- * Extract all unique category names from the examples.
- */
-function extractCategoryNames(examples: EnrichedExample[]): string[] {
-  const categories = new Set<string>()
-  for (const example of examples) {
-    for (const expr of example.expressions) {
-      if (expr.categoryChain) {
-        for (const category of expr.categoryChain) {
-          categories.add(category)
-        }
-      }
-    }
-  }
-  return Array.from(categories)
 }
 
 async function main() {

@@ -8,7 +8,16 @@
  * - Matching hints
  */
 
+import { createHash } from 'crypto'
 import { z } from 'zod'
+
+/**
+ * Generate a content-based ID from text using SHA-256.
+ * Returns the first 12 characters of the hash.
+ */
+export function contentId(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 12)
+}
 
 // =============================================================================
 // Schemas
@@ -174,6 +183,12 @@ export type EnrichedExampleType = z.infer<typeof EnrichedExample>
 export type UserInputType = z.infer<typeof UserInput>
 export type ConstraintsType = z.infer<typeof Constraints>
 
+/**
+ * EnrichedExample with an ID added (result of the enrichment pipeline).
+ * The id is a content hash generated from the naturalLanguage field.
+ */
+export type EnrichedExampleWithId = EnrichedExampleType & { id: string }
+
 // =============================================================================
 // Statistics
 // =============================================================================
@@ -186,6 +201,22 @@ export interface CategoryStats {
     avg: number
   }
   totalExpressions: number
+}
+
+/**
+ * Extract all unique category names from enriched examples.
+ * Used for generating embeddings for taxonomy nodes.
+ */
+export function extractCategoryNames(examples: EnrichedExampleType[]): string[] {
+  const categories = new Set<string>()
+  for (const example of examples) {
+    for (const expr of example.expressions) {
+      for (const category of expr.categoryChain) {
+        categories.add(category)
+      }
+    }
+  }
+  return Array.from(categories)
 }
 
 /**

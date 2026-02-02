@@ -10,10 +10,10 @@
 
 import { buildTaxonomyTree, type TaxonomyNode } from '../src/taxonomy-tree'
 import { cosineSimilarity } from '../src/embeddings'
+import type { EmbeddingsStore } from '../src/example-converter'
 import enrichedData from '../data/enriched-full.json'
 import embeddingsData from '../data/embeddings.json'
 
-type EmbeddingsStore = Record<string, number[]>
 const embeddings = embeddingsData as EmbeddingsStore
 
 const suggestMoves = process.argv.includes('--suggest-moves')

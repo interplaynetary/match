@@ -10,13 +10,9 @@
  *   --concurrency N Process N inputs in parallel (default: 25)
  */
 
-import { createHash } from 'crypto'
 import { createOpenAIPipe } from '../src/ai-pipe'
-
-function contentId(text: string): string {
-  return createHash('sha256').update(text).digest('hex').slice(0, 12)
-}
 import {
+  contentId,
   UserInput,
   EnrichedExample,
   ENRICHMENT_PROMPT,
