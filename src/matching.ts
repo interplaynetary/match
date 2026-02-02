@@ -67,8 +67,17 @@ export function slotsCompatible(
 // ═══════════════════════════════════════════════════════════════════
 
 /**
+ * Check if a contact has all required skills.
+ */
+function hasRequiredSkills(requirements: Resource['required_skills'], contact: Contact | undefined): boolean {
+    if (!requirements?.length) return true;
+    if (!contact) return false;
+    return requirements.every(req => contact.skills.some(s => s.id === req.id));
+}
+
+/**
  * Check if skills are compatible between two parties in a transaction.
- * 
+ *
  * Verifies two directions:
  * 1. FORWARD: Does the Provider have the skills required by the Need?
  * 2. REVERSE: Does the Seeker have the skills required by the Capacity?
@@ -79,30 +88,8 @@ export function skillsCompatible(
     capacitySlot: Resource,
     seeker: Contact | undefined
 ): boolean {
-    // 1. FORWARD CHECK: Need requires Provider Skills
-    if (needSlot.required_skills && needSlot.required_skills.length > 0) {
-        if (!provider) return false; // Provider identity required for skill check
-
-        const missingSkill = needSlot.required_skills.find(req => {
-            // Check if provider has this skill (by ID)
-            return !provider.skills.some(s => s.id === req.id);
-        });
-
-        if (missingSkill) return false;
-    }
-
-    // 2. REVERSE CHECK: Capacity requires Seeker Skills
-    if (capacitySlot.required_skills && capacitySlot.required_skills.length > 0) {
-        if (!seeker) return false; // Seeker identity required for skill check
-
-        const missingSkill = capacitySlot.required_skills.find(req => {
-            return !seeker.skills.some(s => s.id === req.id);
-        });
-
-        if (missingSkill) return false;
-    }
-
-    return true;
+    return hasRequiredSkills(needSlot.required_skills, provider) &&
+           hasRequiredSkills(capacitySlot.required_skills, seeker);
 }
 
 /**
@@ -776,7 +763,7 @@ export function passesSlotFilters(
 // SPACE-TIME GROUPING
 // ═══════════════════════════════════════════════════════════════════
 
-export function getSpaceTimeSignature(slot: Resource | Resource): string {
+export function getSpaceTimeSignature(slot: Resource): string {
     let timeKey: string;
     if (slot.availability_window) {
         const w = slot.availability_window;
@@ -799,7 +786,7 @@ export function getSpaceTimeSignature(slot: Resource | Resource): string {
     return `${timeKey}::${locKey}`;
 }
 
-export function groupSlotsBySpaceTime<T extends Resource | Resource>(slots: T[]): Map<string, { quantity: number; slots: T[] }> {
+export function groupSlotsBySpaceTime<T extends Resource>(slots: T[]): Map<string, { quantity: number; slots: T[] }> {
     const groups = new Map<string, { quantity: number; slots: T[] }>();
     for (const slot of slots) {
         const sig = getSpaceTimeSignature(slot);

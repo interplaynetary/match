@@ -81,24 +81,22 @@ export class Matcher {
     // Compute final similarity score
     // If we have a category match within distance threshold, blend category score with embedding score
     // Otherwise, use pure embedding similarity
-    let similarity: number
+    let similarity = embeddingSimilarity
     let effectiveCategoryResult = categoryResult
-    if (categoryResult && !categoryResult.isBlocked) {
+    if (categoryResult) {
       const categoryScore = computeCategoryScore(categoryResult.overlapDistance)
       if (categoryScore !== null) {
         // Category match within threshold: 70% category score, 30% embedding score
         similarity = categoryScore * 0.7 + embeddingSimilarity * 0.3
       } else {
         // Distance too high, category match is too generic to use
-        similarity = embeddingSimilarity
         effectiveCategoryResult = null  // don't report as category match
       }
-    } else {
-      similarity = embeddingSimilarity
     }
 
     // Find best matching expression pair for reporting
-    const matchedExpressions = this.findBestExpressionMatch(need, capacity, similarity)
+    const bestExpressions = this.findBestExpressionMatch(need, capacity)
+    const matchedExpressions = { ...bestExpressions, similarity }
 
     // Compute priority weight (higher priority = lower number = higher weight)
     const priorityWeight = this.computePriorityWeight(matchedExpressions.need, matchedExpressions.capacity)
@@ -230,21 +228,15 @@ export class Matcher {
 
   /**
    * Find the best matching pair of expressions between need and capacity.
-   * For now, just returns the first expressions - in future could do per-expression embedding matching.
+   * TODO: per-expression embedding matching instead of just highest priority
    */
   private findBestExpressionMatch(
     need: Need,
-    capacity: Capacity,
-    similarity: number
-  ): MatchResult['matchedExpressions'] {
-    // Return highest priority expressions from each
-    const needExpr = this.getHighestPriorityExpression(need.expressions)
-    const capExpr = this.getHighestPriorityExpression(capacity.expressions)
-
+    capacity: Capacity
+  ): { need: Expression; capacity: Expression } {
     return {
-      need: needExpr,
-      capacity: capExpr,
-      similarity,
+      need: this.getHighestPriorityExpression(need.expressions),
+      capacity: this.getHighestPriorityExpression(capacity.expressions),
     }
   }
 

@@ -57,21 +57,8 @@ export function findCategoryOverlap(
  * declares as disjoint.
  */
 export function hasDisjointConflict(a: CategoryInfo, b: CategoryInfo): boolean {
-  // Check if any category in b's chain is in a's disjoint list
-  for (const category of b.chain) {
-    if (a.disjointWith.includes(category)) {
-      return true
-    }
-  }
-
-  // Check if any category in a's chain is in b's disjoint list
-  for (const category of a.chain) {
-    if (b.disjointWith.includes(category)) {
-      return true
-    }
-  }
-
-  return false
+  return b.chain.some(cat => a.disjointWith.includes(cat)) ||
+         a.chain.some(cat => b.disjointWith.includes(cat))
 }
 
 /**
