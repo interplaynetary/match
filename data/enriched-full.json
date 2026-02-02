@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-02T09:09:25.025Z",
+  "timestamp": "2026-02-02T13:37:58.352Z",
   "model": "gpt-4o-mini",
   "total": 145,
   "completed": 145,
@@ -8226,6 +8226,81 @@
         "entrepreneurs seeking product development guidance"
       ],
       "notes": "Focus on audio ML and product development for startups."
+    },
+    {
+      "id": "bad60e9fb8e8",
+      "naturalLanguage": "I can wash your windows for free!",
+      "type": "capacity",
+      "expressions": [
+        {
+          "text": "window washing service",
+          "categoryChain": [
+            "services",
+            "home-maintenance",
+            "cleaning",
+            "window-cleaning"
+          ],
+          "disjointWith": null
+        },
+        {
+          "text": "free window cleaning",
+          "categoryChain": [
+            "services",
+            "home-maintenance",
+            "cleaning",
+            "window-cleaning"
+          ],
+          "disjointWith": null
+        },
+        {
+          "text": "window washer",
+          "categoryChain": [
+            "services",
+            "home-maintenance",
+            "cleaning",
+            "window-cleaning"
+          ],
+          "disjointWith": null
+        }
+      ],
+      "constraints": {
+        "quantity": {
+          "amount": null,
+          "min": null,
+          "max": null,
+          "unit": null
+        },
+        "time": {
+          "availableFrom": null,
+          "availableTo": null,
+          "deadline": null,
+          "recurring": null,
+          "days": null,
+          "hours": null,
+          "urgency": null
+        },
+        "location": {
+          "city": null,
+          "area": null,
+          "neighborhood": null,
+          "mode": null,
+          "willTravel": null,
+          "radius": null
+        },
+        "price": {
+          "amount": null,
+          "min": null,
+          "max": null,
+          "currency": null,
+          "period": null
+        }
+      },
+      "shouldMatchWith": [
+        "homeowners needing window cleaning",
+        "people looking for free services",
+        "residential cleaning requests"
+      ],
+      "notes": "Offering a service at no cost could attract those in need of help."
     }
   ]
 }
