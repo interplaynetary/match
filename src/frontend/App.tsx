@@ -37,6 +37,11 @@ function App(): React.ReactElement {
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
+  // Stub speech controls (not implemented)
+  const isSpeaking = false
+  const handleSpeak = () => {}
+  const handleStopSpeech = () => {}
+
   const tooltip = useTooltip()
 
   // Build connection map for hover labels
@@ -107,6 +112,19 @@ function App(): React.ReactElement {
       }
     }
     return ids
+  }, [activeNodeId, activeIsCapacity, getNodeMatches])
+
+  // Active item and matches for detail sidebar
+  const activeItem = useMemo(() => {
+    if (!data || !activeNodeId) return null
+    return activeIsCapacity
+      ? data.capacities.find((c) => c.id === activeNodeId)
+      : data.needs.find((n) => n.id === activeNodeId)
+  }, [data, activeNodeId, activeIsCapacity])
+
+  const activeMatches = useMemo(() => {
+    if (!activeNodeId) return []
+    return getNodeMatches(activeNodeId, activeIsCapacity ?? false)
   }, [activeNodeId, activeIsCapacity, getNodeMatches])
 
   // Node interaction handlers
@@ -399,8 +417,6 @@ function App(): React.ReactElement {
                 <OverviewSidebar
                   data={data}
                   filteredMatches={filteredMatches}
-                  needsWithMatches={needsWithMatches}
-                  capacitiesWithMatches={capacitiesWithMatches}
                   threshold={threshold}
                   onThresholdChange={setThreshold}
                 />

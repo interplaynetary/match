@@ -4,8 +4,6 @@ import { ThresholdSlider } from './ThresholdSlider.tsx'
 type OverviewSidebarProps = {
   data: MatchData
   filteredMatches: Match[]
-  needsWithMatches: number
-  capacitiesWithMatches: number
   threshold: number
   onThresholdChange: (value: number) => void
 }
@@ -13,10 +11,10 @@ type OverviewSidebarProps = {
 export function OverviewSidebar({
   data,
   filteredMatches,
-  needsWithMatches,
   threshold,
   onThresholdChange,
 }: OverviewSidebarProps): React.ReactElement {
+  const needsWithMatches = new Set(filteredMatches.map((m) => m.needId)).size
   return (
     <div className="sidebar-view active">
       <h1>Match Visualization</h1>
