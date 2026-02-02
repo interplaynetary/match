@@ -14,10 +14,11 @@ bun test
 # Run a single test file
 bun test src/matcher.test.ts
 
-# Enrich user inputs with LLM (requires OPENAI_API_KEY in .env)
-bun scripts/run-enrichment.ts --output data/enriched.json
+# Run full pipeline: enrich + merge taxonomy + generate embeddings
+bun scripts/run-pipeline.ts
 
-# Generate embeddings (requires OPENAI_API_KEY in .env)
+# Individual pipeline steps (requires OPENAI_API_KEY in .env)
+bun scripts/run-enrichment.ts --output data/enriched-full.json
 bun scripts/generate-embeddings.ts
 ```
 
@@ -27,18 +28,21 @@ This is a **semantic matching system** for connecting human capacities (what peo
 
 ### Data Flow
 
-**Static pipeline (UI):**
 ```
-matching-examples.json ──► enriched-examples.json ──► embeddings.json
-                                    │
-                                    ▼
-                          matcher.ts ──► /api/matches ──► React UI
+user-inputs.json
+       │
+       ▼
+run-enrichment.ts (LLM enrichment + taxonomy merging)
+       │
+       ▼
+enriched-full.json ──► generate-embeddings.ts ──► embeddings.json
+       │                                                │
+       └────────────────────┬───────────────────────────┘
+                            ▼
+                      server.ts ──► React UI (graph + taxonomy views)
 ```
 
-**Live enrichment pipeline:**
-```
-user-inputs.json ──► run-enrichment.ts (gpt-4o-mini, concurrency=25) ──► enriched output
-```
+Taxonomy merging uses "deeper root wins" - no hardcoded root categories.
 
 ### Key Modules
 

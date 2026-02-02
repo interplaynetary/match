@@ -9,6 +9,8 @@ const WIDTH = 900
 const HEIGHT = 600
 const INITIAL_DEPTH = 3
 
+type ColorMode = 'semantic' | 'cohesion'
+
 // Fallback colors when no embedding available
 const DEPTH_COLORS = [
   '#1a1a2e', // root
@@ -17,11 +19,38 @@ const DEPTH_COLORS = [
   '#1a4a7a', // level 3+
 ]
 
+/**
+ * Convert cohesion score (0-1) to a color
+ * Low cohesion = red, high cohesion = green
+ */
+function cohesionToColor(score: number): string {
+  // Clamp to 0-1
+  const s = Math.max(0, Math.min(1, score))
+
+  // Use a perceptually uniform scale
+  // Low (0) = dark red, High (1) = dark green
+  const hue = s * 120 // 0 = red, 120 = green
+  const saturation = 60
+  const lightness = 25 + s * 15 // slightly brighter for high cohesion
+
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+}
+
 function getColor(
   rect: TreemapRect,
-  pcaTransform: PCATransform | null
+  pcaTransform: PCATransform | null,
+  colorMode: ColorMode
 ): string {
-  // Use semantic color if embedding available
+  if (colorMode === 'cohesion') {
+    // Use cohesion score if available
+    if (rect.cohesion) {
+      return cohesionToColor(rect.cohesion.combined)
+    }
+    // Leaf nodes without cohesion get neutral color
+    return '#2a2a3e'
+  }
+
+  // Semantic mode: use embedding color
   if (rect.embedding && pcaTransform) {
     return embeddingToColor(rect.embedding, pcaTransform)
   }
@@ -33,6 +62,7 @@ export function TaxonomyTreeView(): React.ReactElement {
   const { data, pcaTransform, error } = useTaxonomyData()
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [colorMode, setColorMode] = useState<ColorMode>('semantic')
 
   // Initialize expanded nodes when data loads
   useEffect(() => {
@@ -61,12 +91,18 @@ export function TaxonomyTreeView(): React.ReactElement {
     })
   }, [])
 
-  // Get breadcrumb path for hovered node
-  const breadcrumb = useMemo(() => {
+  // Get breadcrumb path and cohesion info for hovered node
+  const breadcrumbInfo = useMemo(() => {
     if (!hoveredId) return null
     const parts = hoveredId.split('/').slice(1) // Remove 'root'
-    return parts.join(' > ')
-  }, [hoveredId])
+    const path = parts.join(' > ')
+
+    // Find the rect to get cohesion score
+    const rect = rects.find(r => r.id === hoveredId)
+    const cohesion = rect?.cohesion
+
+    return { path, cohesion }
+  }, [hoveredId, rects])
 
   if (error) {
     return <div className="tree-error">Error loading taxonomy: {error}</div>
@@ -78,8 +114,34 @@ export function TaxonomyTreeView(): React.ReactElement {
 
   return (
     <div className="treemap-container">
+      <div className="treemap-controls">
+        <button
+          className={`mode-toggle ${colorMode === 'semantic' ? 'active' : ''}`}
+          onClick={() => setColorMode('semantic')}
+        >
+          Semantic
+        </button>
+        <button
+          className={`mode-toggle ${colorMode === 'cohesion' ? 'active' : ''}`}
+          onClick={() => setColorMode('cohesion')}
+        >
+          Cohesion
+        </button>
+      </div>
       <div className="treemap-breadcrumb">
-        {breadcrumb || 'Hover over a category to see its path'}
+        {breadcrumbInfo ? (
+          <>
+            {breadcrumbInfo.path}
+            {breadcrumbInfo.cohesion && (
+              <span className="cohesion-info">
+                {' '}| cohesion: {breadcrumbInfo.cohesion.combined.toFixed(3)}
+                {' '}(p-c: {breadcrumbInfo.cohesion.parentChildSim.toFixed(2)}, sib: {breadcrumbInfo.cohesion.siblingCohesion.toFixed(2)})
+              </span>
+            )}
+          </>
+        ) : (
+          'Hover over a category to see its path'
+        )}
       </div>
       <svg
         className="taxonomy-treemap"
@@ -96,7 +158,7 @@ export function TaxonomyTreeView(): React.ReactElement {
           // Skip root
           if (rect.depth === 0) return null
 
-          const color = getColor(rect, pcaTransform)
+          const color = getColor(rect, pcaTransform, colorMode)
 
           return (
             <g

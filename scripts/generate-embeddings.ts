@@ -1,9 +1,10 @@
 /*
- * Generate embeddings for all examples in matching-examples.json
+ * Generate embeddings for enriched examples and category names
  *
- * Uses OpenAI's text-embedding-3-small model to create embeddings from
- * each example's expressions. Embeddings are stored separately in embeddings.json
- * to keep the main examples file readable.
+ * Uses OpenAI's text-embedding-3-small model to create embeddings.
+ * Embeddings are stored in embeddings.json keyed by:
+ * - Example ID (e.g., "1", "2") for item embeddings
+ * - Category name (e.g., "food", "services") for taxonomy node embeddings
  *
  * Usage:
  *   bun scripts/generate-embeddings.ts
@@ -12,27 +13,21 @@
  *   OPENAI_API_KEY environment variable (Bun auto-loads from .env)
  */
 
-import { OpenAIEmbeddingProvider, generateEmbeddingText } from '../src/embeddings'
-import { convertExamples } from '../src/example-converter'
+import { OpenAIEmbeddingProvider } from '../src/embeddings'
+import type { EmbeddingsStore } from '../src/example-converter'
+import type { EnrichedExampleWithId } from '../src/enrichment'
+import { embedBatch } from '../src/embedding-ops'
 
-const EXAMPLES_FILE = './data/matching-examples.json'
+const ENRICHED_FILE = './data/enriched-full.json'
 const EMBEDDINGS_FILE = './data/embeddings.json'
 
-type RawExample = {
-  id: number
-  category: string
-  naturalLanguage: string
-  type: 'capacity' | 'need'
-  expressions: Array<{ text: string; priority?: number }>
-  constraints?: Record<string, unknown>
-  shouldMatchWith?: string[]
-  notes?: string
+type EnrichedData = {
+  results: EnrichedExampleWithId[]
 }
 
-type EmbeddingsStore = Record<string, number[]>
-
 async function main() {
-  const examples: RawExample[] = await Bun.file(EXAMPLES_FILE).json()
+  const data: EnrichedData = await Bun.file(ENRICHED_FILE).json()
+  const examples = data.results
 
   // Load existing embeddings if any
   let existingEmbeddings: EmbeddingsStore = {}
@@ -44,53 +39,29 @@ async function main() {
 
   console.log(`Loaded ${examples.length} examples, ${Object.keys(existingEmbeddings).length} existing embeddings`)
 
-  // Check which examples need embeddings
-  const needsEmbedding = examples.filter(e => !existingEmbeddings[String(e.id)])
-  console.log(`${needsEmbedding.length} examples need embeddings`)
-
-  if (needsEmbedding.length === 0) {
-    console.log('All examples already have embeddings')
-    return
-  }
-
-  // Convert to our types to use generateEmbeddingText
-  const { byId } = convertExamples(examples)
-
-  // Generate text for each example that needs embedding
-  const textsToEmbed: Array<{ id: string; text: string }> = []
-  for (const example of needsEmbedding) {
-    const item = byId.get(String(example.id))
-    if (item) {
-      const text = generateEmbeddingText(item.converted)
-      textsToEmbed.push({ id: String(example.id), text })
-    }
-  }
-
-  console.log(`Generating ${textsToEmbed.length} embeddings...`)
-
   // Initialize provider
   const provider = new OpenAIEmbeddingProvider()
 
-  // Batch embed (OpenAI supports up to 2048 inputs per request)
-  const batchSize = 100
+  // Run batch embedding with progress reporting
+  const allEmbeddings = await embedBatch(examples, existingEmbeddings, provider, {
+    batchSize: 100,
+    onProgress: (completed, total) => {
+      const batchNum = Math.ceil(completed / 100)
+      const totalBatches = Math.ceil(total / 100)
+      console.log(`  Batch ${batchNum}/${totalBatches}...`)
+    },
+  })
 
-  for (let i = 0; i < textsToEmbed.length; i += batchSize) {
-    const batch = textsToEmbed.slice(i, i + batchSize)
-    const texts = batch.map(t => t.text)
-
-    console.log(`  Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(textsToEmbed.length / batchSize)}...`)
-
-    const batchEmbeddings = await provider.embedBatch(texts)
-
-    for (let j = 0; j < batch.length; j++) {
-      existingEmbeddings[batch[j]!.id] = batchEmbeddings[j]!
-    }
+  const newCount = Object.keys(allEmbeddings).length - Object.keys(existingEmbeddings).length
+  if (newCount === 0) {
+    console.log('All embeddings up to date')
+    return
   }
 
   // Write embeddings file
-  await Bun.write(EMBEDDINGS_FILE, JSON.stringify(existingEmbeddings))
+  await Bun.write(EMBEDDINGS_FILE, JSON.stringify(allEmbeddings))
 
-  console.log(`Done! ${Object.keys(existingEmbeddings).length} embeddings saved to ${EMBEDDINGS_FILE}`)
+  console.log(`Done! ${Object.keys(allEmbeddings).length} embeddings saved to ${EMBEDDINGS_FILE}`)
 }
 
 main().catch(console.error)

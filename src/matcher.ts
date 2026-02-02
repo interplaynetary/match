@@ -9,6 +9,7 @@ import type {
 import { cosineSimilarity } from './embeddings'
 import {
   findCategoryOverlap,
+  findSemanticOverlap,
   hasDisjointConflict,
   computeCategoryScore,
   computeSpecificity,
@@ -18,15 +19,23 @@ import { haversineDistance } from './spatial'
 import { availabilityWindowsOverlapWithTimezone } from './matching'
 import type { AvailabilityWindow, DayOfWeek, TimeRange } from './time'
 
+export type EmbeddingsLookup = Record<string, number[]>
+
 export type MatcherOptions = {
   similarityThreshold?: number  // minimum similarity to consider a match (default 0.6)
+  embeddings?: EmbeddingsLookup  // all embeddings (items + category names)
+  semanticThreshold?: number    // similarity threshold for wormhole matching (default 0.8)
 }
 
 export class Matcher {
   private similarityThreshold: number
+  private embeddings: EmbeddingsLookup | null
+  private semanticThreshold: number
 
   constructor(options: MatcherOptions = {}) {
     this.similarityThreshold = options.similarityThreshold ?? 0.6
+    this.embeddings = options.embeddings ?? null
+    this.semanticThreshold = options.semanticThreshold ?? 0.8
   }
 
   /**
@@ -70,19 +79,24 @@ export class Matcher {
     const embeddingSimilarity = Math.max(0, rawSimilarity)
 
     // Compute final similarity score
-    // If we have a category match, blend category score with embedding score
+    // If we have a category match within distance threshold, blend category score with embedding score
     // Otherwise, use pure embedding similarity
-    let similarity: number
-    if (categoryResult && !categoryResult.isBlocked) {
+    let similarity = embeddingSimilarity
+    let effectiveCategoryResult = categoryResult
+    if (categoryResult) {
       const categoryScore = computeCategoryScore(categoryResult.overlapDistance)
-      // Category match: 70% category score, 30% embedding score
-      similarity = categoryScore * 0.7 + embeddingSimilarity * 0.3
-    } else {
-      similarity = embeddingSimilarity
+      if (categoryScore !== null) {
+        // Category match within threshold: 70% category score, 30% embedding score
+        similarity = categoryScore * 0.7 + embeddingSimilarity * 0.3
+      } else {
+        // Distance too high, category match is too generic to use
+        effectiveCategoryResult = null  // don't report as category match
+      }
     }
 
     // Find best matching expression pair for reporting
-    const matchedExpressions = this.findBestExpressionMatch(need, capacity, similarity)
+    const bestExpressions = this.findBestExpressionMatch(need, capacity)
+    const matchedExpressions = { ...bestExpressions, similarity }
 
     // Compute priority weight (higher priority = lower number = higher weight)
     const priorityWeight = this.computePriorityWeight(matchedExpressions.need, matchedExpressions.capacity)
@@ -93,10 +107,10 @@ export class Matcher {
     // Combine scores: similarity * priorityWeight * constraintFeasibility
     const breakdown: MatchResult['breakdown'] = {
       similarity,
-      specificity: categoryResult?.specificity,
+      specificity: effectiveCategoryResult?.specificity,
       priorityWeight,
       ...constraintFeasibility.breakdown,
-      categoryMatch: categoryResult ?? undefined,
+      categoryMatch: effectiveCategoryResult ?? undefined,
     }
 
     const scores = [similarity, priorityWeight]
@@ -160,21 +174,50 @@ export class Matcher {
           }
         }
 
-        // Find overlap
-        const overlap = findCategoryOverlap(needExpr.categoryChain, capacityExpr.categoryChain)
-        if (overlap) {
-          const specificity = computeSpecificity(overlap.matchDepthA, overlap.matchDepthB)
+        // Try exact matching first
+        const exactOverlap = findCategoryOverlap(needExpr.categoryChain, capacityExpr.categoryChain)
+        if (exactOverlap) {
+          const specificity = computeSpecificity(exactOverlap.matchDepthA, exactOverlap.matchDepthB)
           const match: CategoryMatch = {
-            overlapCategory: overlap.category,
-            overlapDistance: overlap.distance,
+            overlapCategory: exactOverlap.category,
+            overlapDistance: exactOverlap.distance,
             isBlocked: false,
             specificity,
           }
 
-          // Keep the match with lowest distance (highest specificity on tie)
-          if (!bestMatch || overlap.distance < bestMatch.overlapDistance ||
-              (overlap.distance === bestMatch.overlapDistance && specificity > bestMatch.specificity)) {
+          if (!bestMatch || exactOverlap.distance < bestMatch.overlapDistance ||
+              (exactOverlap.distance === bestMatch.overlapDistance && specificity > bestMatch.specificity)) {
             bestMatch = match
+          }
+        }
+
+        // Try semantic matching if embeddings available (may find better match than exact)
+        if (this.embeddings) {
+          const needEmbs = needExpr.categoryChain.map(c => this.embeddings![c])
+          const capEmbs = capacityExpr.categoryChain.map(c => this.embeddings![c])
+
+          const semanticOverlap = findSemanticOverlap(
+            needExpr.categoryChain,
+            capacityExpr.categoryChain,
+            needEmbs,
+            capEmbs,
+            this.semanticThreshold
+          )
+
+          if (semanticOverlap) {
+            const specificity = computeSpecificity(semanticOverlap.matchDepthA, semanticOverlap.matchDepthB)
+            // Use similarity as a factor in the score
+            const match: CategoryMatch = {
+              overlapCategory: `${semanticOverlap.nodeA}≈${semanticOverlap.nodeB}`,
+              overlapDistance: semanticOverlap.blurDistance,
+              isBlocked: false,
+              specificity: specificity * semanticOverlap.similarity,
+            }
+
+            if (!bestMatch || semanticOverlap.blurDistance < bestMatch.overlapDistance ||
+                (semanticOverlap.blurDistance === bestMatch.overlapDistance && match.specificity > bestMatch.specificity)) {
+              bestMatch = match
+            }
           }
         }
       }
@@ -185,21 +228,15 @@ export class Matcher {
 
   /**
    * Find the best matching pair of expressions between need and capacity.
-   * For now, just returns the first expressions - in future could do per-expression embedding matching.
+   * TODO: per-expression embedding matching instead of just highest priority
    */
   private findBestExpressionMatch(
     need: Need,
-    capacity: Capacity,
-    similarity: number
-  ): MatchResult['matchedExpressions'] {
-    // Return highest priority expressions from each
-    const needExpr = this.getHighestPriorityExpression(need.expressions)
-    const capExpr = this.getHighestPriorityExpression(capacity.expressions)
-
+    capacity: Capacity
+  ): { need: Expression; capacity: Expression } {
     return {
-      need: needExpr,
-      capacity: capExpr,
-      similarity,
+      need: this.getHighestPriorityExpression(need.expressions),
+      capacity: this.getHighestPriorityExpression(capacity.expressions),
     }
   }
 
@@ -243,9 +280,8 @@ export class Matcher {
   ): { breakdown: Partial<MatchResult['breakdown']> } {
     const breakdown: Partial<MatchResult['breakdown']> = {}
 
-    // Time feasibility - show if either side has a time constraint
-    // 0.5 score when one side is unspecified (uncertainty, not full flexibility)
-    if (need.constraints?.time || capacity.constraints?.time) {
+    // Time feasibility - only include if at least one side has a meaningful time constraint
+    if (hasTimeConstraint(need.constraints?.time) || hasTimeConstraint(capacity.constraints?.time)) {
       const detail = this.computeTimeFeasibility(
         need.constraints?.time,
         capacity.constraints?.time
@@ -254,8 +290,8 @@ export class Matcher {
       breakdown.timeDetail = detail
     }
 
-    // Space feasibility - show if either side has a space constraint
-    if (need.constraints?.space || capacity.constraints?.space) {
+    // Space feasibility - only include if at least one side has a meaningful space constraint
+    if (hasSpaceConstraint(need.constraints?.space) || hasSpaceConstraint(capacity.constraints?.space)) {
       const detail = this.computeSpaceFeasibility(
         need.constraints?.space,
         capacity.constraints?.space
@@ -264,8 +300,8 @@ export class Matcher {
       breakdown.spaceDetail = detail
     }
 
-    // Quantity feasibility - show if either side has a quantity constraint
-    if (need.constraints?.quantity || capacity.constraints?.quantity) {
+    // Quantity feasibility - only include if at least one side has a meaningful quantity constraint
+    if (hasQuantityConstraint(need.constraints?.quantity) || hasQuantityConstraint(capacity.constraints?.quantity)) {
       const detail = this.computeQuantityFeasibility(
         need.constraints?.quantity,
         capacity.constraints?.quantity
@@ -281,17 +317,20 @@ export class Matcher {
     needTime?: Constraints['time'],
     capacityTime?: Constraints['time']
   ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
-    if (!needTime && !capacityTime) {
+    const needHas = hasTimeConstraint(needTime)
+    const capHas = hasTimeConstraint(capacityTime)
+
+    if (!needHas && !capHas) {
       return { score: 1.0, reason: 'No time constraints' }
     }
 
     const needDesc = describeTimeConstraint(needTime)
     const capDesc = describeTimeConstraint(capacityTime)
 
-    if (!needTime) {
+    if (!needHas) {
       return { score: 0.5, reason: `Need: any time | Capacity: ${capDesc}`, needDesc: 'any time', capacityDesc: capDesc }
     }
-    if (!capacityTime) {
+    if (!capHas) {
       return { score: 0.5, reason: `Need: ${needDesc} | Capacity: any time`, needDesc, capacityDesc: 'any time' }
     }
 
@@ -312,16 +351,22 @@ export class Matcher {
     needSpace?: Constraints['space'],
     capacitySpace?: Constraints['space']
   ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
+    const needHas = hasSpaceConstraint(needSpace)
+    const capHas = hasSpaceConstraint(capacitySpace)
+
+    // If neither has meaningful space data, no constraint
+    if (!needHas && !capHas) {
+      return { score: 1.0, reason: 'No location constraints' }
+    }
+
     const needDesc = describeSpaceConstraint(needSpace)
     const capDesc = describeSpaceConstraint(capacitySpace)
 
-    if (!needSpace && !capacitySpace) {
-      return { score: 1.0, reason: 'No location constraints' }
-    }
-    if (!needSpace) {
+    // One side missing = uncertainty
+    if (!needHas || !needSpace) {
       return { score: 0.5, reason: `any location vs ${capDesc}`, needDesc: 'any location', capacityDesc: capDesc }
     }
-    if (!capacitySpace) {
+    if (!capHas || !capacitySpace) {
       return { score: 0.5, reason: `${needDesc} vs any location`, needDesc, capacityDesc: 'any location' }
     }
 
@@ -366,16 +411,29 @@ export class Matcher {
     needQty?: NonNullable<Need['constraints']>['quantity'],
     capacityQty?: NonNullable<Capacity['constraints']>['quantity']
   ): { score: number; reason: string; needDesc?: string; capacityDesc?: string } {
-    if (!needQty && !capacityQty) {
+    const needHas = hasQuantityConstraint(needQty)
+    const capHas = hasQuantityConstraint(capacityQty)
+
+    if (!needHas && !capHas) {
       return { score: 1.0, reason: 'No quantity constraints' }
     }
 
-    const needDesc = needQty ? `${needQty.amount}${needQty.unit}` : 'any amount'
-    const capDesc = capacityQty ? `${capacityQty.amount}${capacityQty.unit}` : 'any amount'
+    const needDesc = needHas && needQty ? `${needQty.amount}${needQty.unit}` : 'any amount'
+    const capDesc = capHas && capacityQty ? `${capacityQty.amount}${capacityQty.unit}` : 'any amount'
 
-    // One side unspecified = uncertainty
+    // Need has quantity, capacity doesn't specify limits → assume capacity can handle it
+    if (needHas && !capHas) {
+      return { score: 1.0, reason: 'capacity unlimited', needDesc, capacityDesc: capDesc }
+    }
+
+    // Capacity has quantity, need doesn't specify → need is flexible
+    if (!needHas && capHas) {
+      return { score: 1.0, reason: 'need flexible', needDesc, capacityDesc: capDesc }
+    }
+
+    // Both have constraints - compare them
     if (!needQty || !capacityQty) {
-      return { score: 0.5, reason: 'partial info', needDesc, capacityDesc: capDesc }
+      return { score: 1.0, reason: 'compatible' }
     }
 
     // Units must match (TODO: unit conversion)
@@ -531,22 +589,73 @@ export function describeQuantityConstraint(qty?: Constraints['quantity']): strin
   return `${qty.amount}${qty.unit}`
 }
 
+// Helper: Check if time constraint has any meaningful values
+function hasTimeConstraint(t?: Constraints['time']): boolean {
+  if (!t) return false
+  // Cast to any to handle various time constraint formats in the data
+  const constraint = t as Record<string, unknown>
+  return !!(t.availableFrom || t.availableTo || t.dayOfWeek || t.timeOfDay || t.recurring || t.minDuration ||
+    // Also check for enriched data formats
+    (Array.isArray(constraint.days) && constraint.days.length > 0) ||
+    (constraint.hours && typeof constraint.hours === 'object'))
+}
+
+// Helper: Check if space constraint has any meaningful values
+function hasSpaceConstraint(s?: Constraints['space']): boolean {
+  if (!s) return false
+  return !!(s.location || s.area || s.maxRadius || s.remote)
+}
+
+// Helper: Check if quantity constraint has any meaningful values
+function hasQuantityConstraint(q?: Constraints['quantity']): boolean {
+  if (!q) return false
+  return !!(q.amount || q.unit || q.minAtomic)
+}
+
 // Helper: Convert TimeConstraint to AvailabilityWindow format
 function timeConstraintToAvailabilityWindow(
   constraint: Constraints['time']
 ): AvailabilityWindow | undefined {
   if (!constraint) return undefined
 
+  // Cast to any to handle various time constraint formats in the data
+  const t = constraint as Record<string, unknown>
   const result: AvailabilityWindow = {}
 
-  // Parse timeOfDay into TimeRange
+  // Parse time ranges from various formats
   let timeRanges: TimeRange[] | undefined
-  if (constraint.timeOfDay) {
+
+  // Check for hours object (e.g., { start: "09:00", end: "17:00" })
+  if (t.hours && typeof t.hours === 'object') {
+    const hours = t.hours as { start?: string; end?: string }
+    if (hours.start && hours.end) {
+      timeRanges = [{ start_time: hours.start, end_time: hours.end }]
+    }
+  }
+  // Fall back to timeOfDay string parsing
+  else if (constraint.timeOfDay) {
     timeRanges = parseTimeOfDay(constraint.timeOfDay)
   }
 
-  // Parse dayOfWeek
-  if (constraint.dayOfWeek) {
+  // Parse days from various formats
+  // Check for days array (e.g., ["Monday", "Tuesday", "Wednesday"])
+  if (Array.isArray(t.days) && t.days.length > 0) {
+    const validDays: DayOfWeek[] = []
+    for (const d of t.days) {
+      const day = String(d).toLowerCase()
+      if (isValidDayOfWeek(day)) {
+        validDays.push(day)
+      }
+    }
+    if (validDays.length > 0) {
+      result.day_schedules = [{
+        days: validDays,
+        time_ranges: timeRanges ?? [{ start_time: '00:00', end_time: '23:59' }]
+      }]
+    }
+  }
+  // Fall back to dayOfWeek (singular)
+  else if (constraint.dayOfWeek) {
     const day = constraint.dayOfWeek.toLowerCase()
     if (isValidDayOfWeek(day)) {
       result.day_schedules = [{

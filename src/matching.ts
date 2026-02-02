@@ -13,7 +13,7 @@
 import jsonLogic from 'json-logic-js';
 import type { Resource } from './commons';
 import type { AvailabilityWindow, TimeRange, DayOfWeek, DaySchedule, WeekSchedule, MonthSchedule } from './time';
-import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM } from './spatial';
+import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, haversineDistance } from './spatial';
 import type { FilterContext, EligibilityFilter, Contact } from './types';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -67,8 +67,17 @@ export function slotsCompatible(
 // ═══════════════════════════════════════════════════════════════════
 
 /**
+ * Check if a contact has all required skills.
+ */
+function hasRequiredSkills(requirements: Resource['required_skills'], contact: Contact | undefined): boolean {
+    if (!requirements?.length) return true;
+    if (!contact) return false;
+    return requirements.every(req => contact.skills.some(s => s.id === req.id));
+}
+
+/**
  * Check if skills are compatible between two parties in a transaction.
- * 
+ *
  * Verifies two directions:
  * 1. FORWARD: Does the Provider have the skills required by the Need?
  * 2. REVERSE: Does the Seeker have the skills required by the Capacity?
@@ -79,30 +88,8 @@ export function skillsCompatible(
     capacitySlot: Resource,
     seeker: Contact | undefined
 ): boolean {
-    // 1. FORWARD CHECK: Need requires Provider Skills
-    if (needSlot.required_skills && needSlot.required_skills.length > 0) {
-        if (!provider) return false; // Provider identity required for skill check
-
-        const missingSkill = needSlot.required_skills.find(req => {
-            // Check if provider has this skill (by ID)
-            return !provider.skills.some(s => s.id === req.id);
-        });
-
-        if (missingSkill) return false;
-    }
-
-    // 2. REVERSE CHECK: Capacity requires Seeker Skills
-    if (capacitySlot.required_skills && capacitySlot.required_skills.length > 0) {
-        if (!seeker) return false; // Seeker identity required for skill check
-
-        const missingSkill = capacitySlot.required_skills.find(req => {
-            return !seeker.skills.some(s => s.id === req.id);
-        });
-
-        if (missingSkill) return false;
-    }
-
-    return true;
+    return hasRequiredSkills(needSlot.required_skills, provider) &&
+           hasRequiredSkills(capacitySlot.required_skills, seeker);
 }
 
 /**
@@ -300,15 +287,12 @@ export function timeRangesOverlap(
 
         // CASE 1: Both recurring
         if (track1 === 'recurring' && track2 === 'recurring') {
-            if (slot1.time_zone || slot2.time_zone) {
-                return availabilityWindowsOverlapWithTimezone(
-                    slot1.availability_window,
-                    slot2.availability_window,
-                    slot1.time_zone,
-                    slot2.time_zone
-                );
-            }
-            return availabilityWindowsOverlap(slot1.availability_window, slot2.availability_window);
+            return availabilityWindowsOverlapWithTimezone(
+                slot1.availability_window,
+                slot2.availability_window,
+                slot1.time_zone,
+                slot2.time_zone
+            );
         }
 
         // CASE 2: One recurring, one one-time
@@ -349,16 +333,6 @@ export function getRecurrenceTrack(slot: { recurrence?: string | null }): 'recur
         return 'recurring';
     }
     return 'onetime';
-}
-
-function availabilityWindowsOverlap(window1?: AvailabilityWindow, window2?: AvailabilityWindow): boolean {
-    if (!window1 || !window2) return true;
-
-    // Hierarchy check: Month -> Week -> Day -> Time
-    // Simplified implementation for same-timezone assumption (see match.ts for full recursive logic if needed, 
-    // but here we focus on the core logic structure).
-    // For brevity in this refactor, delegating to the timezone-aware version with default date is safer/more robust anyway.
-    return availabilityWindowsOverlapWithTimezone(window1, window2, undefined, undefined);
 }
 
 export function availabilityWindowsOverlapWithTimezone(
@@ -714,17 +688,6 @@ function getDateStringForDayOfWeek(targetDay: DayOfWeek, referenceDate: string):
     return `${y}-${m}-${d}`;
 }
 
-export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // FILTER TYPES & MIGRATION
 // ═══════════════════════════════════════════════════════════════════
@@ -800,7 +763,7 @@ export function passesSlotFilters(
 // SPACE-TIME GROUPING
 // ═══════════════════════════════════════════════════════════════════
 
-export function getSpaceTimeSignature(slot: Resource | Resource): string {
+export function getSpaceTimeSignature(slot: Resource): string {
     let timeKey: string;
     if (slot.availability_window) {
         const w = slot.availability_window;
@@ -823,7 +786,7 @@ export function getSpaceTimeSignature(slot: Resource | Resource): string {
     return `${timeKey}::${locKey}`;
 }
 
-export function groupSlotsBySpaceTime<T extends Resource | Resource>(slots: T[]): Map<string, { quantity: number; slots: T[] }> {
+export function groupSlotsBySpaceTime<T extends Resource>(slots: T[]): Map<string, { quantity: number; slots: T[] }> {
     const groups = new Map<string, { quantity: number; slots: T[] }>();
     for (const slot of slots) {
         const sig = getSpaceTimeSignature(slot);

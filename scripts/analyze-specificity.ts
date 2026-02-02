@@ -3,8 +3,11 @@
  */
 
 import { generateMatchData } from '../src/match-data'
+import type { EmbeddingsStore } from '../src/example-converter'
 
-const data = generateMatchData()
+const enrichedData = await Bun.file('data/enriched-full.json').json()
+const embeddings: EmbeddingsStore = await Bun.file('data/embeddings.json').json()
+const data = generateMatchData({ examples: enrichedData.results, embeddings })
 
 console.log('=== SPECIFICITY ANALYSIS ===\n')
 console.log(`Total matches: ${data.matches.length}`)

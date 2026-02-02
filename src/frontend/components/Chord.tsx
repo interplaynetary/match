@@ -9,10 +9,10 @@ type ChordProps = {
   capPos: { x: number; y: number }
   needPos: { x: number; y: number }
   color: string
-  threshold: number
   lockedNodeId: string | null
   activeNodeId: string | null
   activeIsCapacity: boolean | undefined
+  searchMatch: boolean | null // null = no search, true = at least one endpoint matches
   onShowTooltip: (e: React.MouseEvent, content: React.ReactNode) => void
   onHideTooltip: () => void
 }
@@ -24,35 +24,18 @@ export function Chord({
   capPos,
   needPos,
   color,
-  threshold,
   lockedNodeId,
   activeNodeId,
   activeIsCapacity,
+  searchMatch,
   onShowTooltip,
   onHideTooltip,
-}: ChordProps): React.ReactElement | null {
-  // Threshold filters on similarity (match quality) - determines if match appears
-  const similarity = match.breakdown.similarity ?? 1
-  const isVisible = similarity >= threshold
+}: ChordProps): React.ReactElement {
+  // Filtering is done in App.tsx via filteredMatches - this component always renders
 
   // Opacity uses specificity (match precision) - determines visual emphasis
+  const similarity = match.breakdown.similarity ?? 1
   const specificity = match.breakdown.specificity ?? similarity
-
-  if (!isVisible) {
-    return (
-      <path
-        d={computeChordPath(capPos.x, capPos.y, needPos.x, needPos.y)}
-        fill="none"
-        stroke={color}
-        strokeWidth={Math.max(5, match.score * 12)}
-        opacity={0}
-        className="chord"
-        data-cap={match.capacityId}
-        data-need={match.needId}
-        style={{ display: 'none' }}
-      />
-    )
-  }
 
   const isHighlighted =
     !lockedNodeId ||
@@ -60,10 +43,13 @@ export function Chord({
       ? match.capacityId === activeNodeId
       : match.needId === activeNodeId)
 
-  // Square specificity for visual emphasis
-  const baseOpacity = specificity * specificity
+  // Square specificity for visual emphasis, with minimum visibility
+  const baseOpacity = Math.max(0.15, specificity * specificity)
   // When locked to a node, hide non-highlighted edges completely
-  const opacity = lockedNodeId && !isHighlighted ? 0 : baseOpacity
+  // When searching, dim chords where neither endpoint matches
+  const dimmedByLock = lockedNodeId && !isHighlighted
+  const dimmedBySearch = searchMatch === false
+  const opacity = dimmedByLock ? 0 : dimmedBySearch ? 0.05 : baseOpacity
 
   const handleMouseEnter = (e: React.MouseEvent) => {
     const exprs = match.matchedExpressions

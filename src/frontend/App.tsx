@@ -4,7 +4,7 @@ import './styles.css'
 
 import type { MatchWithOther } from './types.ts'
 import { OUTER_RADIUS, NEED_RADIUS } from './constants.ts'
-import { getNodeColor, getPosition } from './utils.ts'
+import { getNodeColor, getPosition, matchPassesThreshold } from './utils.ts'
 import {
   useMatchData,
   useTooltip,
@@ -17,19 +17,23 @@ import {
   OverviewSidebar,
   DetailSidebar,
   TaxonomyTreeView,
+  AddEntryDialog,
+  SearchBar,
+  type SearchResult,
 } from './components/index.ts'
 
 type ViewMode = 'chord' | 'taxonomy'
 
 function App(): React.ReactElement {
-  const { data, error } = useMatchData()
+  const { data, error, refetch } = useMatchData()
   const [viewMode, setViewMode] = useState<ViewMode>('chord')
-  const [threshold, setThreshold] = useState(0.75)
+  const [threshold, setThreshold] = useState(0.8)
   const [lockedNodeId, setLockedNodeId] = useState<string | null>(null)
   const [hoveredNode, setHoveredNode] = useState<{
     id: string
     isCapacity: boolean
   } | null>(null)
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
   const tooltip = useTooltip()
@@ -58,7 +62,7 @@ function App(): React.ReactElement {
   // Get filtered matches based on threshold
   const filteredMatches = useMemo(() => {
     if (!data) return []
-    return data.matches.filter((m) => (m.breakdown.similarity ?? 1) >= threshold)
+    return data.matches.filter((m) => matchPassesThreshold(m, threshold))
   }, [data, threshold])
 
   // Get matches for a specific node
@@ -134,57 +138,43 @@ function App(): React.ReactElement {
     []
   )
 
-  // Compute stats (safe when data is null)
-  const needsWithMatches = data ? new Set(filteredMatches.map((m) => m.needId)).size : 0
-  const capacitiesWithMatches = data ? new Set(filteredMatches.map((m) => m.capacityId)).size : 0
+  const handleAddEntry = useCallback(
+    async (entry: { naturalLanguage: string; type: 'capacity' | 'need' }) => {
+      const res = await fetch('/api/add-entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to add entry')
+      }
+      await refetch()
+    },
+    [refetch]
+  )
 
-  const activeItem = activeNodeId && data
-    ? activeIsCapacity
-      ? data.capacities.find((c) => c.id === activeNodeId)
-      : data.needs.find((n) => n.id === activeNodeId)
-    : null
-
-  const activeMatches = activeNodeId
-    ? getNodeMatches(activeNodeId, activeIsCapacity ?? false).sort(
-        (a, b) => b.score - a.score
-      )
-    : []
-
-  // Compose speech text based on current view state
-  const speechText = useMemo(() => {
-    if (activeItem && activeMatches.length > 0) {
-      const type = activeIsCapacity ? 'Capacity' : 'Need'
-      const topMatches = activeMatches
-        .slice(0, 3)
-        .map((m) => m.other?.label ?? m.other?.id)
-        .filter(Boolean)
-        .join(', ')
-      return `${type}: ${activeItem.label}. Top matches: ${topMatches}.`
-    }
-    if (data) {
-      return `${data.capacities.length} capacities and ${data.needs.length} needs. ${filteredMatches.length} matches above ${Math.round(threshold * 100)}% threshold. ${needsWithMatches} needs and ${capacitiesWithMatches} capacities connected.`
-    }
-    return 'Loading match data.'
-  }, [activeItem, activeIsCapacity, activeMatches, data, filteredMatches.length, threshold, needsWithMatches, capacitiesWithMatches])
-
-  const [isSpeaking, setIsSpeaking] = useState(false)
-
-  const handleSpeak = useCallback(() => {
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(speechText)
-    utterance.lang = 'en-US'
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => setIsSpeaking(false)
-    window.speechSynthesis.speak(utterance)
-    setIsSpeaking(true)
-  }, [speechText])
-
-  const handleStopSpeech = useCallback(() => {
-    window.speechSynthesis.cancel()
-    setIsSpeaking(false)
+  const handleSearchResults = useCallback((results: SearchResult[]) => {
+    setSearchResults(results)
   }, [])
+
+  const handleSearchClear = useCallback(() => {
+    setSearchResults(null)
+  }, [])
+
+  // Build set of matching IDs from search
+  const searchMatchIds = useMemo(() => {
+    if (!searchResults) return null
+    return new Set(searchResults.map((r) => r.id))
+  }, [searchResults])
+
+  // When searching, filter matches to only show connections involving search results
+  const visibleMatches = useMemo(() => {
+    if (!searchMatchIds) return filteredMatches
+    return filteredMatches.filter(
+      (m) => searchMatchIds.has(m.capacityId) || searchMatchIds.has(m.needId)
+    )
+  }, [filteredMatches, searchMatchIds])
 
   if (error) {
     return (
@@ -219,6 +209,7 @@ function App(): React.ReactElement {
 
   return (
     <>
+      <AddEntryDialog onSubmit={handleAddEntry} />
       <div
         id="tooltip"
         ref={tooltip.ref}
@@ -244,6 +235,7 @@ function App(): React.ReactElement {
 
       <div className="container">
         <div className="viz">
+          <SearchBar threshold={threshold} onResults={handleSearchResults} onClear={handleSearchClear} />
           {viewMode === 'taxonomy' ? (
             <TaxonomyTreeView />
           ) : (
@@ -253,9 +245,9 @@ function App(): React.ReactElement {
               viewBox="-400 -400 800 800"
               onClick={handleSvgClick}
             >
-              {/* Chords */}
+              {/* Chords - uses visibleMatches (filtered by search when active) */}
               <g id="chords">
-                {data.matches.map((match) => {
+                {visibleMatches.map((match) => {
                   const capIndex = data.capacities.findIndex(
                     (c) => c.id === match.capacityId
                   )
@@ -272,6 +264,11 @@ function App(): React.ReactElement {
                   const needPos = getPosition(needIndex, data.needs.length, NEED_RADIUS)
                   const color = getNodeColor(cap.embedding, data.pcaTransform, true)
 
+                  // Chord matches search if either endpoint matches
+                  const chordSearchMatch = searchMatchIds
+                    ? searchMatchIds.has(match.capacityId) || searchMatchIds.has(match.needId)
+                    : null
+
                   return (
                     <Chord
                       key={`${match.capacityId}-${match.needId}`}
@@ -281,10 +278,10 @@ function App(): React.ReactElement {
                       capPos={capPos}
                       needPos={needPos}
                       color={color}
-                      threshold={threshold}
                       lockedNodeId={lockedNodeId}
                       activeNodeId={activeNodeId}
                       activeIsCapacity={activeIsCapacity}
+                      searchMatch={chordSearchMatch}
                       onShowTooltip={tooltip.show}
                       onHideTooltip={tooltip.hide}
                     />
@@ -304,6 +301,7 @@ function App(): React.ReactElement {
                   color={getNodeColor(cap.embedding, data.pcaTransform, true)}
                   isConnected={connectedIds.has(cap.id)}
                   lockedNodeId={lockedNodeId}
+                  searchMatch={searchMatchIds ? searchMatchIds.has(cap.id) : null}
                   onSelect={handleNodeSelect}
                   onHover={handleNodeHover}
                   onLeave={handleNodeLeave}
@@ -326,6 +324,7 @@ function App(): React.ReactElement {
                   color={getNodeColor(need.embedding, data.pcaTransform, false)}
                   isConnected={connectedIds.has(need.id)}
                   lockedNodeId={lockedNodeId}
+                  searchMatch={searchMatchIds ? searchMatchIds.has(need.id) : null}
                   onSelect={handleNodeSelect}
                   onHover={handleNodeHover}
                   onLeave={handleNodeLeave}
