@@ -134,6 +134,58 @@ function App(): React.ReactElement {
     []
   )
 
+  // Compute stats (safe when data is null)
+  const needsWithMatches = data ? new Set(filteredMatches.map((m) => m.needId)).size : 0
+  const capacitiesWithMatches = data ? new Set(filteredMatches.map((m) => m.capacityId)).size : 0
+
+  const activeItem = activeNodeId && data
+    ? activeIsCapacity
+      ? data.capacities.find((c) => c.id === activeNodeId)
+      : data.needs.find((n) => n.id === activeNodeId)
+    : null
+
+  const activeMatches = activeNodeId
+    ? getNodeMatches(activeNodeId, activeIsCapacity ?? false).sort(
+        (a, b) => b.score - a.score
+      )
+    : []
+
+  // Compose speech text based on current view state
+  const speechText = useMemo(() => {
+    if (activeItem && activeMatches.length > 0) {
+      const type = activeIsCapacity ? 'Capacity' : 'Need'
+      const topMatches = activeMatches
+        .slice(0, 3)
+        .map((m) => m.other?.label ?? m.other?.id)
+        .filter(Boolean)
+        .join(', ')
+      return `${type}: ${activeItem.label}. Top matches: ${topMatches}.`
+    }
+    if (data) {
+      return `${data.capacities.length} capacities and ${data.needs.length} needs. ${filteredMatches.length} matches above ${Math.round(threshold * 100)}% threshold. ${needsWithMatches} needs and ${capacitiesWithMatches} capacities connected.`
+    }
+    return 'Loading match data.'
+  }, [activeItem, activeIsCapacity, activeMatches, data, filteredMatches.length, threshold, needsWithMatches, capacitiesWithMatches])
+
+  const [isSpeaking, setIsSpeaking] = useState(false)
+
+  const handleSpeak = useCallback(() => {
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(speechText)
+    utterance.lang = 'en-US'
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.onend = () => setIsSpeaking(false)
+    utterance.onerror = () => setIsSpeaking(false)
+    window.speechSynthesis.speak(utterance)
+    setIsSpeaking(true)
+  }, [speechText])
+
+  const handleStopSpeech = useCallback(() => {
+    window.speechSynthesis.cancel()
+    setIsSpeaking(false)
+  }, [])
+
   if (error) {
     return (
       <div
@@ -164,22 +216,6 @@ function App(): React.ReactElement {
       </div>
     )
   }
-
-  // Compute stats
-  const needsWithMatches = new Set(filteredMatches.map((m) => m.needId)).size
-  const capacitiesWithMatches = new Set(filteredMatches.map((m) => m.capacityId)).size
-
-  const activeItem = activeNodeId
-    ? activeIsCapacity
-      ? data.capacities.find((c) => c.id === activeNodeId)
-      : data.needs.find((n) => n.id === activeNodeId)
-    : null
-
-  const activeMatches = activeNodeId
-    ? getNodeMatches(activeNodeId, activeIsCapacity ?? false).sort(
-        (a, b) => b.score - a.score
-      )
-    : []
 
   return (
     <>
@@ -304,6 +340,26 @@ function App(): React.ReactElement {
         </div>
 
         <div className="sidebar">
+          <div className="speech-controls">
+            <button
+              className={`speech-btn ${isSpeaking ? '' : 'active'}`}
+              onClick={handleSpeak}
+              title="Read aloud"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+            <button
+              className={`speech-btn ${isSpeaking ? 'active' : ''}`}
+              onClick={handleStopSpeech}
+              title="Stop"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h12v12H6z" />
+              </svg>
+            </button>
+          </div>
           <div className="view-toggle">
             <button
               className={viewMode === 'chord' ? 'active' : ''}
