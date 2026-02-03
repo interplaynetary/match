@@ -5,11 +5,8 @@
 import { Matcher, describeTimeConstraint, describeSpaceConstraint, describeQuantityConstraint } from './matcher'
 import type { Constraints } from './types'
 import { convertExamples, type EmbeddingsStore } from './example-converter'
-import { computePCATransform, type PCATransform } from './semantic-colors'
-import examples from '../data/enriched-examples.json'
-import embeddingsData from '../data/embeddings.json'
-
-const embeddings = embeddingsData as EmbeddingsStore
+import { computePCATransform } from './semantic-colors'
+import type { MatchData, ConstraintSummary } from '../frontend/types'
 
 function summarizeConstraints(constraints?: Constraints): ConstraintSummary | undefined {
   if (!constraints) return undefined
@@ -32,52 +29,19 @@ function summarizeConstraints(constraints?: Constraints): ConstraintSummary | un
   return Object.keys(summary).length > 0 ? summary : undefined
 }
 
-type ConstraintDetail = {
-  score: number
-  reason: string
-  needDesc?: string
-  capacityDesc?: string
+// Re-export the canonical MatchData type
+export type { MatchData } from '../frontend/types'
+
+interface GenerateMatchDataInput {
+  examples: any[]
+  embeddings: EmbeddingsStore
 }
 
-type ConstraintSummary = {
-  time?: string
-  space?: string
-  quantity?: string
-}
+/**
+ * Generate match data from provided examples and embeddings.
+ */
+export function generateMatchData({ examples, embeddings }: GenerateMatchDataInput): MatchData {
 
-export type MatchData = {
-  capacities: Array<{ id: string; expressions: string[]; label: string; embedding?: number[]; constraints?: ConstraintSummary }>
-  needs: Array<{ id: string; expressions: string[]; label: string; embedding?: number[]; constraints?: ConstraintSummary }>
-  pcaTransform: PCATransform
-  matches: Array<{
-    needId: string
-    capacityId: string
-    score: number
-    breakdown: {
-      time?: number
-      space?: number
-      quantity?: number
-      timeDetail?: ConstraintDetail
-      spaceDetail?: ConstraintDetail
-      quantityDetail?: ConstraintDetail
-      similarity?: number
-      priorityWeight?: number
-      categoryMatch?: {
-        overlapCategory: string
-        overlapDistance: number
-        isBlocked: boolean
-      }
-    }
-    matchedExpressions?: {
-      needText: string
-      capacityText: string
-      needChain?: string[]
-      capacityChain?: string[]
-    }
-  }>
-}
-
-export function generateMatchData(): MatchData {
   // Use low threshold to get all potential matches; UI slider filters client-side
   const matcher = new Matcher({ similarityThreshold: 0.5 })
   const { capacities, needs, byId } = convertExamples(examples as any, embeddings)
@@ -91,7 +55,7 @@ export function generateMatchData(): MatchData {
     return {
       id: c.id,
       expressions: c.expressions.map(e => e.text),
-      label: original?.naturalLanguage?.slice(0, 50) ?? c.expressions[0]?.text ?? 'capacity',
+      label: original?.naturalLanguage ?? c.expressions[0]?.text ?? 'capacity',
       embedding: c.embedding,
       constraints: summarizeConstraints(c.constraints),
     }
@@ -103,7 +67,7 @@ export function generateMatchData(): MatchData {
     return {
       id: n.id,
       expressions: n.expressions.map(e => e.text),
-      label: original?.naturalLanguage?.slice(0, 50) ?? n.expressions[0]?.text ?? 'need',
+      label: original?.naturalLanguage ?? n.expressions[0]?.text ?? 'need',
       embedding: n.embedding,
       constraints: summarizeConstraints(n.constraints),
     }

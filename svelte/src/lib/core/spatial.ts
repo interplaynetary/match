@@ -206,20 +206,20 @@ export function getResolutionFromDensity(density: number): number {
 
 /**
  * Get the number of H3 grid rings needed to cover a radius
- * 
+ *
  * @param radiusKm - Desired radius in kilometers
  * @param resolution - H3 resolution level
  * @returns Number of rings (k-rings) needed
  */
 export function getGridRingsForRadius(radiusKm: number, resolution: number): number {
 	const edgeLengthKm = H3_EDGE_LENGTHS_KM[resolution];
+	if (!edgeLengthKm || edgeLengthKm <= 0) {
+		console.error(`Invalid H3 resolution: ${resolution}`);
+		return 1;  // Fallback to single ring
+	}
 	// Each ring adds approximately one edge length to the radius
 	// Add 1 to ensure full coverage (conservative estimate)
-    if (edgeLengthKm !== undefined && edgeLengthKm > 0) {
 	return Math.ceil(radiusKm / edgeLengthKm) + 1;
-    } else {
-        console.error(`Invalid H3 resolution: ${resolution}`);
-    }
 }
 
 /**

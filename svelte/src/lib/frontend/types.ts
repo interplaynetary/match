@@ -1,11 +1,7 @@
 import type { PCATransform } from '../core/semantic-colors'
+import type { ConstraintDetail } from '../core/types'
 
-export type ConstraintDetail = {
-  score: number
-  reason: string
-  needDesc?: string
-  capacityDesc?: string
-}
+export type { ConstraintDetail }
 
 export type ConstraintSummary = {
   time?: string

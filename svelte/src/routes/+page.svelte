@@ -2,7 +2,7 @@
 	import '$lib/frontend/styles.css';
 	import type { MatchData, MatchWithOther, ConnectedTooltip } from '$lib/frontend/types';
 	import { OUTER_RADIUS, NEED_RADIUS } from '$lib/frontend/constants';
-	import { getNodeColor, getPosition } from '$lib/frontend/utils';
+	import { getNodeColor, getPosition, matchPassesThreshold } from '$lib/frontend/utils';
 	import type { TaxonomyNode } from '$lib/core/taxonomy-tree';
 	import Chord from '$lib/components/Chord.svelte';
 	import Node from '$lib/components/Node.svelte';
@@ -11,6 +11,10 @@
 	import TaxonomyTreeView from '$lib/components/TaxonomyTreeView.svelte';
 	import ChordTooltipContent from '$lib/components/ChordTooltipContent.svelte';
 	import NodeTooltipContent from '$lib/components/NodeTooltipContent.svelte';
+	import SearchBar, { type SearchResult } from '$lib/components/SearchBar.svelte';
+	import AddEntryDialog from '$lib/components/AddEntryDialog.svelte';
+	import SearchSidebar from '$lib/components/SearchSidebar.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	type ViewMode = 'chord' | 'taxonomy';
 
@@ -20,10 +24,11 @@
 
 	// UI state
 	let viewMode = $state<ViewMode>('chord');
-	let threshold = $state(0.75);
+	let threshold = $state(0.8);
 	let lockedNodeId = $state<string | null>(null);
 	let hoveredNode = $state<{ id: string; isCapacity: boolean } | null>(null);
 	let svgEl = $state<SVGSVGElement>();
+	let searchResults = $state<SearchResult[] | null>(null);
 
 	// Tooltip state
 	let tooltipContent = $state<{ type: string; data: any } | null>(null);
@@ -33,9 +38,6 @@
 	// Connected tooltips state
 	let connectedTooltipData = $state<ConnectedTooltip[]>([]);
 	let connectedTooltipsEl = $state<HTMLDivElement>();
-
-	// Speech state
-	let isSpeaking = $state(false);
 
 	// Connection map for hover labels
 	const connections = $derived.by(() => {
@@ -49,10 +51,24 @@
 		return map;
 	});
 
-	// Filtered matches
+	// Filtered matches - uses combined score (feasibility) not raw similarity
 	const filteredMatches = $derived(
-		matchData.matches.filter((m) => (m.breakdown.similarity ?? 1) >= threshold)
+		matchData.matches.filter((m) => matchPassesThreshold(m, threshold))
 	);
+
+	// Build set of matching IDs from search
+	const searchMatchIds = $derived.by(() => {
+		if (!searchResults) return null;
+		return new Set(searchResults.map((r) => r.id));
+	});
+
+	// When searching, filter matches to only show connections involving search results
+	const visibleMatches = $derived.by(() => {
+		if (!searchMatchIds) return filteredMatches;
+		return filteredMatches.filter(
+			(m) => searchMatchIds.has(m.capacityId) || searchMatchIds.has(m.needId)
+		);
+	});
 
 	// Active node state
 	const activeNodeId = $derived(lockedNodeId ?? hoveredNode?.id ?? null);
@@ -95,12 +111,6 @@
 		return ids;
 	});
 
-	// Stats
-	const needsWithMatches = $derived(new Set(filteredMatches.map((m) => m.needId)).size);
-	const capacitiesWithMatches = $derived(
-		new Set(filteredMatches.map((m) => m.capacityId)).size
-	);
-
 	const activeItem = $derived(
 		activeNodeId
 			? activeIsCapacity
@@ -117,19 +127,29 @@
 			: []
 	);
 
-	// Speech text
-	const speechText = $derived.by(() => {
-		if (activeItem && activeMatches.length > 0) {
-			const type = activeIsCapacity ? 'Capacity' : 'Need';
-			const topMatches = activeMatches
-				.slice(0, 3)
-				.map((m) => m.other?.label ?? m.other?.id)
-				.filter(Boolean)
-				.join(', ');
-			return `${type}: ${activeItem.label}. Top matches: ${topMatches}.`;
+	// Search handlers
+	function handleSearchResults(results: SearchResult[]) {
+		searchResults = results;
+	}
+
+	function handleSearchClear() {
+		searchResults = null;
+	}
+
+	// Add entry handler
+	async function handleAddEntry(entry: { naturalLanguage: string; type: 'capacity' | 'need' }) {
+		const res = await fetch('/api/add-entry', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(entry)
+		});
+		const result = await res.json();
+		if (!res.ok) {
+			throw new Error(result.error || 'Failed to add entry');
 		}
-		return `${matchData.capacities.length} capacities and ${matchData.needs.length} needs. ${filteredMatches.length} matches above ${Math.round(threshold * 100)}% threshold. ${needsWithMatches} needs and ${capacitiesWithMatches} capacities connected.`;
-	});
+		// Refetch data after adding entry
+		await invalidateAll();
+	}
 
 	// Node interaction handlers
 	function handleNodeSelect(id: string) {
@@ -319,23 +339,6 @@
 		}
 	});
 
-	// Speech handlers
-	function handleSpeak() {
-		window.speechSynthesis.cancel();
-		const utterance = new SpeechSynthesisUtterance(speechText);
-		utterance.lang = 'en-US';
-		utterance.rate = 1;
-		utterance.pitch = 1;
-		utterance.onend = () => (isSpeaking = false);
-		utterance.onerror = () => (isSpeaking = false);
-		window.speechSynthesis.speak(utterance);
-		isSpeaking = true;
-	}
-
-	function handleStopSpeech() {
-		window.speechSynthesis.cancel();
-		isSpeaking = false;
-	}
 </script>
 
 <div
@@ -370,15 +373,22 @@
 	{/each}
 </div>
 
+{#if viewMode === 'chord'}
+	<AddEntryDialog onSubmit={handleAddEntry} />
+{/if}
+
 <div class="container">
 	<div class="viz">
+		{#if viewMode === 'chord'}
+			<SearchBar {threshold} onResults={handleSearchResults} onClear={handleSearchClear} />
+		{/if}
 		{#if viewMode === 'taxonomy'}
 			<TaxonomyTreeView tree={taxonomyTree} pcaTransform={matchData.pcaTransform} />
 		{:else}
 			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 			<svg bind:this={svgEl} id="chart" viewBox="-400 -400 800 800" onclick={handleSvgClick}>
 				<g id="chords">
-					{#each matchData.matches as match (`${match.capacityId}-${match.needId}`)}
+					{#each visibleMatches as match (`${match.capacityId}-${match.needId}`)}
 						{@const capIndex = matchData.capacities.findIndex(
 							(c) => c.id === match.capacityId
 						)}
@@ -387,7 +397,10 @@
 						)}
 						{@const cap = matchData.capacities[capIndex]}
 						{@const need = matchData.needs[needIndex]}
-						{#if capIndex !== -1 && needIndex !== -1 && cap && need}
+						{@const chordSearchMatch = searchMatchIds
+						? searchMatchIds.has(match.capacityId) || searchMatchIds.has(match.needId)
+						: null}
+					{#if capIndex !== -1 && needIndex !== -1 && cap && need}
 							<Chord
 								{match}
 								capacity={cap}
@@ -403,10 +416,10 @@
 									NEED_RADIUS
 								)}
 								color={getNodeColor(cap.embedding, matchData.pcaTransform, true)}
-								{threshold}
 								{lockedNodeId}
 								{activeNodeId}
 								{activeIsCapacity}
+								searchMatch={chordSearchMatch}
 								onShowTooltip={showTooltip}
 								onHideTooltip={hideTooltip}
 							/>
@@ -424,6 +437,7 @@
 						color={getNodeColor(cap.embedding, matchData.pcaTransform, true)}
 						isConnected={connectedIds.has(cap.id)}
 						{lockedNodeId}
+						searchMatch={searchMatchIds ? searchMatchIds.has(cap.id) : null}
 						onSelect={handleNodeSelect}
 						onHover={handleNodeHover}
 						onLeave={handleNodeLeave}
@@ -444,6 +458,7 @@
 						color={getNodeColor(need.embedding, matchData.pcaTransform, false)}
 						isConnected={connectedIds.has(need.id)}
 						{lockedNodeId}
+						searchMatch={searchMatchIds ? searchMatchIds.has(need.id) : null}
 						onSelect={handleNodeSelect}
 						onHover={handleNodeHover}
 						onLeave={handleNodeLeave}
@@ -458,39 +473,6 @@
 	</div>
 
 	<div class="sidebar">
-		<div class="speech-controls">
-			<button
-				class="speech-btn {isSpeaking ? '' : 'active'}"
-				onclick={handleSpeak}
-				title="Read aloud"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="currentColor"
-				>
-					<path d="M8 5v14l11-7z" />
-				</svg>
-			</button>
-			<button
-				class="speech-btn {isSpeaking ? 'active' : ''}"
-				onclick={handleStopSpeech}
-				title="Stop"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="currentColor"
-				>
-					<path d="M6 6h12v12H6z" />
-				</svg>
-			</button>
-		</div>
-
 		<div class="view-toggle">
 			<button class={viewMode === 'chord' ? 'active' : ''} onclick={() => (viewMode = 'chord')}>
 				Matches
@@ -503,23 +485,107 @@
 			</button>
 		</div>
 
-		{#if !activeNodeId}
-			<OverviewSidebar
-				data={matchData}
-				{filteredMatches}
-				{needsWithMatches}
-				{capacitiesWithMatches}
-				{threshold}
-				onThresholdChange={(v) => (threshold = v)}
-			/>
-		{:else if activeItem}
-			<DetailSidebar
-				{activeItem}
-				activeIsCapacity={activeIsCapacity ?? false}
-				{activeMatches}
-				transform={matchData.pcaTransform}
-				onBack={handleBackToOverview}
-			/>
+		{#if viewMode === 'chord'}
+			{#if lockedNodeId && activeItem}
+				<DetailSidebar
+					{activeItem}
+					activeIsCapacity={activeIsCapacity ?? false}
+					{activeMatches}
+					transform={matchData.pcaTransform}
+					onBack={handleBackToOverview}
+				/>
+			{:else if searchResults}
+				<SearchSidebar
+					{searchResults}
+					data={matchData}
+					transform={matchData.pcaTransform}
+					{threshold}
+					onThresholdChange={(v) => (threshold = v)}
+					onClear={handleSearchClear}
+				/>
+			{:else}
+				<OverviewSidebar
+					data={matchData}
+					{filteredMatches}
+					{threshold}
+					onThresholdChange={(v) => (threshold = v)}
+				/>
+			{/if}
 		{/if}
 	</div>
 </div>
+
+<style>
+	:global(html),
+	:global(body) {
+		height: 100%;
+		width: 100%;
+		margin: 0 !important;
+		padding: 0 !important;
+		overflow: hidden;
+	}
+
+	.container {
+		display: grid;
+		grid-template-columns: 1fr 320px;
+		height: 100vh;
+		width: 100%;
+		overflow: hidden;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+	}
+
+	.viz {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		background: #1a1a2e;
+		min-width: 0;
+	}
+
+	.viz :global(svg#chart) {
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	.sidebar {
+		background: #16213e;
+		padding: 1rem;
+		overflow-y: auto;
+		min-width: 0;
+	}
+
+	.view-toggle {
+		display: flex;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.view-toggle button {
+		flex: 1;
+		padding: 0.5rem;
+		background: #0f3460;
+		border: 1px solid #333;
+		border-radius: 0.375rem;
+		color: #888;
+		font-size: 0.8125rem;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.view-toggle button:hover {
+		background: #1a4a7a;
+		color: #eee;
+	}
+
+	.view-toggle button.active {
+		background: #4caf50;
+		border-color: #4caf50;
+		color: white;
+	}
+</style>

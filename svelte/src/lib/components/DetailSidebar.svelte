@@ -4,6 +4,7 @@
 	import { getNodeColor } from '$lib/frontend/utils';
 	import MatchBadge from './MatchBadge.svelte';
 	import ConstraintScores from './ConstraintScores.svelte';
+	import ItemCard from './ItemCard.svelte';
 
 	let {
 		activeItem,
@@ -64,21 +65,25 @@
 			<p style="color: #888">No matches above threshold</p>
 		{/if}
 		{#each activeMatches.slice(0, 20) as m (`${m.capacityId}-${m.needId}`)}
-			<div class="match-item">
-				<div class="match-item-header">
-					<span>{m.otherType} #{m.other?.id}</span>
-					<span class="match-item-score">{(m.score * 100).toFixed(0)}%</span>
-				</div>
-				<div class="match-item-label">{m.other?.label || ''}</div>
-				<div style="margin-top: 6px;">
-					<MatchBadge match={m} />
-				</div>
-				<ConstraintScores
-					breakdown={m.breakdown}
-					compact
-					showSide={activeIsCapacity ? 'need' : 'capacity'}
-				/>
-			</div>
+			{#if m.other}
+				<ItemCard
+					item={m.other}
+					isCapacity={m.otherType === 'Capacity'}
+					{transform}
+					score={m.score}
+				>
+					{#snippet children()}
+						<div style="margin-top: 6px;">
+							<MatchBadge match={m} />
+						</div>
+						<ConstraintScores
+							breakdown={m.breakdown}
+							compact
+							showSide={activeIsCapacity ? 'need' : 'capacity'}
+						/>
+					{/snippet}
+				</ItemCard>
+			{/if}
 		{/each}
 		{#if activeMatches.length > 20}
 			<p style="color: #888; text-align: center;">

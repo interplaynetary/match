@@ -1,4 +1,4 @@
-import type { Capacity, Need, Expression } from './types'
+import type { Capacity, Need } from './types'
 
 /**
  * Compute cosine similarity between two embedding vectors
@@ -41,13 +41,6 @@ export function generateEmbeddingText(item: Capacity | Need): string {
   })
 
   return sorted.map(e => e.text).join(' | ')
-}
-
-/**
- * Generate text for a single expression
- */
-export function expressionToText(expr: Expression): string {
-  return expr.text
 }
 
 /**

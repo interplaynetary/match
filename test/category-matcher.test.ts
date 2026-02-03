@@ -134,31 +134,31 @@ describe('computeSpecificity', () => {
   test('equal shallow depths have low specificity', () => {
     // 1 <> 1: generic but balanced
     const spec = computeSpecificity(1, 1)
-    expect(spec).toBeCloseTo(1/6 * 1.0, 5) // ~0.167
+    expect(spec).toBeCloseTo(1 / 6 * 1.0, 5) // ~0.167
   })
 
   test('asymmetric depths have lower specificity', () => {
     // 1 <> 3: generic and unbalanced
     const spec = computeSpecificity(1, 3)
-    expect(spec).toBeCloseTo(1/6 * (1/3), 5) // ~0.056
+    expect(spec).toBeCloseTo(1 / 6 * (1 / 3), 5) // ~0.056
   })
 
   test('equal medium depths have moderate specificity', () => {
     // 3 <> 3: moderately specific
     const spec = computeSpecificity(3, 3)
-    expect(spec).toBeCloseTo(3/6 * 1.0, 5) // 0.5
+    expect(spec).toBeCloseTo(3 / 6 * 1.0, 5) // 0.5
   })
 
   test('equal deep depths have high specificity', () => {
     // 5 <> 5: highly specific
     const spec = computeSpecificity(5, 5)
-    expect(spec).toBeCloseTo(5/6 * 1.0, 5) // ~0.833
+    expect(spec).toBeCloseTo(5 / 6 * 1.0, 5) // ~0.833
   })
 
   test('moderate asymmetric depths', () => {
     // 3 <> 5: moderate depth, somewhat unbalanced
     const spec = computeSpecificity(3, 5)
-    expect(spec).toBeCloseTo(3/6 * (3/5), 5) // 0.3
+    expect(spec).toBeCloseTo(3 / 6 * (3 / 5), 5) // 0.3
   })
 
   test('is commutative', () => {

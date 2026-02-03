@@ -164,6 +164,26 @@ function scoreLocation(need: Resource, capacity: Resource): number {
 }
 
 /**
+ * Check if a contact meets skill requirements.
+ */
+function meetsSkillRequirements(
+    requirements: Resource['required_skills'],
+    contact: Contact | undefined
+): boolean {
+    if (!requirements?.length) return true;
+    if (!contact) return true; // Optimistic if unknown
+
+    return requirements.every(req => {
+        const match = contact.skills.find(s => s.id === req.id);
+        if (!match) return false;
+        if (req.level !== undefined && match.level !== undefined) {
+            return Number(match.level) >= Number(req.level);
+        }
+        return true;
+    });
+}
+
+/**
  * 3. SKILLS SCORE (Level Aware)
  * 1.0 if all requirements met, 0.0 otherwise.
  * HEURISTIC: Checks `level` if present.
@@ -174,35 +194,8 @@ function scoreSkills(
     provider?: Contact,
     seeker?: Contact
 ): number {
-    // 1. Forward Check (Provider has skills for Need)
-    if (need.required_skills && need.required_skills.length > 0) {
-        if (!provider) return 1.0; // Optimistic if unknown provider
-
-        for (const req of need.required_skills) {
-            const match = provider.skills.find(s => s.id === req.id);
-            if (!match) return 0.0; // Missing skill
-
-            // Level Check (if both have levels)
-            if (req.level !== undefined && match.level !== undefined) {
-                if (Number(match.level) < Number(req.level)) return 0.0; // Level too low
-            }
-        }
-    }
-
-    // 2. Reverse Check (Seeker meets Capacity rqmts)
-    if (capacity.required_skills && capacity.required_skills.length > 0) {
-        if (!seeker) return 1.0;
-
-        for (const req of capacity.required_skills) {
-            const match = seeker.skills.find(s => s.id === req.id);
-            if (!match) return 0.0;
-
-            if (req.level !== undefined && match.level !== undefined) {
-                if (Number(match.level) < Number(req.level)) return 0.0;
-            }
-        }
-    }
-
+    if (!meetsSkillRequirements(need.required_skills, provider)) return 0.0;
+    if (!meetsSkillRequirements(capacity.required_skills, seeker)) return 0.0;
     return 1.0;
 }
 

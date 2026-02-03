@@ -11,6 +11,7 @@
 		color,
 		isConnected,
 		lockedNodeId,
+		searchMatch,
 		onSelect,
 		onHover,
 		onLeave,
@@ -27,6 +28,7 @@
 		color: string;
 		isConnected: boolean;
 		lockedNodeId: string | null;
+		searchMatch: boolean | null;
 		onSelect: (id: string) => void;
 		onHover: (id: string, isCapacity: boolean) => void;
 		onLeave: () => void;
@@ -37,7 +39,8 @@
 	} = $props();
 
 	const pos = $derived(getPosition(index, total, radius));
-	const opacity = $derived(lockedNodeId && !isConnected ? 0.3 : 1);
+	const dimmed = $derived((lockedNodeId && !isConnected) || searchMatch === false);
+	const opacity = $derived(dimmed ? 0.15 : 1);
 
 	function handleClick(e: MouseEvent) {
 		e.stopPropagation();

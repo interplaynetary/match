@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as d3 from 'd3';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { getNodesAtDepth, type TaxonomyNode } from '$lib/core/taxonomy-tree';
+	import { getNodesAtDepth, type TaxonomyNode, type CohesionScore } from '$lib/core/taxonomy-tree';
 	import { embeddingToColor, type PCATransform } from '$lib/core/semantic-colors';
 
 	let {
@@ -18,6 +18,8 @@
 
 	const DEPTH_COLORS = ['#1a1a2e', '#16213e', '#0f3460', '#1a4a7a'];
 
+	type ColorMode = 'semantic' | 'cohesion';
+
 	type TreemapRect = {
 		id: string;
 		name: string;
@@ -30,7 +32,18 @@
 		expressionCount: number;
 		parent: string | null;
 		embedding?: number[];
+		cohesion?: CohesionScore;
 	};
+
+	let colorMode = $state<ColorMode>('semantic');
+
+	function cohesionToColor(score: number): string {
+		const s = Math.max(0, Math.min(1, score));
+		const hue = s * 120; // 0 = red, 120 = green
+		const saturation = 60;
+		const lightness = 25 + s * 15;
+		return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+	}
 
 	const initialExpanded = getNodesAtDepth(tree, INITIAL_DEPTH);
 	let expandedIds = new SvelteSet(initialExpanded);
@@ -73,11 +86,19 @@
 			hasChildren: node.data.children.length > 0,
 			expressionCount: node.data.expressionCount,
 			parent: node.parent?.data.id ?? null,
-			embedding: node.data.embedding
+			embedding: node.data.embedding,
+			cohesion: node.data.cohesion
 		}));
 	});
 
 	function getColor(rect: TreemapRect): string {
+		if (colorMode === 'cohesion') {
+			if (rect.cohesion) {
+				return cohesionToColor(rect.cohesion.combined);
+			}
+			return '#2a2a3e';
+		}
+		// Semantic mode: use embedding color
 		if (rect.embedding && pcaTransform) {
 			return embeddingToColor(rect.embedding, pcaTransform);
 		}
@@ -98,11 +119,38 @@
 	}
 
 	const breadcrumb = $derived(hoveredId ? hoveredId.split('/').slice(1).join(' > ') : null);
+
+	const hoveredRect = $derived(hoveredId ? rects.find((r) => r.id === hoveredId) : null);
+
+	const cohesionInfo = $derived.by(() => {
+		if (!hoveredRect?.cohesion) return null;
+		const c = hoveredRect.cohesion;
+		return `P-C: ${(c.parentChildSim * 100).toFixed(0)}% | Sib: ${(c.siblingCohesion * 100).toFixed(0)}%`;
+	});
 </script>
 
 <div class="treemap-container">
+	<div class="treemap-controls">
+		<button
+			class="mode-toggle"
+			class:active={colorMode === 'semantic'}
+			onclick={() => (colorMode = 'semantic')}
+		>
+			Semantic
+		</button>
+		<button
+			class="mode-toggle"
+			class:active={colorMode === 'cohesion'}
+			onclick={() => (colorMode = 'cohesion')}
+		>
+			Cohesion
+		</button>
+	</div>
 	<div class="treemap-breadcrumb">
 		{breadcrumb || 'Hover over a category to see its path'}
+		{#if cohesionInfo}
+			<span class="cohesion-info"> | {cohesionInfo}</span>
+		{/if}
 	</div>
 	<svg
 		class="taxonomy-treemap"

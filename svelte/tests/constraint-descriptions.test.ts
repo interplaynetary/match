@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'bun:test'
-import { Matcher, describeTimeConstraint } from '../src/matcher'
-import type { Need, Capacity, ConstraintDetail } from '../src/types'
+import { Matcher, describeTimeConstraint } from '../src/lib/core/matcher'
+import type { Need, Capacity, ConstraintDetail } from '../src/lib/core/types'
 
 // Helper to get the time detail from a match (BOTH sides must have constraints)
 function getTimeDetail(needTime: unknown, capacityTime: unknown): ConstraintDetail | undefined {

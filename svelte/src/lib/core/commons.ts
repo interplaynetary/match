@@ -2,6 +2,7 @@ import { z } from 'zod';
 import jsonLogic from 'json-logic-js';
 import { SkillSchema } from './skills';
 import { AvailabilityWindowSchema } from './time';
+import { } from './feasibility';
 import { nanoid } from 'nanoid';
 
 // =============================================================================
@@ -67,6 +68,7 @@ export type CommonsDescription = z.infer<typeof CommonsDescription>;
 // No artificial separation between "definition" and "context".
 
 export const Resource = z.object({
+    id: NanoId,
     // What
     type_id: z.string().min(1),
     quantity: z.number().gte(0),
@@ -116,6 +118,19 @@ export const Resource = z.object({
 export type Resource = z.infer<typeof Resource>;
 
 // =============================================================================
+// ALLOCATION DEFINITIONS
+// =============================================================================
+
+export const AllocationRecord = z.object({
+    id: z.string().min(1),
+    capacity_id: z.string().min(1),
+    need_id: z.string().optional(),
+    quantity: z.number().nonnegative(),
+});
+
+export type AllocationRecord = z.infer<typeof AllocationRecord>;
+
+// =============================================================================
 // INPUT DEFINITIONS
 // =============================================================================
 
@@ -126,8 +141,9 @@ const InputGeneric = z.object({
     description: z.string().optional(),
 });
 
-const InputResource = Resource.extend({
+const InputResource = z.object({
     kind: z.literal('resource'),
+    resource_id: z.string(),
 });
 
 const InputCommons = z.object({
@@ -143,11 +159,9 @@ export type InputGeneric = z.infer<typeof InputGeneric>;
 
 // Input helpers
 export const input = {
-    resource: (type_id: string, quantity: number, opts?: Partial<Omit<Resource, 'type_id' | 'quantity'>>) => ({
+    resource: (resource_id: string) => ({
         kind: 'resource' as const,
-        type_id,
-        quantity,
-        ...opts,
+        resource_id,
     } satisfies InputResource),
 
     commons: (commons_id?: string) => ({
@@ -221,6 +235,7 @@ export type CommonsWithState = Commons & {
 
 export class CommonsManager {
     private registry = new Map<NanoId, Commons>();
+    private resources = new Map<NanoId, Resource>(); // New: resource definitions
     private referencedBy = new Map<NanoId, Set<NanoId>>();
 
     /**
@@ -232,7 +247,7 @@ export class CommonsManager {
      *   author: 'alice',
      *   slots: [{
      *     name: 'Childcare',
-     *     input: input.resource('childcare', 10, { city: 'Portland' })
+     *     input: input.resource(resourceId, 10)
      *   }]
      * });
      */
@@ -252,6 +267,16 @@ export class CommonsManager {
             acceptance_logic: s.acceptance_logic,
             filled_by: undefined,
         }));
+
+        // Validate that referenced resources exist
+        for (const slot of slots) {
+            if (slot.input.kind === 'resource') {
+                if (!this.resources.has(slot.input.resource_id as NanoId)) {
+                    // Warn or throw? For now throw to be safe.
+                    // throw new Error(`Resource ${slot.input.resource_id} not found`);
+                }
+            }
+        }
 
         const commons: Commons = {
             id: nanoid() as NanoId,
@@ -448,57 +473,3 @@ export class CommonsManager {
 }
 
 export const commons = new CommonsManager();
-
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-/**
- * Create a simple single-slot commons (a "need").
- *
- * @example
- * const childcare = need('Childcare', 'alice',
- *   input.resource('childcare', 10, { city: 'Portland' })
- * );
- */
-export function need(
-    name: string,
-    author: string,
-    input: InputDefinition,
-    opts?: { description?: string; offerer?: string }
-): CommonsWithState {
-    return commons.create({
-        name,
-        author,
-        description: opts?.description,
-        offerer: opts?.offerer,
-        slots: [{ name, input }],
-    });
-}
-
-/**
- * Create a commons with multiple resource slots.
- *
- * @example
- * const party = resources('Block Party', 'alice', [
- *   ['Childcare', 'childcare', 10, { city: 'Portland' }],
- *   ['Food', 'food', 50, { city: 'Portland' }],
- * ]);
- */
-export function resources(
-    name: string,
-    author: string,
-    slots: Array<[name: string, type_id: string, quantity: number, opts?: Partial<Omit<Resource, 'type_id' | 'quantity'>>]>,
-    opts?: { description?: CommonsDescription; offerer?: string }
-): CommonsWithState {
-    return commons.create({
-        name,
-        author,
-        description: opts?.description,
-        offerer: opts?.offerer,
-        slots: slots.map(([slotName, type_id, quantity, resourceOpts]) => ({
-            name: slotName,
-            input: input.resource(type_id, quantity, resourceOpts),
-        })),
-    });
-}

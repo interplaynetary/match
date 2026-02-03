@@ -1,8 +1,8 @@
 
 import { describe, expect, it } from 'bun:test';
 import { slotsCompatible, skillsCompatible, timeRangesOverlap, locationsCompatible, checkFlowConstraints } from '../src/matching';
-import type { Resource, Contact } from '../src/commons';
-import type { AvailabilityWindow } from '../src/time';
+import type { Resource, Contact } from '../src/lib/core/commons';
+import type { AvailabilityWindow } from '../src/lib/core/time';
 
 describe('Slot Matching Logic', () => {
 

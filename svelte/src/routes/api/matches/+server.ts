@@ -1,9 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateMatchData } from '$lib/core/match-data';
-
-export const prerender = true;
+import { getMatchData } from '$lib/server/state';
 
 export const GET: RequestHandler = async () => {
-	return json(generateMatchData());
+	return json(getMatchData());
 };

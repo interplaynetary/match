@@ -79,10 +79,6 @@ export function centroidToColor(
  * Uses power iteration to find the top 2 principal components.
  */
 export function computePCATransform(embeddings: number[][]): PCATransform {
-  if (embeddings.length === 0) {
-    throw new Error('Cannot compute PCA transform from empty embeddings')
-  }
-
   const firstEmb = embeddings[0]
   if (!firstEmb) {
     throw new Error('Cannot compute PCA transform from empty embeddings')
@@ -188,32 +184,16 @@ function dotProduct(a: number[], b: number[]): number {
 }
 
 function normalize(vec: number[]): number[] {
-  let norm = 0
-  for (const v of vec) {
-    norm += v * v
-  }
-  norm = Math.sqrt(norm)
-  if (norm === 0) return vec
-  return vec.map((v) => v / norm)
+  const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0))
+  return norm === 0 ? vec : vec.map(v => v / norm)
 }
 
 function computeCentroid(embeddings: number[][]): number[] {
   const first = embeddings[0]
   if (!first) return []
-  const dim = first.length
-  const sum = new Array(dim).fill(0) as number[]
 
-  for (const emb of embeddings) {
-    for (let i = 0; i < dim; i++) {
-      const current = sum[i] ?? 0
-      sum[i] = current + (emb[i] ?? 0)
-    }
-  }
-
-  for (let i = 0; i < dim; i++) {
-    const current = sum[i] ?? 0
-    sum[i] = current / embeddings.length
-  }
-
+  const sum = first.map((_, i) =>
+    embeddings.reduce((acc, emb) => acc + (emb[i] ?? 0), 0) / embeddings.length
+  )
   return normalize(sum)
 }
