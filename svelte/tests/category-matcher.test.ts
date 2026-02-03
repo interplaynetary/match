@@ -4,7 +4,7 @@ import {
   hasDisjointConflict,
   computeCategoryScore,
   computeSpecificity,
-} from '../src/lib/core/category-matcher'
+} from '$lib/core/category-matcher'
 
 describe('findCategoryOverlap', () => {
   test('exact match returns distance 0', () => {

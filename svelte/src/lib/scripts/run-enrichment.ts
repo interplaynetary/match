@@ -10,8 +10,8 @@
  *   --concurrency N Process N inputs in parallel (default: 25)
  */
 
-import { createOpenAIPipe } from './src/lib/core/ai-pipe.ts'
-import { CANONICAL_ROOTS } from '../src/lib/core/canonical-roots'
+import { createOpenAIPipe } from '$lib/core/ai-pipe'
+import { CANONICAL_ROOTS } from '$lib/core/canonical-roots'
 import {
   UserInput,
   EnrichedExample,
@@ -19,7 +19,7 @@ import {
   collectCategoryStats,
   type UserInputType,
   type EnrichedExampleType,
-} from '../src/lib/core/enrichment'
+} from '$lib/core/enrichment'
 
 // Parse args
 const args = process.argv.slice(2)

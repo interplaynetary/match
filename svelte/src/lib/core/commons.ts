@@ -118,17 +118,218 @@ export const Resource = z.object({
 export type Resource = z.infer<typeof Resource>;
 
 // =============================================================================
-// ALLOCATION DEFINITIONS
+// MATCH DEFINITIONS
 // =============================================================================
 
-export const AllocationRecord = z.object({
-    id: z.string().min(1),
-    capacity_id: z.string().min(1),
-    need_id: z.string().optional(),
-    quantity: z.number().nonnegative(),
+/**
+ * Time range in HH:MM format
+ */
+export const TimeRangeSchema = z.object({
+    start_time: z.string(), // HH:MM
+    end_time: z.string(),   // HH:MM
 });
 
-export type AllocationRecord = z.infer<typeof AllocationRecord>;
+/**
+ * A specific overlapping time window between need and capacity.
+ * Represents when both parties are simultaneously available.
+ */
+export const OverlappingTimeWindow = z.object({
+    /** Day of week this window applies to (for recurring) */
+    day: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']).optional(),
+    /** Specific date (for one-time windows) */
+    date: z.string().optional(),
+    /** The overlapping time ranges on this day/date */
+    time_ranges: z.array(TimeRangeSchema),
+    /** Total minutes of overlap in this window */
+    duration_minutes: z.number().nonnegative(),
+});
+export type OverlappingTimeWindow = z.infer<typeof OverlappingTimeWindow>;
+
+/**
+ * Detailed breakdown of time compatibility
+ */
+export const TimeMatchDetail = z.object({
+    /** Overall time score (0-1): 0 = no overlap, 1 = perfect overlap */
+    score: z.number().min(0).max(1),
+    /** Human-readable explanation */
+    reason: z.string(),
+    /** Description of need's time constraint */
+    need_desc: z.string().optional(),
+    /** Description of capacity's time constraint */
+    capacity_desc: z.string().optional(),
+    /** The actual overlapping windows */
+    overlapping_windows: z.array(OverlappingTimeWindow).optional(),
+    /** Total hours of overlap across all windows */
+    total_overlap_hours: z.number().nonnegative().optional(),
+    /** Whether this is a recurring or one-time match */
+    recurrence_type: z.enum(['one_time', 'recurring', 'mixed']).optional(),
+});
+export type TimeMatchDetail = z.infer<typeof TimeMatchDetail>;
+
+/**
+ * Detailed breakdown of spatial/location compatibility
+ */
+export const SpaceMatchDetail = z.object({
+    /** Overall space score (0-1): 0 = incompatible, 1 = same location/remote */
+    score: z.number().min(0).max(1),
+    /** Human-readable explanation */
+    reason: z.string(),
+    /** Description of need's location */
+    need_desc: z.string().optional(),
+    /** Description of capacity's location */
+    capacity_desc: z.string().optional(),
+    /** Distance in km (if applicable) */
+    distance_km: z.number().nonnegative().optional(),
+    /** Max acceptable radius that was used */
+    max_radius_km: z.number().positive().optional(),
+    /** Whether remote/online is possible */
+    remote_compatible: z.boolean().optional(),
+});
+export type SpaceMatchDetail = z.infer<typeof SpaceMatchDetail>;
+
+/**
+ * Detailed breakdown of quantity/resource compatibility
+ */
+export const QuantityMatchDetail = z.object({
+    /** Overall quantity score (0-1): 0 = insufficient, 1 = fully satisfies */
+    score: z.number().min(0).max(1),
+    /** Human-readable explanation */
+    reason: z.string(),
+    /** What the need requires */
+    need_amount: z.number().optional(),
+    need_unit: z.string().optional(),
+    /** What the capacity offers */
+    capacity_amount: z.number().optional(),
+    capacity_unit: z.string().optional(),
+    /** The matchable quantity (min of need/capacity when compatible) */
+    matchable_quantity: z.number().nonnegative().optional(),
+});
+export type QuantityMatchDetail = z.infer<typeof QuantityMatchDetail>;
+
+/**
+ * Category/taxonomy match information
+ */
+export const CategoryMatchDetail = z.object({
+    /** The category where chains overlap (e.g., "food" or "pizza≈flatbread") */
+    overlap_category: z.string(),
+    /** Distance: 0 = exact match, 1 = sibling, 2+ = ancestor */
+    overlap_distance: z.number().int().nonnegative(),
+    /** Whether a disjoint conflict blocked the match */
+    is_blocked: z.boolean(),
+    /** Specificity score (0-1): how precise the match is */
+    specificity: z.number().min(0).max(1),
+    /** The need's category chain */
+    need_chain: z.array(z.string()).optional(),
+    /** The capacity's category chain */
+    capacity_chain: z.array(z.string()).optional(),
+});
+export type CategoryMatchDetail = z.infer<typeof CategoryMatchDetail>;
+
+/**
+ * Semantic/embedding match information
+ */
+export const SemanticMatchDetail = z.object({
+    /** Raw cosine similarity between embeddings (0-1) */
+    embedding_similarity: z.number().min(0).max(1),
+    /** The blended similarity score (category + embedding when applicable) */
+    blended_similarity: z.number().min(0).max(1),
+    /** Priority weight factor based on expression priorities */
+    priority_weight: z.number().min(0).max(1),
+    /** The matched need expression text */
+    need_expression: z.string(),
+    /** The matched capacity expression text */
+    capacity_expression: z.string(),
+});
+export type SemanticMatchDetail = z.infer<typeof SemanticMatchDetail>;
+
+/**
+ * Feasibility scores across all dimensions
+ */
+export const FeasibilityScoreBreakdown = z.object({
+    time: z.number().min(0).max(1).optional(),
+    location: z.number().min(0).max(1).optional(),
+    skills: z.number().min(0).max(1).optional(),
+    travel: z.number().min(0).max(1).optional(),
+    resources: z.number().min(0).max(1).optional(),
+    affinity: z.number().min(0).max(1).optional(),
+    continuity: z.number().min(0).max(1).optional(),
+});
+export type FeasibilityScoreBreakdown = z.infer<typeof FeasibilityScoreBreakdown>;
+
+/**
+ * Complete match record containing all information about a need-capacity match.
+ *
+ * This record captures:
+ * - Identity: who matched with whom
+ * - Semantic quality: how well the expressions align
+ * - Constraint feasibility: detailed breakdowns of time, space, quantity compatibility
+ * - Overlapping windows: the actual compatible time windows
+ * - Overall scores: aggregated feasibility metrics
+ */
+export const MatchRecord = z.object({
+    /** Unique identifier for this match record */
+    id: z.string().min(1),
+
+    // === Identity ===
+    /** The capacity (offer) being matched */
+    capacity_id: z.string().min(1),
+    /** The need (request) being matched */
+    need_id: z.string().min(1),
+    /** When this match was computed */
+    computed_at: z.date().optional(),
+
+    // === Overall Scores ===
+    /**
+     * Overall feasibility score (0-1), geometric mean of all factors.
+     * A score of 0 means the match is impossible.
+     */
+    feasibility_score: z.number().min(0).max(1),
+    /**
+     * Whether this match is possible or blocked
+     */
+    status: z.enum(['possible', 'impossible']),
+    /**
+     * If impossible, why (can have multiple reasons)
+     */
+    block_reasons: z.array(z.enum([
+        'TIME_MISMATCH',
+        'LOCATION_MISMATCH',
+        'SKILL_MISMATCH',
+        'QUANTITY_MISMATCH',
+        'CATEGORY_CONFLICT',
+        'TRAVEL_TIME_VIOLATION',
+        'EXCLUSION_RULE',
+        'OTHER'
+    ])).optional(),
+    /**
+     * Risk factors if possible but not perfect (score < 1)
+     */
+    risk_factors: z.array(z.string()).optional(),
+
+    // === Semantic/Expression Match ===
+    semantic: SemanticMatchDetail.optional(),
+
+    // === Category Match ===
+    category: CategoryMatchDetail.optional(),
+
+    // === Constraint Details ===
+    /** Detailed time/schedule compatibility */
+    time: TimeMatchDetail.optional(),
+    /** Detailed location/space compatibility */
+    space: SpaceMatchDetail.optional(),
+    /** Detailed quantity/resource compatibility */
+    quantity: QuantityMatchDetail.optional(),
+
+    // === Full Feasibility Breakdown ===
+    /** All feasibility dimension scores */
+    feasibility_breakdown: FeasibilityScoreBreakdown.optional(),
+
+    // === Allocation ===
+    /** Quantity that can be allocated from this match */
+    allocatable_quantity: z.number().nonnegative().optional(),
+});
+
+export type MatchRecord = z.infer<typeof MatchRecord>;
 
 // =============================================================================
 // INPUT DEFINITIONS

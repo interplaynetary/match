@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod'
-import { createOpenAIPipe } from '../src/ai-pipe'
+import { createOpenAIPipe } from '../core/ai-pipe'
 
 const UserSchema = z.object({
   name: z.string().min(2).max(50),
