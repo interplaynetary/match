@@ -1,71 +1,65 @@
 import * as z from 'zod';
+import {
+    BlockReason,
+    RiskFactor,
+    Breakdown,
+    DIMENSIONS,
+    type Dimension
+} from './commons';
+
+// Re-export for convenience
+export { BlockReason, RiskFactor, DIMENSIONS };
+export type { Dimension };
 
 // ═══════════════════════════════════════════════════════════════════
 // FEASIBILITY (The "Possible")
 // ═══════════════════════════════════════════════════════════════════
 
+/**
+ * Simple numeric scores for each feasibility dimension.
+ * Use this for quick checks; use FeasibilityBreakdown for detailed analysis.
+ */
 export const FeasibilityScoresSchema = z.object({
     time: z.number().min(0).max(1).default(1),
     location: z.number().min(0).max(1).default(1),
     skills: z.number().min(0).max(1).default(1),
     travel: z.number().min(0).max(1).default(1),
-    resources: z.number().min(0).max(1).default(1), // e.g. quantity/budget
-
-    /**
-     * Social Trust / Affinity (0-1)
-     * 1.0 = High trust / Close connection
-     * 0.0 = Blocked / No trust
-     */
+    resources: z.number().min(0).max(1).default(1),
     affinity: z.number().min(0).max(1).default(1),
-
-    /**
-     * Temporal Continuity (0-1)
-     * Measures fragmentation of the matching time blocks.
-     * 1.0 = Perfectly contiguous (one block covers the need)
-     * < 1.0 = Fragmented (multiple smaller blocks needed to satisfy quantity)
-     */
     continuity: z.number().min(0).max(1).default(1)
 });
 
 export type FeasibilityScores = z.infer<typeof FeasibilityScoresSchema>;
 
+/** Default scores (all 1.0) */
+const defaultScores = (): FeasibilityScores => ({
+    time: 1, location: 1, skills: 1, travel: 1, resources: 1, affinity: 1, continuity: 1
+});
+
+/**
+ * Feasibility status - discriminated union of possible/impossible.
+ * Optionally includes detailed breakdown for debugging/UI.
+ */
 export const FeasibilityStatusSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('possible'),
-        /**
-         * 0.0 to 1.0 score indicating confidence or safety of this feasibility.
-         * 1.0 = Perfectly safe/compatible.
-         * < 1.0 = Feasible but with risk (e.g. tight travel time, partial skill match).
-         */
+        /** Aggregated confidence (0-1), product of all dimension scores */
         confidence: z.number().min(0).max(1).default(1.0),
-
-        /**
-         * Explanation of risks if confidence < 1.0
-         */
-        risk_factors: z.array(z.string()).optional(),
-
-        /**
-         * Granular scores for each dimension (0-1)
-         */
-        scores: FeasibilityScoresSchema.default({})
+        /** Risk factors if confidence < 1.0 */
+        risk_factors: z.array(RiskFactor).optional(),
+        /** Simple dimension scores */
+        scores: FeasibilityScoresSchema.default(defaultScores),
+        /** Optional detailed breakdown (for debugging/UI) */
+        breakdown: Breakdown.optional()
     }),
     z.object({
         type: z.literal('impossible'),
-        // Why is it impossible?
-        reasons: z.array(z.enum([
-            'TIME_MISMATCH',
-            'SKILL_MISMATCH',
-            'LOCATION_MISMATCH',
-            'EXCLUSION_RULE',
-            'ALREADY_COMMITTED', // E.g. double booking
-            'TRAVEL_TIME_VIOLATION', // Impossible due to travel time between commitments
-            'OTHER'
-        ])),
-        /**
-         * Granular scores for each dimension (0-1).
-         * Impossible dimensions will ideally be near 0.
-         */
-        scores: FeasibilityScoresSchema.default({})
+        /** Why is it impossible */
+        reasons: z.array(BlockReason),
+        /** Dimension scores (blocking dimensions will be 0) */
+        scores: FeasibilityScoresSchema.default(defaultScores),
+        /** Optional detailed breakdown */
+        breakdown: Breakdown.optional()
     })
 ]);
 

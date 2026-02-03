@@ -1,38 +1,30 @@
 /**
  * Slot-to-Slot Matching Logic
- * 
- * Pure functions for matching need slots to availability slots based on:
- * - **Type compatibility** (need_type_id matching)
- * - **Time compatibility** (date/time range overlap)
- * - **Location compatibility** (city/country/coordinates/online)
- * - **Flow constraints** (quantities, duration, etc.)
- * 
- * Main Entry Point: `slotsCompatible()`
+ *
+ * Two APIs:
+ * - **Boolean (fast)**: `slotsCompatible()` - quick yes/no checks for filtering
+ * - **Rich (detailed)**: `computeMatchRecord()` from feasibility.ts - full breakdown
+ *
+ * This module provides:
+ * - Time overlap calculations (with timezone support)
+ * - Location compatibility (H3 spatial indexing)
+ * - Flow constraint checks (granularity, lead time, booking window)
  */
 
 import jsonLogic from 'json-logic-js';
-import type { Resource } from './commons';
+import type { Resource, MatchRecord, Score } from './commons';
 import type { AvailabilityWindow, TimeRange, DayOfWeek, DaySchedule, WeekSchedule, MonthSchedule } from './time';
 import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, haversineDistance } from './spatial';
 import type { FilterContext, EligibilityFilter, Contact } from './types';
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN ENTRY POINT
+// MAIN ENTRY POINTS
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Check if a need slot can be fulfilled by an availability slot
- * 
- * COMPATIBILITY REQUIREMENTS:
- * 1. Type match (need_type_id)
- * 2. Time compatibility (Overlap)
- * 3. Location compatibility
- * 4. Flow Constraints (Granularity, Duration, etc.)
- * 
- * @param needSlot - The need slot to check
- * @param capacitySlot - The availability slot to check
- * @param referenceTime - (Optional) Current time for enforcing Lead Time / Booking Window
- * @returns true if slots are compatible
+ * Fast boolean check: are these slots compatible?
+ * Use this for filtering large sets. For detailed breakdown, use
+ * `computeMatchRecord()` from feasibility.ts.
  */
 export function slotsCompatible(
     needSlot: Resource,
@@ -60,6 +52,30 @@ export function slotsCompatible(
     }
 
     return true;
+}
+
+/**
+ * Check compatibility and return a simple score (0 or 1) with reason.
+ * Lighter than full MatchRecord but explains WHY.
+ */
+export function checkCompatibility(
+    needSlot: Resource,
+    capacitySlot: Resource,
+    referenceTime?: string | Date
+): Score {
+    if (needSlot.type_id !== capacitySlot.type_id) {
+        return { value: 0, reason: `Type mismatch: ${needSlot.type_id} ≠ ${capacitySlot.type_id}` };
+    }
+    if (!timeRangesOverlap(needSlot, capacitySlot)) {
+        return { value: 0, reason: 'No time overlap' };
+    }
+    if (!locationsCompatible(needSlot, capacitySlot)) {
+        return { value: 0, reason: 'Location incompatible' };
+    }
+    if (!checkFlowConstraints(needSlot, capacitySlot, referenceTime)) {
+        return { value: 0, reason: 'Flow constraints not met' };
+    }
+    return { value: 1, reason: 'Compatible' };
 }
 
 // ═══════════════════════════════════════════════════════════════════

@@ -1,99 +1,64 @@
 import * as z from 'zod';
+import { nanoid } from 'nanoid';
 import {
     type Resource,
-    type Contact
+    type Score,
+    type TimeScore,
+    type SpaceScore,
+    type QuantityScore,
+    type SkillsScore,
+    type TravelScore,
+    type AffinityScore,
+    type Breakdown,
+    type Overlap,
+    type BlockReason,
+    type RiskFactor,
+    type MatchRecord,
+    type SemanticScore,
+    buildMatchRecord,
+    getBlockReasons,
+    getRiskFactors,
 } from './commons';
-import {
-    FeasibilityStatusSchema,
-    type FeasibilityStatus,
-    type SlotRelationship,
-    FeasibilityScoresSchema,
-    type FeasibilityScores
-} from './desire.js';
-import {
-    availabilityWindowsOverlapWithTimezone,
-    skillsCompatible,
-    calculateAvailabilityIntersection
-} from './matching.js';
-import {
-    computeH3Index,
-    getCellsInRadius,
-    cellsCompatible,
-    haversineDistance,
-    REMOTE_H3_INDEX,
-    DEFAULT_SEARCH_RADIUS_KM
-} from './spatial.js';
+import { type Contact } from './types';
+import { type FeasibilityStatus, type FeasibilityScores } from './desire.js';
+import { availabilityWindowsOverlapWithTimezone, calculateAvailabilityIntersection } from './matching.js';
+import { haversineDistance, REMOTE_H3_INDEX, DEFAULT_SEARCH_RADIUS_KM } from './spatial.js';
 
 // ═══════════════════════════════════════════════════════════════════
 // SCORE CALCULATORS (7 Dimensions)
+// Each returns a detailed breakdown structure for rich analysis.
+// These are exported for use in matching.ts and elsewhere.
 // ═══════════════════════════════════════════════════════════════════
 
 const GlobalRecognitionWeightsSchema = z.map(z.string(), z.number());
 type GlobalRecognitionWeights = z.infer<typeof GlobalRecognitionWeightsSchema>;
 
+/** Helper to parse HH:MM to minutes */
+function parseTimeToMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+}
+
 /**
- * 1. TIME SCORE (Binary + Duration Check)
- * Returns 1.0 if meaningful overlap exists, 0.0 if not.
- * HEURISTIC: "Minimum Usable Chunk" - Overlap must be > min_atomic_size.
+ * 1. TIME SCORE
+ * Computes time overlap with detailed intersection info.
  */
-function scoreTime(need: Resource, capacity: Resource): number {
-    const overlaps = availabilityWindowsOverlapWithTimezone(
+function computeTimeScore(need: Resource, capacity: Resource): TimeScore {
+    const hasOverlap = availabilityWindowsOverlapWithTimezone(
         need.availability_window,
         capacity.availability_window,
         need.time_zone,
         capacity.time_zone
     );
 
-    if (!overlaps) return 0.0;
-
-    // Check Minimum Atomic Size (Granularity)
-    // Primary: min_atomic_size.
-    const minSize = need.min_atomic_size;
-
-    // We need to calculate the *size* of the overlap.
-    if (minSize && minSize > 0) {
-        if (!need.availability_window || !capacity.availability_window) {
-            return 1.0; // Optimistic if windows missing (should be handled by overlaps check above theoretically)
-        }
-
-        const intersection = calculateAvailabilityIntersection(
-            need.availability_window,
-            capacity.availability_window,
-            need.time_zone,
-            capacity.time_zone
-        );
-
-        let maxBlockMinutes = 0;
-        if (intersection.day_schedules) {
-            for (const ds of intersection.day_schedules) {
-                for (const range of ds.time_ranges) {
-                    const [h1, m1] = range.start_time.split(':').map(Number);
-                    const [h2, m2] = range.end_time.split(':').map(Number);
-                    const mins = (h2 * 60 + m2) - (h1 * 60 + m1);
-                    if (mins > maxBlockMinutes) maxBlockMinutes = mins;
-                }
-            }
-        }
-
-        if (maxBlockMinutes < minSize) {
-            return 0.0; // Overlap is too fragmented/short to be useful
-        }
+    if (!hasOverlap) {
+        return { value: 0, reason: 'No time overlap between availability windows' };
     }
 
-    return 1.0;
-}
+    if (!need.availability_window || !capacity.availability_window) {
+        return { value: 1, reason: 'No specific time constraints defined' };
+    }
 
-// ... (scoreLocation, scoreSkills, scoreTravel, scoreResources... unchanged) ...
-
-/**
- * 7. CONTINUITY SCORE (Fragmentation)
- * Penalizes fragmented time overlaps.
- * HEURISTIC: If avg block size < min_duration, heavily penalize.
- */
-function scoreContinuity(need: Resource, capacity: Resource): number {
-    if (!need.availability_window || !capacity.availability_window) return 1.0;
-
-    // Calculate intersection
     const intersection = calculateAvailabilityIntersection(
         need.availability_window,
         capacity.availability_window,
@@ -101,201 +66,174 @@ function scoreContinuity(need: Resource, capacity: Resource): number {
         capacity.time_zone
     );
 
-    let blockCount = 0;
+    const overlaps: Overlap[] = [];
     let totalMinutes = 0;
+    let maxBlockMin = 0;
+    let blocks = 0;
 
     if (intersection.day_schedules) {
         for (const ds of intersection.day_schedules) {
-            blockCount += ds.time_ranges.length;
-            for (const range of ds.time_ranges) {
-                const [h1, m1] = range.start_time.split(':').map(Number);
-                const [h2, m2] = range.end_time.split(':').map(Number);
-                totalMinutes += ((h2 * 60 + m2) - (h1 * 60 + m1));
+            for (const day of ds.days) {
+                let dayMins = 0;
+                for (const range of ds.time_ranges) {
+                    const mins = parseTimeToMinutes(range.end_time) - parseTimeToMinutes(range.start_time);
+                    dayMins += mins;
+                    if (mins > maxBlockMin) maxBlockMin = mins;
+                    blocks++;
+                }
+                totalMinutes += dayMins;
+                overlaps.push({ day, ranges: ds.time_ranges, minutes: dayMins });
             }
         }
     }
 
-    if (blockCount === 0) return 0.0; // Should be handled by scoreTime, but safety first
-    if (blockCount <= 1) return 1.0;
-
-    // Penalty for fragmentation
-    let score = 1.0 / blockCount;
-
-    // Additional penalty if blocks are tiny (below preferred duration)
-    // If we have a min_duration, use it as a soft target
-    const targetBlockSize = need.min_atomic_size ?? 60;
-    const avgBlockSize = totalMinutes / blockCount;
-
-    if (avgBlockSize < targetBlockSize) {
-        score *= (avgBlockSize / targetBlockSize); // Linear penalty for short blocks
+    const minSize = need.min_atomic_size;
+    if (minSize && minSize > 0 && maxBlockMin < minSize) {
+        return {
+            value: 0,
+            reason: `Largest block (${maxBlockMin}min) < min_atomic_size (${minSize}min)`,
+            overlaps,
+            total_hours: totalMinutes / 60,
+            blocks,
+            max_block_min: maxBlockMin,
+        };
     }
 
-    return score;
-}
-
-/**
- * 2. LOCATION SCORE (Distance Decay)
- * 1.0 at distance 0, decaying to 0.0 at max_radius.
- */
-function scoreLocation(need: Resource, capacity: Resource): number {
-    // If either is remote, perfect match
-    if (need.h3_index === REMOTE_H3_INDEX || capacity.h3_index === REMOTE_H3_INDEX) {
-        return 1.0;
-    }
-
-    // If no coordinates (and not remote), fail or optimistic 1.0?
-    // Let's be strict: if location matching required but missing coords, fail?
-    // For now, if missing coords but passed index check, assume 1.0 (optimistic)
-    if (!need.latitude || !need.longitude || !capacity.latitude || !capacity.longitude) {
-        return 1.0;
-    }
-
-    const dist = haversineDistance(
-        need.latitude, need.longitude,
-        capacity.latitude, capacity.longitude
-    );
-
-    const maxRadius = need.search_radius_km ?? DEFAULT_SEARCH_RADIUS_KM;
-
-    if (dist > maxRadius) return 0.0;
-
-    // Simple linear decay: 1.0 at 0km, 0.0 at maxRadius
-    return Math.max(0, 1.0 - (dist / maxRadius));
-}
-
-/**
- * Check if a contact meets skill requirements.
- */
-function meetsSkillRequirements(
-    requirements: Resource['required_skills'],
-    contact: Contact | undefined
-): boolean {
-    if (!requirements?.length) return true;
-    if (!contact) return true; // Optimistic if unknown
-
-    return requirements.every(req => {
-        const match = contact.skills.find(s => s.id === req.id);
-        if (!match) return false;
-        if (req.level !== undefined && match.level !== undefined) {
-            return Number(match.level) >= Number(req.level);
-        }
-        return true;
-    });
-}
-
-/**
- * 3. SKILLS SCORE (Level Aware)
- * 1.0 if all requirements met, 0.0 otherwise.
- * HEURISTIC: Checks `level` if present.
- */
-function scoreSkills(
-    need: Resource,
-    capacity: Resource,
-    provider?: Contact,
-    seeker?: Contact
-): number {
-    if (!meetsSkillRequirements(need.required_skills, provider)) return 0.0;
-    if (!meetsSkillRequirements(capacity.required_skills, seeker)) return 0.0;
-    return 1.0;
-}
-
-/**
- * 4. TRAVEL SCORE (Spatio-Temporal + Tortuosity)
- * Checks if this match contradicts *other* commitments due to travel time.
- * HEURISTIC: Tortuosity Factor (1.5x) for real-world travel estimation.
- */
-function scoreTravel(
-    need: Resource,
-    capacity: Resource,
-    previousCommitment?: { latitude: number; longitude: number; end_time: string }
-): number {
-    if (!previousCommitment) return 1.0; // No previous context = feasible
-    if (!capacity.latitude || !capacity.longitude) return 1.0; // No loc data = optimistic
-
-    // 1. Calculate Distance (km)
-    const rawDist = haversineDistance(
-        previousCommitment.latitude, previousCommitment.longitude,
-        capacity.latitude, capacity.longitude
-    );
-
-    if (rawDist <= 0.1) return 1.0; // Same location
-
-    // HEURISTIC: Tortuosity Factor
-    // Real road distance is usually ~1.4 to 1.5x the straight line distance.
-    const TORTUOSITY_FACTOR = 1.5;
-    const realDist = rawDist * TORTUOSITY_FACTOR;
-
-    // 2. Calculate Time Delta (hours)
-    // Assume capacity start time is the target time.
-    // Need to parse times. Simple HH:MM comparison for now (assuming same day/UTC).
-    // TODO: Full Date comparison from `start_date` if available.
-
-    // Helper to get minutes from HH:MM
-    const getMinutes = (t: string) => {
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
+    return {
+        value: 1,
+        reason: `${blocks} block(s), ${Math.round(totalMinutes / 6) / 10}h total`,
+        overlaps,
+        total_hours: totalMinutes / 60,
+        blocks,
+        max_block_min: maxBlockMin,
     };
+}
 
-    // Get earliest start of new slot
-    const newStartStr = capacity.availability_window?.time_ranges?.[0]?.start_time;
-    if (!newStartStr) return 1.0;
+/**
+ * CONTINUITY SCORE (Fragmentation analysis)
+ */
+function computeContinuityScore(time: TimeScore, need: Resource): Score {
+    const blocks = time.blocks ?? 1;
+    const totalMinutes = (time.total_hours ?? 0) * 60;
 
-    const prevEndMins = getMinutes(previousCommitment.end_time);
-    const newStartMins = getMinutes(newStartStr);
+    if (blocks === 0) return { value: 0, reason: 'No time blocks' };
+    if (blocks === 1) return { value: 1, reason: 'Single contiguous block' };
 
-    let deltaMins = newStartMins - prevEndMins;
+    const target = need.min_atomic_size ?? 60;
+    const avg = totalMinutes / blocks;
+    let v = 1.0 / blocks;
+    if (avg < target) v *= avg / target;
 
-    // Handle day wrap (not perfect without dates, but defensive)
-    if (deltaMins < 0) return 0.0; // Sequence error (new starts before old ends)
+    return {
+        value: Math.max(0, Math.min(1, v)),
+        reason: `${blocks} blocks, avg ${Math.round(avg)}min (target: ${target}min)`
+    };
+}
 
-    const deltaHours = deltaMins / 60;
-    if (deltaHours <= 0) return 0.0; // Instant teleportation required
+/**
+ * 2. SPACE SCORE (Distance Decay)
+ */
+function computeSpaceScore(need: Resource, capacity: Resource): SpaceScore {
+    const needRemote = need.h3_index === REMOTE_H3_INDEX || need.online_link;
+    const capacityRemote = capacity.h3_index === REMOTE_H3_INDEX || capacity.online_link;
 
-    // 3. Calculate Required Speed
-    const requiredSpeedKmH = realDist / deltaHours;
-    const MAX_SPEED_KMH = 80; // Reasonable urban travel limit
-    const COMFORT_SPEED_KMH = 30; // Stress-free travel
-
-    if (requiredSpeedKmH > MAX_SPEED_KMH) {
-        return 0.0; // Impossible
+    if (needRemote || capacityRemote) {
+        return { value: 1, reason: 'Remote/online possible', remote: true };
     }
 
-    // 4. Score based on "Rush Factor"
-    // If we need max speed, score is low (risky).
-    // If we can take our time, score is high.
-    // 30km/h = 1.0 score. 80km/h = 0.5 score? 
-    // Linear interpolation:
-    if (requiredSpeedKmH <= COMFORT_SPEED_KMH) return 1.0;
+    if (!need.latitude || !need.longitude || !capacity.latitude || !capacity.longitude) {
+        return { value: 1, reason: 'No location constraints' };
+    }
 
-    // Decay from 1.0 at 30km/h to 0.1 at 80km/h
-    const ratio = (requiredSpeedKmH - COMFORT_SPEED_KMH) / (MAX_SPEED_KMH - COMFORT_SPEED_KMH);
-    return Math.max(0.1, 1.0 - (ratio * 0.9));
+    const dist = haversineDistance(need.latitude, need.longitude, capacity.latitude, capacity.longitude);
+    const radius = need.search_radius_km ?? DEFAULT_SEARCH_RADIUS_KM;
+
+    if (dist > radius) {
+        return { value: 0, reason: `${dist.toFixed(1)}km > ${radius}km radius`, distance_km: dist, radius_km: radius };
+    }
+
+    const v = Math.max(0, 1 - dist / radius);
+    return { value: v, reason: `${dist.toFixed(1)}km (${Math.round(v * 100)}%)`, distance_km: dist, radius_km: radius };
 }
 
 /**
- * 5. RESOURCES SCORE (Quantity)
- * 1.0 if enough quantity offered, penalized if partial.
+ * 3. SKILLS SCORE
  */
-function scoreResources(need: Resource, capacity: Resource): number {
-    if (capacity.quantity >= need.quantity) return 1.0;
-    if (capacity.quantity <= 0) return 0.0;
+function computeSkillsScore(need: Resource, capacity: Resource, provider?: Contact, seeker?: Contact): SkillsScore {
+    const check = (reqs: typeof need.required_skills, contact?: Contact) =>
+        (reqs ?? []).map(r => {
+            const s = contact?.skills.find(x => x.id === r.id);
+            const met = s ? (r.level === undefined || s.level === undefined || Number(s.level) >= Number(r.level)) : false;
+            return { id: r.id, required: r.level, actual: s?.level, met };
+        });
 
-    // Partial fulfillment
-    return capacity.quantity / need.quantity;
+    const checks = [...check(need.required_skills, provider), ...check(capacity.required_skills, seeker)];
+    const unmet = checks.filter(c => !c.met);
+
+    if (unmet.length) {
+        return { value: 0, reason: `Missing: ${unmet.map(c => c.id).join(', ')}`, checks };
+    }
+    return { value: 1, reason: checks.length ? 'All skills met' : 'No requirements', checks: checks.length ? checks : undefined };
 }
 
 /**
- * 6. AFFINITY SCORE (Social Trust)
- * Uses global recognition weights if available.
+ * 4. TRAVEL SCORE (Spatio-Temporal)
  */
-function scoreAffinity(
-    targetPubkey: string | undefined,
-    weights?: GlobalRecognitionWeights | null
-): number {
-    if (!targetPubkey || !weights) return 1.0; // No data = Neutral/Optimistic
+function computeTravelScore(capacity: Resource, prev?: { latitude: number; longitude: number; end_time: string }): TravelScore {
+    if (!prev) return { value: 1, reason: 'No prior commitment' };
+    if (!capacity.latitude || !capacity.longitude) return { value: 1, reason: 'No location data' };
 
-    const weight = weights[targetPubkey];
-    return weight !== undefined ? weight : 0.1; // Low default if not trusted?
+    const raw = haversineDistance(prev.latitude, prev.longitude, capacity.latitude, capacity.longitude);
+    if (raw <= 0.1) return { value: 1, reason: 'Same location', distance_km: raw };
+
+    const dist = raw * 1.5; // tortuosity
+    const startStr = capacity.availability_window?.time_ranges?.[0]?.start_time;
+    if (!startStr) return { value: 1, reason: 'No start time', distance_km: dist };
+
+    const deltaMins = parseTimeToMinutes(startStr) - parseTimeToMinutes(prev.end_time);
+    if (deltaMins <= 0) return { value: 0, reason: 'Starts before previous ends', distance_km: dist, time_hours: 0 };
+
+    const hours = deltaMins / 60;
+    const speed = dist / hours;
+
+    if (speed > 80) return { value: 0, reason: `Need ${speed.toFixed(0)}km/h (max 80)`, distance_km: dist, time_hours: hours, speed_kmh: speed };
+
+    const v = speed <= 30 ? 1 : Math.max(0.1, 1 - (speed - 30) / 50 * 0.9);
+    return { value: v, reason: `${dist.toFixed(1)}km in ${hours.toFixed(1)}h`, distance_km: dist, time_hours: hours, speed_kmh: speed };
+}
+
+/**
+ * 5. QUANTITY SCORE
+ */
+function computeQuantityScore(need: Resource, capacity: Resource): QuantityScore {
+    const alloc = Math.min(need.quantity, capacity.quantity);
+    const ratio = need.quantity > 0 ? alloc / need.quantity : 1;
+
+    if (capacity.quantity >= need.quantity) {
+        return { value: 1, reason: `Full (${capacity.quantity} >= ${need.quantity})`, need: need.quantity, available: capacity.quantity, allocatable: alloc, unit: need.unit };
+    }
+    if (capacity.quantity <= 0) {
+        return { value: 0, reason: 'None available', need: need.quantity, available: 0, allocatable: 0, unit: need.unit };
+    }
+    return { value: ratio, reason: `${capacity.quantity}/${need.quantity} (${Math.round(ratio * 100)}%)`, need: need.quantity, available: capacity.quantity, allocatable: alloc, unit: need.unit };
+}
+
+/**
+ * 6. AFFINITY SCORE (Trust)
+ */
+function computeAffinityScore(
+    capacityOwner?: string,
+    needOwner?: string,
+    providerWeights?: GlobalRecognitionWeights | null,
+    seekerWeights?: GlobalRecognitionWeights | null
+): AffinityScore {
+    const s2p = (capacityOwner && seekerWeights?.[capacityOwner]) ?? 1;
+    const p2s = (needOwner && providerWeights?.[needOwner]) ?? 1;
+    const v = Math.min(s2p, p2s);
+
+    if (v === 1) return { value: 1, reason: 'Default trust', seeker_to_provider: s2p, provider_to_seeker: p2s };
+    if (v === 0) return { value: 0, reason: 'Blocked', seeker_to_provider: s2p, provider_to_seeker: p2s };
+    return { value: v, reason: `Trust ${Math.round(v * 100)}%`, seeker_to_provider: s2p, provider_to_seeker: p2s };
 }
 
 
@@ -307,79 +245,103 @@ function scoreAffinity(
 export interface FeasibilityContext {
     provider?: Contact;
     seeker?: Contact;
-    providerWeights?: GlobalRecognitionWeights | null; // Seeker's recognition of Provider
-    seekerWeights?: GlobalRecognitionWeights | null;   // Provider's recognition of Seeker
-
-    // Context for Spatio-Temporal checks
+    providerWeights?: GlobalRecognitionWeights | null;
+    seekerWeights?: GlobalRecognitionWeights | null;
     previousCommitment?: {
         latitude: number;
         longitude: number;
-        end_time: string; // HH:MM
+        end_time: string;
     };
+    /** Include detailed breakdowns in the result (for debugging/UI) */
+    includeBreakdown?: boolean;
 }
 
+/**
+ * Calculate feasibility (returns FeasibilityStatus for desire.ts compatibility).
+ */
 export function calculateFeasibility(
     need: Resource,
     capacity: Resource,
-    context: FeasibilityContext = {}
+    ctx: FeasibilityContext = {}
 ): FeasibilityStatus {
+    const breakdown = computeBreakdown(need, capacity, ctx);
+
+    // Legacy scores format
     const scores: FeasibilityScores = {
-        time: scoreTime(need, capacity),
-        location: scoreLocation(need, capacity),
-        skills: scoreSkills(need, capacity, context.provider, context.seeker),
-        travel: scoreTravel(need, capacity, context.previousCommitment),
-        resources: scoreResources(need, capacity),
-
-        // Two-way affinity? 
-        // Usually "Does Seeker trust Provider?" AND "Does Provider trust Seeker?"
-        // We take the MINIMUM (bottleneck).
-        affinity: Math.min(
-            scoreAffinity(capacity.offerer, context.seekerWeights), // Seeker -> Provider
-            scoreAffinity(need.offerer, context.providerWeights)    // Provider -> Seeker
-        ),
-
-        continuity: scoreContinuity(need, capacity)
+        time: breakdown.time?.value ?? 1,
+        location: breakdown.space?.value ?? 1,
+        skills: breakdown.skills?.value ?? 1,
+        travel: breakdown.travel?.value ?? 1,
+        resources: breakdown.quantity?.value ?? 1,
+        affinity: breakdown.affinity?.value ?? 1,
+        continuity: breakdown.continuity?.value ?? 1,
     };
 
-    const reasons: string[] = [];
-    if (scores.time === 0) reasons.push('TIME_MISMATCH');
-    if (scores.location === 0) reasons.push('LOCATION_MISMATCH');
-    if (scores.skills === 0) reasons.push('SKILL_MISMATCH');
-    if (scores.travel === 0) reasons.push('TRAVEL_TIME_VIOLATION');
-    if (scores.resources === 0) reasons.push('OTHER');
-    if (scores.affinity === 0) reasons.push('OTHER'); // "Blocked"?
+    const confidence = Object.values(scores).reduce((a, b) => a * b, 1);
+    const reasons = getBlockReasons(breakdown);
 
-    if (reasons.length > 0) {
+    if (reasons.length) {
         return {
             type: 'impossible',
-            reasons: reasons as any[],
-            scores
+            reasons,
+            scores,
+            breakdown: ctx.includeBreakdown ? breakdown : undefined,
         };
     }
 
-    // Confidence = Product of scores? Or Minimum?
-    // "Chain is as strong as weakest link" -> Product or Min.
-    // Product penalizes more heavily (0.9 * 0.9 = 0.81).
-    // Let's use Product for aggregate confidence.
-    const confidence =
-        scores.time *
-        scores.location *
-        scores.skills *
-        scores.travel *
-        scores.resources *
-        scores.affinity *
-        scores.continuity;
-
-    const risk_factors: string[] = [];
-    if (scores.continuity < 1) risk_factors.push('FRAGMENTED_TIME');
-    if (scores.travel < 1) risk_factors.push('TIGHT_TRAVEL_TIME');
-    if (scores.resources < 1) risk_factors.push('PARTIAL_QUANTITY');
-    if (scores.affinity < 0.5) risk_factors.push('LOW_TRUST');
-
+    const risk_factors = getRiskFactors(breakdown);
     return {
         type: 'possible',
         confidence,
-        risk_factors: risk_factors.length > 0 ? risk_factors : undefined,
-        scores
+        risk_factors: risk_factors.length ? risk_factors : undefined,
+        scores,
+        breakdown: ctx.includeBreakdown ? breakdown : undefined,
     };
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// MATCH RECORD BUILDER
+// ═══════════════════════════════════════════════════════════════════
+
+export interface MatchContext extends FeasibilityContext {
+    semantic?: SemanticScore;
+}
+
+/**
+ * Compute breakdown for a need-capacity pair.
+ */
+export function computeBreakdown(need: Resource, capacity: Resource, ctx: FeasibilityContext = {}): Breakdown {
+    const time = computeTimeScore(need, capacity);
+    return {
+        time,
+        space: computeSpaceScore(need, capacity),
+        quantity: computeQuantityScore(need, capacity),
+        skills: computeSkillsScore(need, capacity, ctx.provider, ctx.seeker),
+        travel: computeTravelScore(capacity, ctx.previousCommitment),
+        affinity: computeAffinityScore(capacity.offerer, need.offerer, ctx.providerWeights, ctx.seekerWeights),
+        continuity: computeContinuityScore(time, need),
+    };
+}
+
+/**
+ * Compute a full MatchRecord from a need and capacity.
+ */
+export function computeMatchRecord(need: Resource, capacity: Resource, ctx: MatchContext = {}): MatchRecord {
+    const breakdown = computeBreakdown(need, capacity, ctx);
+    return buildMatchRecord(
+        { id: nanoid(), need_id: need.id, capacity_id: capacity.id },
+        breakdown,
+        { semantic: ctx.semantic }
+    );
+}
+
+// Export individual score functions for composition
+export {
+    computeTimeScore,
+    computeSpaceScore,
+    computeQuantityScore,
+    computeSkillsScore,
+    computeTravelScore,
+    computeAffinityScore,
+    computeContinuityScore,
+};

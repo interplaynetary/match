@@ -1,9 +1,21 @@
 import { z } from 'zod';
 import jsonLogic from 'json-logic-js';
 import { SkillSchema } from './skills';
-import { AvailabilityWindowSchema } from './time';
-import { } from './feasibility';
+import {
+    TimeRangeSchema,
+    DayOfWeekSchema,
+    DayScheduleSchema,
+    AvailabilityWindowSchema,
+    type TimeRange,
+    type DayOfWeek,
+    type DaySchedule,
+    type AvailabilityWindow
+} from './time';
 import { nanoid } from 'nanoid';
+
+// Re-export time types for convenience
+export { TimeRangeSchema, DayOfWeekSchema, DayScheduleSchema, AvailabilityWindowSchema };
+export type { TimeRange, DayOfWeek, DaySchedule, AvailabilityWindow };
 
 // =============================================================================
 // IDs
@@ -120,216 +132,269 @@ export type Resource = z.infer<typeof Resource>;
 // =============================================================================
 // MATCH DEFINITIONS
 // =============================================================================
+// Composable schemas for match records. Design principles:
+// 1. Scores EXTEND, not contain - TimeScore IS a Score with extra fields
+// 2. Discriminated unions for status - no ambiguous optional fields
+// 3. Flat where possible, nested only when meaningful
+// 4. Self-documenting - every score explains WHY
 
-/**
- * Time range in HH:MM format
- */
-export const TimeRangeSchema = z.object({
-    start_time: z.string(), // HH:MM
-    end_time: z.string(),   // HH:MM
-});
+// -----------------------------------------------------------------------------
+// Base: Score
+// -----------------------------------------------------------------------------
 
-/**
- * A specific overlapping time window between need and capacity.
- * Represents when both parties are simultaneously available.
- */
-export const OverlappingTimeWindow = z.object({
-    /** Day of week this window applies to (for recurring) */
-    day: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']).optional(),
-    /** Specific date (for one-time windows) */
-    date: z.string().optional(),
-    /** The overlapping time ranges on this day/date */
-    time_ranges: z.array(TimeRangeSchema),
-    /** Total minutes of overlap in this window */
-    duration_minutes: z.number().nonnegative(),
-});
-export type OverlappingTimeWindow = z.infer<typeof OverlappingTimeWindow>;
-
-/**
- * Detailed breakdown of time compatibility
- */
-export const TimeMatchDetail = z.object({
-    /** Overall time score (0-1): 0 = no overlap, 1 = perfect overlap */
-    score: z.number().min(0).max(1),
-    /** Human-readable explanation */
+/** Base score: normalized value with explanation. All dimension scores extend this. */
+export const Score = z.object({
+    value: z.number().min(0).max(1),
     reason: z.string(),
-    /** Description of need's time constraint */
-    need_desc: z.string().optional(),
-    /** Description of capacity's time constraint */
-    capacity_desc: z.string().optional(),
-    /** The actual overlapping windows */
-    overlapping_windows: z.array(OverlappingTimeWindow).optional(),
-    /** Total hours of overlap across all windows */
-    total_overlap_hours: z.number().nonnegative().optional(),
-    /** Whether this is a recurring or one-time match */
-    recurrence_type: z.enum(['one_time', 'recurring', 'mixed']).optional(),
 });
-export type TimeMatchDetail = z.infer<typeof TimeMatchDetail>;
+export type Score = z.infer<typeof Score>;
 
-/**
- * Detailed breakdown of spatial/location compatibility
- */
-export const SpaceMatchDetail = z.object({
-    /** Overall space score (0-1): 0 = incompatible, 1 = same location/remote */
-    score: z.number().min(0).max(1),
-    /** Human-readable explanation */
-    reason: z.string(),
-    /** Description of need's location */
-    need_desc: z.string().optional(),
-    /** Description of capacity's location */
-    capacity_desc: z.string().optional(),
-    /** Distance in km (if applicable) */
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+export const BlockReason = z.enum([
+    'TIME_MISMATCH',
+    'LOCATION_MISMATCH',
+    'SKILL_MISMATCH',
+    'QUANTITY_MISMATCH',
+    'CATEGORY_CONFLICT',
+    'TRAVEL_TIME_VIOLATION',
+    'EXCLUSION_RULE',
+    'ALREADY_COMMITTED',
+]);
+export type BlockReason = z.infer<typeof BlockReason>;
+
+export const RiskFactor = z.enum([
+    'FRAGMENTED_TIME',
+    'TIGHT_TRAVEL',
+    'PARTIAL_QUANTITY',
+    'LOW_TRUST',
+    'MARGINAL_SKILL',
+    'NEAR_BOUNDARY',
+]);
+export type RiskFactor = z.infer<typeof RiskFactor>;
+
+export const DIMENSIONS = ['time', 'space', 'quantity', 'skills', 'travel', 'affinity', 'continuity'] as const;
+export type Dimension = typeof DIMENSIONS[number];
+
+// -----------------------------------------------------------------------------
+// Time
+// -----------------------------------------------------------------------------
+
+/** A single overlapping window (day + time ranges) */
+export const Overlap = z.object({
+    day: DayOfWeekSchema.optional(),
+    date: z.string().optional(),           // YYYY-MM-DD for one-time
+    ranges: z.array(TimeRangeSchema),
+    minutes: z.number().int().nonnegative(),
+});
+export type Overlap = z.infer<typeof Overlap>;
+
+/** Time score: Score + overlap details */
+export const TimeScore = Score.extend({
+    overlaps: z.array(Overlap).optional(),
+    total_hours: z.number().nonnegative().optional(),
+    blocks: z.number().int().positive().optional(),
+    max_block_min: z.number().int().nonnegative().optional(),
+});
+export type TimeScore = z.infer<typeof TimeScore>;
+
+// -----------------------------------------------------------------------------
+// Space
+// -----------------------------------------------------------------------------
+
+export const SpaceScore = Score.extend({
     distance_km: z.number().nonnegative().optional(),
-    /** Max acceptable radius that was used */
-    max_radius_km: z.number().positive().optional(),
-    /** Whether remote/online is possible */
-    remote_compatible: z.boolean().optional(),
+    radius_km: z.number().positive().optional(),
+    remote: z.boolean().optional(),
 });
-export type SpaceMatchDetail = z.infer<typeof SpaceMatchDetail>;
+export type SpaceScore = z.infer<typeof SpaceScore>;
 
-/**
- * Detailed breakdown of quantity/resource compatibility
- */
-export const QuantityMatchDetail = z.object({
-    /** Overall quantity score (0-1): 0 = insufficient, 1 = fully satisfies */
-    score: z.number().min(0).max(1),
-    /** Human-readable explanation */
-    reason: z.string(),
-    /** What the need requires */
-    need_amount: z.number().optional(),
-    need_unit: z.string().optional(),
-    /** What the capacity offers */
-    capacity_amount: z.number().optional(),
-    capacity_unit: z.string().optional(),
-    /** The matchable quantity (min of need/capacity when compatible) */
-    matchable_quantity: z.number().nonnegative().optional(),
+// -----------------------------------------------------------------------------
+// Quantity
+// -----------------------------------------------------------------------------
+
+export const QuantityScore = Score.extend({
+    need: z.number().nonnegative(),
+    available: z.number().nonnegative(),
+    allocatable: z.number().nonnegative(),
+    unit: z.string().optional(),
 });
-export type QuantityMatchDetail = z.infer<typeof QuantityMatchDetail>;
+export type QuantityScore = z.infer<typeof QuantityScore>;
 
-/**
- * Category/taxonomy match information
- */
-export const CategoryMatchDetail = z.object({
-    /** The category where chains overlap (e.g., "food" or "pizza≈flatbread") */
-    overlap_category: z.string(),
-    /** Distance: 0 = exact match, 1 = sibling, 2+ = ancestor */
-    overlap_distance: z.number().int().nonnegative(),
-    /** Whether a disjoint conflict blocked the match */
-    is_blocked: z.boolean(),
-    /** Specificity score (0-1): how precise the match is */
+// -----------------------------------------------------------------------------
+// Skills
+// -----------------------------------------------------------------------------
+
+export const SkillCheck = z.object({
+    id: z.string(),
+    required: z.union([z.number(), z.string()]).optional(),
+    actual: z.union([z.number(), z.string()]).optional(),
+    met: z.boolean(),
+});
+export type SkillCheck = z.infer<typeof SkillCheck>;
+
+export const SkillsScore = Score.extend({
+    checks: z.array(SkillCheck).optional(),
+});
+export type SkillsScore = z.infer<typeof SkillsScore>;
+
+// -----------------------------------------------------------------------------
+// Travel (spatio-temporal feasibility)
+// -----------------------------------------------------------------------------
+
+export const TravelScore = Score.extend({
+    distance_km: z.number().nonnegative().optional(),
+    time_hours: z.number().nonnegative().optional(),
+    speed_kmh: z.number().nonnegative().optional(),
+});
+export type TravelScore = z.infer<typeof TravelScore>;
+
+// -----------------------------------------------------------------------------
+// Affinity (trust)
+// -----------------------------------------------------------------------------
+
+export const AffinityScore = Score.extend({
+    seeker_to_provider: z.number().min(0).max(1).optional(),
+    provider_to_seeker: z.number().min(0).max(1).optional(),
+});
+export type AffinityScore = z.infer<typeof AffinityScore>;
+
+// -----------------------------------------------------------------------------
+// Category (semantic taxonomy)
+// -----------------------------------------------------------------------------
+
+export const CategoryMatch = z.object({
+    at: z.string().optional(),              // where chains meet
+    distance: z.number().int().nonnegative(), // 0=exact, 1=sibling, 2+=ancestor
     specificity: z.number().min(0).max(1),
-    /** The need's category chain */
-    need_chain: z.array(z.string()).optional(),
-    /** The capacity's category chain */
-    capacity_chain: z.array(z.string()).optional(),
+    disjoint: z.boolean(),                  // vegan ⊥ meat
 });
-export type CategoryMatchDetail = z.infer<typeof CategoryMatchDetail>;
+export type CategoryMatch = z.infer<typeof CategoryMatch>;
 
-/**
- * Semantic/embedding match information
- */
-export const SemanticMatchDetail = z.object({
-    /** Raw cosine similarity between embeddings (0-1) */
-    embedding_similarity: z.number().min(0).max(1),
-    /** The blended similarity score (category + embedding when applicable) */
-    blended_similarity: z.number().min(0).max(1),
-    /** Priority weight factor based on expression priorities */
-    priority_weight: z.number().min(0).max(1),
-    /** The matched need expression text */
-    need_expression: z.string(),
-    /** The matched capacity expression text */
-    capacity_expression: z.string(),
+// -----------------------------------------------------------------------------
+// Semantic (embeddings + category)
+// -----------------------------------------------------------------------------
+
+export const SemanticScore = z.object({
+    similarity: z.number().min(0).max(1),   // raw embedding cosine
+    blended: z.number().min(0).max(1),      // weighted with category
+    weight: z.number().min(0).max(1),       // priority weight
+    need_expr: z.string(),
+    capacity_expr: z.string(),
+    category: CategoryMatch.optional(),
 });
-export type SemanticMatchDetail = z.infer<typeof SemanticMatchDetail>;
+export type SemanticScore = z.infer<typeof SemanticScore>;
 
-/**
- * Feasibility scores across all dimensions
- */
-export const FeasibilityScoreBreakdown = z.object({
-    time: z.number().min(0).max(1).optional(),
-    location: z.number().min(0).max(1).optional(),
-    skills: z.number().min(0).max(1).optional(),
-    travel: z.number().min(0).max(1).optional(),
-    resources: z.number().min(0).max(1).optional(),
-    affinity: z.number().min(0).max(1).optional(),
-    continuity: z.number().min(0).max(1).optional(),
+// -----------------------------------------------------------------------------
+// Breakdown: all dimensions
+// -----------------------------------------------------------------------------
+
+export const Breakdown = z.object({
+    time: TimeScore.optional(),
+    space: SpaceScore.optional(),
+    quantity: QuantityScore.optional(),
+    skills: SkillsScore.optional(),
+    travel: TravelScore.optional(),
+    affinity: AffinityScore.optional(),
+    continuity: Score.optional(),
 });
-export type FeasibilityScoreBreakdown = z.infer<typeof FeasibilityScoreBreakdown>;
+export type Breakdown = z.infer<typeof Breakdown>;
 
-/**
- * Complete match record containing all information about a need-capacity match.
- *
- * This record captures:
- * - Identity: who matched with whom
- * - Semantic quality: how well the expressions align
- * - Constraint feasibility: detailed breakdowns of time, space, quantity compatibility
- * - Overlapping windows: the actual compatible time windows
- * - Overall scores: aggregated feasibility metrics
- */
-export const MatchRecord = z.object({
-    /** Unique identifier for this match record */
+// -----------------------------------------------------------------------------
+// Match Record (discriminated union)
+// -----------------------------------------------------------------------------
+
+const MatchBase = z.object({
     id: z.string().min(1),
-
-    // === Identity ===
-    /** The capacity (offer) being matched */
     capacity_id: z.string().min(1),
-    /** The need (request) being matched */
     need_id: z.string().min(1),
-    /** When this match was computed */
-    computed_at: z.date().optional(),
-
-    // === Overall Scores ===
-    /**
-     * Overall feasibility score (0-1), geometric mean of all factors.
-     * A score of 0 means the match is impossible.
-     */
-    feasibility_score: z.number().min(0).max(1),
-    /**
-     * Whether this match is possible or blocked
-     */
-    status: z.enum(['possible', 'impossible']),
-    /**
-     * If impossible, why (can have multiple reasons)
-     */
-    block_reasons: z.array(z.enum([
-        'TIME_MISMATCH',
-        'LOCATION_MISMATCH',
-        'SKILL_MISMATCH',
-        'QUANTITY_MISMATCH',
-        'CATEGORY_CONFLICT',
-        'TRAVEL_TIME_VIOLATION',
-        'EXCLUSION_RULE',
-        'OTHER'
-    ])).optional(),
-    /**
-     * Risk factors if possible but not perfect (score < 1)
-     */
-    risk_factors: z.array(z.string()).optional(),
-
-    // === Semantic/Expression Match ===
-    semantic: SemanticMatchDetail.optional(),
-
-    // === Category Match ===
-    category: CategoryMatchDetail.optional(),
-
-    // === Constraint Details ===
-    /** Detailed time/schedule compatibility */
-    time: TimeMatchDetail.optional(),
-    /** Detailed location/space compatibility */
-    space: SpaceMatchDetail.optional(),
-    /** Detailed quantity/resource compatibility */
-    quantity: QuantityMatchDetail.optional(),
-
-    // === Full Feasibility Breakdown ===
-    /** All feasibility dimension scores */
-    feasibility_breakdown: FeasibilityScoreBreakdown.optional(),
-
-    // === Allocation ===
-    /** Quantity that can be allocated from this match */
-    allocatable_quantity: z.number().nonnegative().optional(),
+    score: z.number().min(0).max(1),
+    semantic: SemanticScore.optional(),
+    breakdown: Breakdown.optional(),
+    allocatable: z.number().nonnegative().optional(),
+    computed_at: z.coerce.date().optional(),
 });
 
+export const MatchRecord = z.discriminatedUnion('status', [
+    MatchBase.extend({
+        status: z.literal('possible'),
+        risks: z.array(RiskFactor).default([]),
+    }),
+    MatchBase.extend({
+        status: z.literal('impossible'),
+        blocked_by: z.array(BlockReason).min(1),
+    }),
+]);
 export type MatchRecord = z.infer<typeof MatchRecord>;
+
+// -----------------------------------------------------------------------------
+// Breakdown Utilities
+// -----------------------------------------------------------------------------
+
+/** Extract numeric values from breakdown */
+export const scoreValues = (b: Breakdown): Record<Dimension, number | undefined> => ({
+    time: b.time?.value,
+    space: b.space?.value,
+    quantity: b.quantity?.value,
+    skills: b.skills?.value,
+    travel: b.travel?.value,
+    affinity: b.affinity?.value,
+    continuity: b.continuity?.value,
+});
+
+/** Geometric mean of defined scores */
+export const aggregateScore = (b: Breakdown): number => {
+    const v = Object.values(scoreValues(b)).filter((x): x is number => x !== undefined);
+    return v.length ? v.reduce((a, b) => a * b, 1) ** (1 / v.length) : 1;
+};
+
+/** Any dimension blocks? */
+export const isBlocked = (b: Breakdown): boolean =>
+    Object.values(scoreValues(b)).some(v => v === 0);
+
+/** Extract blocking reasons */
+export const getBlockReasons = (b: Breakdown): BlockReason[] => {
+    const r: BlockReason[] = [];
+    if (b.time?.value === 0) r.push('TIME_MISMATCH');
+    if (b.space?.value === 0) r.push('LOCATION_MISMATCH');
+    if (b.skills?.value === 0) r.push('SKILL_MISMATCH');
+    if (b.travel?.value === 0) r.push('TRAVEL_TIME_VIOLATION');
+    if (b.quantity?.value === 0) r.push('QUANTITY_MISMATCH');
+    if (b.affinity?.value === 0) r.push('EXCLUSION_RULE');
+    return r;
+};
+
+/** Extract risk factors */
+export const getRiskFactors = (b: Breakdown): RiskFactor[] => {
+    const r: RiskFactor[] = [];
+    if (b.continuity?.value && b.continuity.value < 1) r.push('FRAGMENTED_TIME');
+    if (b.travel?.value && b.travel.value < 1 && b.travel.value > 0) r.push('TIGHT_TRAVEL');
+    if (b.quantity?.value && b.quantity.value < 1 && b.quantity.value > 0) r.push('PARTIAL_QUANTITY');
+    if (b.affinity?.value && b.affinity.value < 0.5 && b.affinity.value > 0) r.push('LOW_TRUST');
+    return r;
+};
+
+/** Build MatchRecord from breakdown */
+export const buildMatchRecord = (
+    ids: { id: string; need_id: string; capacity_id: string },
+    breakdown: Breakdown,
+    opts?: { semantic?: SemanticScore; allocatable?: number }
+): MatchRecord => {
+    const blocked_by = getBlockReasons(breakdown);
+    const base = {
+        ...ids,
+        score: aggregateScore(breakdown),
+        breakdown,
+        semantic: opts?.semantic,
+        allocatable: opts?.allocatable ?? breakdown.quantity?.allocatable,
+        computed_at: new Date(),
+    };
+    return blocked_by.length
+        ? { ...base, status: 'impossible' as const, blocked_by }
+        : { ...base, status: 'possible' as const, risks: getRiskFactors(breakdown) };
+};
 
 // =============================================================================
 // INPUT DEFINITIONS
