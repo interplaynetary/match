@@ -454,6 +454,12 @@ export const Slot = z.object({
     optional: z.boolean().default(false),
     acceptance_logic: AcceptanceLogic.optional(),
     filled_by: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()])).optional(),
+
+    // Time accounting: commitment → completion
+    expected_duration_hours: z.number().positive().optional(), // estimated time
+    filled_at: z.date().optional(),      // when commitment was made
+    completed_at: z.date().optional(),   // when actually done
+    actual_duration_hours: z.number().nonnegative().optional(), // recorded time
 });
 export type Slot = z.infer<typeof Slot>;
 
@@ -463,6 +469,7 @@ export type SlotInput = {
     input: InputDefinition;
     optional?: boolean;
     acceptance_logic?: AcceptanceLogic;
+    expected_duration_hours?: number; // estimated time for this contribution
 };
 
 // =============================================================================
@@ -478,6 +485,7 @@ export const Commons = z.object({
     slots: z.array(Slot),
     created_at: z.date(),
     updated_at: z.date(),
+    completed_at: z.date().optional(), // when all required slots completed
 });
 export type Commons = z.infer<typeof Commons>;
 
@@ -487,6 +495,13 @@ export const Progress = z.object({
     optionalSlotsFilled: z.number(),
     totalOptionalSlots: z.number(),
     completionPercentage: z.number().min(0).max(100),
+
+    // Time accounting
+    requiredSlotsCompleted: z.number(),
+    totalExpectedHours: z.number().optional(),  // sum of expected_duration_hours
+    totalActualHours: z.number().optional(),    // sum of actual_duration_hours
+    timeToFillHours: z.number().optional(),     // created_at → last filled_at
+    timeToCompleteHours: z.number().optional(), // created_at → completed_at
 });
 export type Progress = z.infer<typeof Progress>;
 
@@ -531,7 +546,11 @@ export class CommonsManager {
             input: s.input,
             optional: s.optional ?? false,
             acceptance_logic: s.acceptance_logic,
+            expected_duration_hours: s.expected_duration_hours,
             filled_by: undefined,
+            filled_at: undefined,
+            completed_at: undefined,
+            actual_duration_hours: undefined,
         }));
 
         // Validate that referenced resources exist
@@ -581,10 +600,67 @@ export class CommonsManager {
         }
 
         slot.filled_by = { ...slot.filled_by, ...filledBy };
+        slot.filled_at = slot.filled_at ?? new Date(); // only set once
         commons.updated_at = new Date();
 
         this.rebuildIndex();
         return this.getWithState(commonsId)!;
+    }
+
+    /**
+     * Mark a slot as completed (work done, not just committed).
+     * This is the key distinction for time accounting: commitment ≠ completion.
+     */
+    complete(
+        commonsId: NanoId,
+        slotId: NanoId,
+        actualDurationHours?: number,
+    ): CommonsWithState {
+        const commons = this.registry.get(commonsId);
+        if (!commons) throw new Error(`Commons ${commonsId} not found`);
+
+        const slot = commons.slots.find(s => s.id === slotId);
+        if (!slot) throw new Error(`Slot ${slotId} not found`);
+
+        if (!slot.filled_by || Object.keys(slot.filled_by).length === 0) {
+            throw new Error(`Slot ${slotId} must be filled before completing`);
+        }
+
+        slot.completed_at = new Date();
+        if (actualDurationHours !== undefined) {
+            slot.actual_duration_hours = actualDurationHours;
+        }
+        commons.updated_at = new Date();
+
+        // Check if all required slots are now completed
+        const allRequiredCompleted = commons.slots
+            .filter(s => !s.optional)
+            .every(s => s.completed_at);
+
+        if (allRequiredCompleted && !commons.completed_at) {
+            commons.completed_at = new Date();
+        }
+
+        this.rebuildIndex();
+        return this.getWithState(commonsId)!;
+    }
+
+    /**
+     * Complete by slot name.
+     */
+    completeByName(
+        commonsId: NanoId,
+        slotName: string,
+        actualDurationHours?: number,
+    ): CommonsWithState {
+        const commons = this.registry.get(commonsId);
+        if (!commons) throw new Error(`Commons ${commonsId} not found`);
+
+        const matches = commons.slots.filter(s => s.name === slotName);
+        if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
+        if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
+
+        return this.complete(commonsId, matches[0]!.id, actualDurationHours);
     }
 
     /**
@@ -609,7 +685,7 @@ export class CommonsManager {
         return this.fill(commonsId, matches[0]!.id, filledBy, author);
     }
 
-    /** Unfill a slot. */
+    /** Unfill a slot (also clears completion state). */
     unfill(commonsId: NanoId, slotId: NanoId): CommonsWithState {
         const commons = this.registry.get(commonsId);
         if (!commons) throw new Error(`Commons ${commonsId} not found`);
@@ -618,7 +694,15 @@ export class CommonsManager {
         if (!slot) throw new Error(`Slot ${slotId} not found`);
 
         slot.filled_by = undefined;
+        slot.filled_at = undefined;
+        slot.completed_at = undefined;
+        slot.actual_duration_hours = undefined;
         commons.updated_at = new Date();
+
+        // If this was a required slot, clear commons completion
+        if (!slot.optional && commons.completed_at) {
+            commons.completed_at = undefined;
+        }
 
         this.rebuildIndex();
         return this.getWithState(commonsId)!;
@@ -681,9 +765,14 @@ export class CommonsManager {
     private computeState(commons: Commons): { status: 'potential' | 'actual'; progress: Progress } {
         let requiredFilled = 0, totalRequired = 0;
         let optionalFilled = 0, totalOptional = 0;
+        let requiredCompleted = 0;
+        let totalExpectedHours = 0;
+        let totalActualHours = 0;
+        let latestFilledAt: Date | undefined;
 
         for (const slot of commons.slots) {
             const filled = slot.filled_by && Object.keys(slot.filled_by).length > 0;
+            const completed = !!slot.completed_at;
 
             if (slot.optional) {
                 totalOptional++;
@@ -691,8 +780,29 @@ export class CommonsManager {
             } else {
                 totalRequired++;
                 if (filled) requiredFilled++;
+                if (completed) requiredCompleted++;
+            }
+
+            // Time accounting
+            if (slot.expected_duration_hours) {
+                totalExpectedHours += slot.expected_duration_hours;
+            }
+            if (slot.actual_duration_hours) {
+                totalActualHours += slot.actual_duration_hours;
+            }
+            if (slot.filled_at && (!latestFilledAt || slot.filled_at > latestFilledAt)) {
+                latestFilledAt = slot.filled_at;
             }
         }
+
+        // Calculate time deltas
+        const timeToFillHours = latestFilledAt
+            ? (latestFilledAt.getTime() - commons.created_at.getTime()) / (1000 * 60 * 60)
+            : undefined;
+
+        const timeToCompleteHours = commons.completed_at
+            ? (commons.completed_at.getTime() - commons.created_at.getTime()) / (1000 * 60 * 60)
+            : undefined;
 
         return {
             status: requiredFilled === totalRequired ? 'actual' : 'potential',
@@ -704,6 +814,11 @@ export class CommonsManager {
                 completionPercentage: totalRequired > 0
                     ? Math.round((requiredFilled / totalRequired) * 100)
                     : 100,
+                requiredSlotsCompleted: requiredCompleted,
+                totalExpectedHours: totalExpectedHours > 0 ? totalExpectedHours : undefined,
+                totalActualHours: totalActualHours > 0 ? totalActualHours : undefined,
+                timeToFillHours,
+                timeToCompleteHours,
             },
         };
     }

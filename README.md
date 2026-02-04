@@ -15,7 +15,7 @@ To recreate this project with the same configuration:
 
 ```sh
 # recreate this project
-bun x sv create --template minimal --types ts --add tailwindcss="plugins:typography,forms" sveltekit-adapter="adapter:static" mcp="ide:claude-code+setup:remote" --install bun svelte
+bun x sv create --template minimal --types ts --add sveltekit-adapter="adapter:static" mcp="ide:claude-code+setup:remote" --install bun svelte
 ```
 
 ## Developing
@@ -40,3 +40,6 @@ bun run build
 You can preview the production build with `bun run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Environment Variables
+Add OPENAI_API_KEY to .env file

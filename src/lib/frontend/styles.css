@@ -251,10 +251,12 @@ h2 {
   background: #4caf50;
   color: white;
 }
+
 .match-level-related {
   background: #2196f3;
   color: white;
 }
+
 .match-level-embedding {
   background: #9c27b0;
   color: white;
@@ -300,7 +302,7 @@ h2 {
   gap: 0.5rem;
 }
 
-.constraint-row + .constraint-row {
+.constraint-row+.constraint-row {
   margin-top: 0.25rem;
 }
 
@@ -376,7 +378,7 @@ h2 {
   z-index: 1000;
 }
 
-#connected-tooltips > div {
+#connected-tooltips>div {
   position: fixed;
   background: var(--bg-card);
   border: 1px solid #444;
@@ -502,7 +504,7 @@ h2 {
   font-size: 0.75rem;
 }
 
-.criterion + .criterion {
+.criterion+.criterion {
   margin-top: 0.25rem;
 }
 

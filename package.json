@@ -26,6 +26,7 @@
 	"dependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@types/d3": "^7.4.3",
+		"@types/json-logic-js": "^2.0.8",
 		"d3": "^7.9.0",
 		"h3-js": "^4.4.0",
 		"json-logic-js": "^2.0.5"
