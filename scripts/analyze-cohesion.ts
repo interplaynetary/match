@@ -8,11 +8,11 @@
  * Usage: bun scripts/analyze-cohesion.ts [--suggest-moves]
  */
 
-import { buildTaxonomyTree, type TaxonomyNode } from '../src/taxonomy-tree'
-import { cosineSimilarity } from '../src/embeddings'
-import type { EmbeddingsStore } from '../src/example-converter'
-import enrichedData from '../data/enriched-full.json'
-import embeddingsData from '../data/embeddings.json'
+import { buildTaxonomyTree, type TaxonomyNode } from '../../src/taxonomy-tree'
+import { cosineSimilarity } from '../../src/embeddings'
+import type { EmbeddingsStore } from '../../src/example-converter'
+import enrichedData from '../../data/enriched-full.json'
+import embeddingsData from '../../data/embeddings.json'
 
 const embeddings = embeddingsData as EmbeddingsStore
 

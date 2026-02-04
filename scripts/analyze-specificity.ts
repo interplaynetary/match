@@ -2,8 +2,8 @@
  * Diagnostic script to analyze specificity values in match data
  */
 
-import { generateMatchData } from '../src/match-data'
-import type { EmbeddingsStore } from '../src/example-converter'
+import { generateMatchData } from '../../src/match-data'
+import type { EmbeddingsStore } from '../../src/example-converter'
 
 const enrichedData = await Bun.file('data/enriched-full.json').json()
 const embeddings: EmbeddingsStore = await Bun.file('data/embeddings.json').json()

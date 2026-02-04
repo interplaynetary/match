@@ -1,96 +1,23 @@
-# CLAUDE.md
+You are able to use the Svelte MCP server, where you have access to comprehensive Svelte 5 and SvelteKit documentation. Here's how to use the available tools effectively:
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Available MCP Tools:
 
-## Commands
+### 1. list-sections
 
-```bash
-# Run visualization server (http://localhost:3000)
-bun --hot src/server.ts
+Use this FIRST to discover all available documentation sections. Returns a structured list with titles, use_cases, and paths.
+When asked about Svelte or SvelteKit topics, ALWAYS use this tool at the start of the chat to find relevant sections.
 
-# Run tests
-bun test
+### 2. get-documentation
 
-# Run a single test file
-bun test src/matcher.test.ts
+Retrieves full documentation content for specific sections. Accepts single or multiple sections.
+After calling the list-sections tool, you MUST analyze the returned documentation sections (especially the use_cases field) and then use the get-documentation tool to fetch ALL documentation sections that are relevant for the user's task.
 
-# Run full pipeline: enrich + merge taxonomy + generate embeddings
-bun scripts/run-pipeline.ts
+### 3. svelte-autofixer
 
-# Individual pipeline steps (requires OPENAI_API_KEY in .env)
-bun scripts/run-enrichment.ts --output data/enriched-full.json
-bun scripts/generate-embeddings.ts
-```
+Analyzes Svelte code and returns issues and suggestions.
+You MUST use this tool whenever writing Svelte code before sending it to the user. Keep calling it until no issues or suggestions are returned.
 
-## Architecture
+### 4. playground-link
 
-This is a **semantic matching system** for connecting human capacities (what people offer) with needs (what people need). It finds mutually beneficial matches using embeddings, taxonomy chains, and constraint satisfaction.
-
-### Data Flow
-
-```
-user-inputs.json
-       │
-       ▼
-run-enrichment.ts (LLM enrichment + taxonomy merging)
-       │
-       ▼
-enriched-full.json ──► generate-embeddings.ts ──► embeddings.json
-       │                                                │
-       └────────────────────┬───────────────────────────┘
-                            ▼
-                      server.ts ──► React UI (graph + taxonomy views)
-```
-
-Taxonomy merging uses "deeper root wins" - no hardcoded root categories.
-
-### Key Modules
-
-| File | Purpose |
-|------|---------|
-| `types.ts` | Core types: Expression, Capacity, Need, MatchResult, Constraints |
-| `matcher.ts` | Main engine - combines embedding similarity, category overlap, and constraints |
-| `matching.ts` | Slot-to-slot matching logic (time/location/skill compatibility) |
-| `category-matcher.ts` | Taxonomy chain overlap + disjoint conflict detection (vegan ⊥ meat) |
-| `embeddings.ts` | Cosine similarity, OpenAI embedding provider |
-| `constraints/` | Time, space, quantity constraint evaluation |
-| `semantic-colors.ts` | PCA-based coloring (similar embeddings → similar colors) |
-
-### Matching Algorithm
-
-The matcher combines multiple signals via geometric mean:
-
-1. **Embedding similarity** — Cosine similarity between need/capacity embeddings
-2. **Category matching** — If category chains exist, blends 70% category + 30% embedding
-3. **Priority weight** — Lower priority number = more specific = higher weight
-4. **Constraint scores** — Time overlap, location compatibility, quantity feasibility
-
-Any score of 0 (including disjoint conflict) blocks the match entirely. Unspecified constraints score 0.5 (uncertainty).
-
-### Expression Abstraction Levels
-
-Each capacity/need has multiple expressions at different specificities:
-```typescript
-expressions: [
-  { text: "vegan pizza delivery", priority: 1 },  // most specific
-  { text: "pizza", priority: 2 },
-  { text: "food", priority: 4 }                   // broadest fallback
-]
-```
-
-## Documentation
-
-See [docs/index.md](docs/index.md) for design documents including dialectic intro, category matching, constraint matching, and semantic colors.
-
-## Runtime
-
-Use Bun for everything:
-- `bun <file>` instead of node/ts-node
-- `bun test` instead of jest/vitest
-- `bun install` instead of npm/yarn
-- Bun auto-loads .env (no dotenv needed)
-
-Use Bun's native APIs:
-- `Bun.serve()` with HTML imports for React (not vite/express)
-- `Bun.file()` for file operations
-- Import CSS directly in .tsx files
+Generates a Svelte Playground link with the provided code.
+After completing the code, ask the user if they want a playground link. Only call this tool after user confirmation and NEVER if code was written to files in their project.

@@ -10,10 +10,10 @@
  *   --concurrency N Process N inputs in parallel (default: 25)
  */
 
-import { createOpenAIPipe } from '../src/ai-pipe'
-import { UserInput, collectCategoryStats, type UserInputType } from '../src/enrichment'
-import { enrichBatch } from '../src/enrichment-ops'
-import { loadTaxonomy, saveTaxonomy } from '../src/taxonomy-store'
+import { createOpenAIPipe } from '../../src/ai-pipe'
+import { UserInput, collectCategoryStats, type UserInputType } from '../../src/enrichment'
+import { enrichBatch } from '../../src/enrichment-ops'
+import { loadTaxonomy, saveTaxonomy } from '../../src/taxonomy-store'
 
 // Parse args
 const args = process.argv.slice(2)

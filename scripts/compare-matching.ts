@@ -2,10 +2,10 @@
  * Compare exact vs semantic category matching using the Matcher class
  */
 
-import { Matcher } from '../src/matcher'
-import { convertExamples, type EmbeddingsStore } from '../src/example-converter'
-import enrichedData from '../data/enriched-full.json'
-import embeddingsData from '../data/embeddings.json'
+import { Matcher } from '../../src/matcher'
+import { convertExamples, type EmbeddingsStore } from '../../src/example-converter'
+import enrichedData from '../../data/enriched-full.json'
+import embeddingsData from '../../data/embeddings.json'
 
 const examples = enrichedData.results
 const embeddings = embeddingsData as EmbeddingsStore
@@ -50,8 +50,8 @@ for (const need of needs) {
     // Check if semantic found a more specific match
     if (semanticCat && exactCat && !semanticCat.isBlocked && !exactCat.isBlocked) {
       if (semanticCat.overlapDistance < exactCat.overlapDistance ||
-          (semanticCat.overlapDistance === exactCat.overlapDistance &&
-           semanticCat.specificity > exactCat.specificity)) {
+        (semanticCat.overlapDistance === exactCat.overlapDistance &&
+          semanticCat.specificity > exactCat.specificity)) {
         const capacity = capacities.find(c => c.id === capId)!
         improvements.push({
           need: need.expressions[0]?.text ?? need.id,

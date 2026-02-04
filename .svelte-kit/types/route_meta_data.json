@@ -1,0 +1,17 @@
+{
+	"/": [
+		"src/routes/+page.server.ts"
+	],
+	"/api/add-entry": [
+		"src/routes/api/add-entry/+server.ts"
+	],
+	"/api/matches": [
+		"src/routes/api/matches/+server.ts"
+	],
+	"/api/search": [
+		"src/routes/api/search/+server.ts"
+	],
+	"/api/taxonomy": [
+		"src/routes/api/taxonomy/+server.ts"
+	]
+}

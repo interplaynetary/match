@@ -1,28 +1,33 @@
 {
-  "name": "match",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@types/d3": "^7.4.3",
-    "@types/json-logic-js": "^2.0.8",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
-    "d3": "^7.9.0",
-    "h3-js": "^4.4.0",
-    "json-logic-js": "^2.0.5",
-    "nanoid": "^5.1.6",
-    "openai": "^6.17.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-speech": "^1.0.2",
-    "zod": "^4.3.6",
-    "zod-to-json-schema": "^3.25.1"
-  }
+	"name": "svelte",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"devDependencies": {
+		"@sveltejs/kit": "^2.50.1",
+		"@sveltejs/vite-plugin-svelte": "^6.2.4",
+		"@tailwindcss/forms": "^0.5.11",
+		"@tailwindcss/typography": "^0.5.19",
+		"@tailwindcss/vite": "^4.1.18",
+		"svelte": "^5.48.2",
+		"svelte-check": "^4.3.5",
+		"tailwindcss": "^4.1.18",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.1"
+	},
+	"dependencies": {
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@types/d3": "^7.4.3",
+		"d3": "^7.9.0",
+		"h3-js": "^4.4.0",
+		"json-logic-js": "^2.0.5"
+	}
 }

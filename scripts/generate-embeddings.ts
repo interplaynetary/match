@@ -13,10 +13,10 @@
  *   OPENAI_API_KEY environment variable (Bun auto-loads from .env)
  */
 
-import { OpenAIEmbeddingProvider } from '../src/embeddings'
-import type { EmbeddingsStore } from '../src/example-converter'
-import type { EnrichedExampleWithId } from '../src/enrichment'
-import { embedBatch } from '../src/embedding-ops'
+import { OpenAIEmbeddingProvider } from '../../src/embeddings'
+import type { EmbeddingsStore } from '../../src/example-converter'
+import type { EnrichedExampleWithId } from '../../src/enrichment'
+import { embedBatch } from '../../src/embedding-ops'
 
 const ENRICHED_FILE = './data/enriched-full.json'
 const EMBEDDINGS_FILE = './data/embeddings.json'

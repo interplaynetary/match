@@ -1,144 +1,42 @@
-# match
+# sv
 
-Core matching logic for connecting human capacities to needs.
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-## The Problem
+## Creating a project
 
-Coordination at scale requires matching what people *have* (capacities) with what people *need*. This isn't just search — it's finding pairs where both sides benefit.
+If you're seeing this, you've probably already done this step. Congrats!
 
-Key challenges:
-- **Semantic matching**: "piano teacher" should match "looking for piano lessons"
-- **Flexible abstraction**: Match at different specificity levels (pizza → Italian food → food)
-- **Compositional needs**: "I need flour AND olive oil AND an oven" requires multiple capacities
-- **Feasibility constraints**: Time windows, locations, quantities must align
-
-## Pipeline
-
-```
-matching-examples.json
-         │
-         ▼
-┌─────────────────────┐     ┌──────────────────────┐
-│  enrich-categories  │     │  generate-embeddings │
-│   (Claude CLI)      │     │     (OpenAI API)     │
-└─────────────────────┘     └──────────────────────┘
-         │                           │
-         ▼                           ▼
-enriched-examples.json         embeddings.json
-         │                           │
-         └───────────┬───────────────┘
-                     ▼
-              ┌─────────────┐
-              │   matcher   │
-              └─────────────┘
-                     │
-                     ▼
-           React visualization
-          (http://localhost:3000)
+```sh
+# create a new project
+bunx sv create my-app
 ```
 
-## Approach
+To recreate this project with the same configuration:
 
-1. **Expression-based matching** — Each capacity/need has multiple semantic expressions at different abstraction levels
-2. **Embedding similarity** — OpenAI embeddings enable semantic matching without hardcoded type rules
-3. **Category matching** — Taxonomy chains detect related items (potatoes → vegetables) and block conflicts (vegan ⊥ meat)
-4. **Priority weighting** — More specific expressions rank higher than generic ones
-5. **Constraint satisfaction** — Time, space, quantity constraints combine with similarity scores
-
-## Project Structure
-
-```
-src/
-  types.ts              # Core types: Expression, Capacity, Need, MatchResult
-  embeddings.ts         # Cosine similarity, OpenAI embedding provider
-  matcher.ts            # Embedding + category matching with constraint scoring
-  category-matcher.ts   # Category chain overlap and disjoint detection
-  semantic-colors.ts    # PCA-based coloring from embeddings
-  example-converter.ts
-  match-data.ts         # Generates match data for the API
-  server.ts             # Bun server for React visualization
-  frontend/             # React app
-    App.tsx             # Main app component
-    types.ts            # Frontend type definitions
-    constants.ts        # Layout constants
-    utils.ts            # Utility functions (positioning, colors)
-    hooks/              # Custom React hooks
-    components/         # UI components
-
-scripts/
-  enrich-categories.ts    # Add category chains via Claude CLI
-  generate-embeddings.ts  # Batch generate embeddings for examples
-
-data/
-  matching-examples.json    # 145 test cases across 8 categories
-  enriched-examples.json    # Examples with category chains (generated)
-  embeddings.json           # Pre-computed embeddings (1536-dim)
+```sh
+# recreate this project
+bun x sv create --template minimal --types ts --add tailwindcss="plugins:typography,forms" sveltekit-adapter="adapter:static" mcp="ide:claude-code+setup:remote" --install bun svelte
 ```
 
-## Getting Started
+## Developing
 
-### Run the visualization
+Once you've created a project and installed dependencies with `bun install` (or `pbun install` or `yarn`), start a development server:
 
-```bash
-bun install
-bun --hot src/server.ts
-# Open http://localhost:3000
+```sh
+bun run dev
+
+# or start the server and open the app in a new browser tab
+bun run dev -- --open
 ```
 
-### Run the tests
+## Building
 
-```bash
-bun test
+To create a production version of your app:
+
+```sh
+bun run build
 ```
 
-### Enrich with category chains (requires Claude Code)
+You can preview the production build with `bun run preview`.
 
-To add taxonomy-based category matching to expressions:
-
-```bash
-bun scripts/enrich-categories.ts
-```
-
-This uses Claude Code (Max subscription) to generate category chains for each expression. The enriched data is saved to `data/enriched-examples.json` and used automatically by the matcher.
-
-## Key Concepts
-
-**Expressions** describe what a capacity offers or need requires:
-```typescript
-expressions: [
-  { text: "vegan pizza delivery", priority: 1 },  // most specific
-  { text: "pizza", priority: 2 },
-  { text: "Italian food", priority: 3 },
-  { text: "food", priority: 4 }                   // broadest fallback
-]
-```
-
-**Matching** uses cosine similarity of embeddings, combined via geometric mean with:
-- Priority weight (higher priority = higher weight)
-- Constraint feasibility (time, space, quantity)
-
-**Threshold** filters matches below 60% similarity (configurable).
-
-## Documentation
-
-See [docs/index.md](docs/index.md) for the full documentation index, including:
-- [Dialectic Introduction](docs/dialectic.md) — Conceptual introduction via Q&A
-- [Category Matching](docs/category-matching.md) — Taxonomy-based semantic matching
-- [Semantic Colors](docs/semantic-colors.md) — Embedding-based visualization coloring
-- [Constraint Matching](docs/constraint-matching.md) — Time, space, and quantity constraints
-
-## Status
-
-The matching logic handles:
-- Semantic similarity via embeddings (OpenAI text-embedding-3-small)
-- Category-based matching with taxonomy chains (e.g., food → meat → pork)
-- Disjoint detection to block incompatible matches (e.g., vegan ⊥ meat)
-- Multi-expression matching with priority weighting
-- Quantity feasibility scoring
-- Interactive visualization with threshold slider
-- Semantic coloring (similar embeddings get similar colors via PCA)
-
-Not yet implemented:
-- Full compositional matching (AND across multiple capacities)
-- Time overlap calculation
-- Spatial distance scoring
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
