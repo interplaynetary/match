@@ -26,20 +26,21 @@
  * ```
  */
 declare module '$env/static/private' {
-	export const OPENAI_API_KEY: string;
 	export const SHELL: string;
-	export const npm_command: string;
+	export const SESSION_MANAGER: string;
 	export const QT_ACCESSIBILITY: string;
 	export const COLORTERM: string;
 	export const XDG_CONFIG_DIRS: string;
 	export const NVM_INC: string;
 	export const XDG_MENU_PREFIX: string;
 	export const TERM_PROGRAM_VERSION: string;
+	export const JOBS: string;
 	export const GNOME_DESKTOP_SESSION_ID: string;
-	export const QT_IM_MODULES: string;
 	export const NODE: string;
 	export const GNOME_SHELL_SESSION_MODE: string;
 	export const SSH_AUTH_SOCK: string;
+	export const XDG_DATA_HOME: string;
+	export const XDG_CONFIG_HOME: string;
 	export const MEMORY_PRESSURE_WRITE: string;
 	export const npm_config_local_prefix: string;
 	export const XMODIFIERS: string;
@@ -50,8 +51,9 @@ declare module '$env/static/private' {
 	export const LOGNAME: string;
 	export const XDG_SESSION_DESKTOP: string;
 	export const XDG_SESSION_TYPE: string;
-	export const GPG_AGENT_INFO: string;
+	export const BUN_WHICH_IGNORE_CWD: string;
 	export const SYSTEMD_EXEC_PID: string;
+	export const GUILE_LOAD_PATH: string;
 	export const _: string;
 	export const XAUTHORITY: string;
 	export const VSCODE_GIT_ASKPASS_NODE: string;
@@ -63,14 +65,19 @@ declare module '$env/static/private' {
 	export const LANG: string;
 	export const LS_COLORS: string;
 	export const XDG_CURRENT_DESKTOP: string;
+	export const GUILE_EXTENSIONS_PATH: string;
 	export const npm_package_version: string;
 	export const MEMORY_PRESSURE_WATCH: string;
 	export const WAYLAND_DISPLAY: string;
+	export const SBX_CHROME_API_RQ: string;
 	export const GIT_ASKPASS: string;
 	export const INVOCATION_ID: string;
+	export const GUILE_LOAD_COMPILED_PATH: string;
 	export const MANAGERPID: string;
+	export const INIT_CWD: string;
 	export const CHROME_DESKTOP: string;
-	export const npm_lifecycle_script: string;
+	export const XDG_CACHE_HOME: string;
+	export const INFOPATH: string;
 	export const GJS_DEBUG_OUTPUT: string;
 	export const NVM_DIR: string;
 	export const VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
@@ -83,13 +90,17 @@ declare module '$env/static/private' {
 	export const LESSOPEN: string;
 	export const USER: string;
 	export const VSCODE_GIT_IPC_HANDLE: string;
+	export const CLUTTER_DISABLE_MIPMAPPED_TEXT: string;
 	export const DISPLAY: string;
-	export const npm_lifecycle_event: string;
 	export const SHLVL: string;
 	export const NVM_CD_FLAGS: string;
+	export const GUIX_LOCPATH: string;
+	export const GSM_SKIP_SSH_AGENT_WORKAROUND: string;
 	export const QT_IM_MODULE: string;
 	export const npm_config_user_agent: string;
+	export const XDG_STATE_HOME: string;
 	export const npm_execpath: string;
+	export const FC_FONTATIONS: string;
 	export const XDG_RUNTIME_DIR: string;
 	export const DEBUGINFOD_URLS: string;
 	export const npm_package_json: string;
@@ -100,14 +111,12 @@ declare module '$env/static/private' {
 	export const GDK_BACKEND: string;
 	export const PATH: string;
 	export const GDMSESSION: string;
-	export const ORIGINAL_XDG_CURRENT_DESKTOP: string;
 	export const DBUS_SESSION_BUS_ADDRESS: string;
 	export const NVM_BIN: string;
 	export const GIO_LAUNCHED_DESKTOP_FILE_PID: string;
 	export const npm_node_execpath: string;
 	export const GIO_LAUNCHED_DESKTOP_FILE: string;
 	export const TERM_PROGRAM: string;
-	export const NODE_ENV: string;
 }
 
 /**
@@ -137,20 +146,21 @@ declare module '$env/static/public' {
  */
 declare module '$env/dynamic/private' {
 	export const env: {
-		OPENAI_API_KEY: string;
 		SHELL: string;
-		npm_command: string;
+		SESSION_MANAGER: string;
 		QT_ACCESSIBILITY: string;
 		COLORTERM: string;
 		XDG_CONFIG_DIRS: string;
 		NVM_INC: string;
 		XDG_MENU_PREFIX: string;
 		TERM_PROGRAM_VERSION: string;
+		JOBS: string;
 		GNOME_DESKTOP_SESSION_ID: string;
-		QT_IM_MODULES: string;
 		NODE: string;
 		GNOME_SHELL_SESSION_MODE: string;
 		SSH_AUTH_SOCK: string;
+		XDG_DATA_HOME: string;
+		XDG_CONFIG_HOME: string;
 		MEMORY_PRESSURE_WRITE: string;
 		npm_config_local_prefix: string;
 		XMODIFIERS: string;
@@ -161,8 +171,9 @@ declare module '$env/dynamic/private' {
 		LOGNAME: string;
 		XDG_SESSION_DESKTOP: string;
 		XDG_SESSION_TYPE: string;
-		GPG_AGENT_INFO: string;
+		BUN_WHICH_IGNORE_CWD: string;
 		SYSTEMD_EXEC_PID: string;
+		GUILE_LOAD_PATH: string;
 		_: string;
 		XAUTHORITY: string;
 		VSCODE_GIT_ASKPASS_NODE: string;
@@ -174,14 +185,19 @@ declare module '$env/dynamic/private' {
 		LANG: string;
 		LS_COLORS: string;
 		XDG_CURRENT_DESKTOP: string;
+		GUILE_EXTENSIONS_PATH: string;
 		npm_package_version: string;
 		MEMORY_PRESSURE_WATCH: string;
 		WAYLAND_DISPLAY: string;
+		SBX_CHROME_API_RQ: string;
 		GIT_ASKPASS: string;
 		INVOCATION_ID: string;
+		GUILE_LOAD_COMPILED_PATH: string;
 		MANAGERPID: string;
+		INIT_CWD: string;
 		CHROME_DESKTOP: string;
-		npm_lifecycle_script: string;
+		XDG_CACHE_HOME: string;
+		INFOPATH: string;
 		GJS_DEBUG_OUTPUT: string;
 		NVM_DIR: string;
 		VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
@@ -194,13 +210,17 @@ declare module '$env/dynamic/private' {
 		LESSOPEN: string;
 		USER: string;
 		VSCODE_GIT_IPC_HANDLE: string;
+		CLUTTER_DISABLE_MIPMAPPED_TEXT: string;
 		DISPLAY: string;
-		npm_lifecycle_event: string;
 		SHLVL: string;
 		NVM_CD_FLAGS: string;
+		GUIX_LOCPATH: string;
+		GSM_SKIP_SSH_AGENT_WORKAROUND: string;
 		QT_IM_MODULE: string;
 		npm_config_user_agent: string;
+		XDG_STATE_HOME: string;
 		npm_execpath: string;
+		FC_FONTATIONS: string;
 		XDG_RUNTIME_DIR: string;
 		DEBUGINFOD_URLS: string;
 		npm_package_json: string;
@@ -211,14 +231,12 @@ declare module '$env/dynamic/private' {
 		GDK_BACKEND: string;
 		PATH: string;
 		GDMSESSION: string;
-		ORIGINAL_XDG_CURRENT_DESKTOP: string;
 		DBUS_SESSION_BUS_ADDRESS: string;
 		NVM_BIN: string;
 		GIO_LAUNCHED_DESKTOP_FILE_PID: string;
 		npm_node_execpath: string;
 		GIO_LAUNCHED_DESKTOP_FILE: string;
 		TERM_PROGRAM: string;
-		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
 	}

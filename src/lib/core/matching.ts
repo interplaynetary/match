@@ -385,7 +385,7 @@ export function availabilityWindowsOverlapWithTimezone(
     return false;
 }
 
-function flattenWindowToUTCDaySchedules(
+export function flattenWindowToUTCDaySchedules(
     window: AvailabilityWindow,
     timezone?: string,
     sampleDate: string = '2024-01-01'
@@ -673,7 +673,7 @@ export function intersectTimeRanges(ranges1: TimeRange[], ranges2: TimeRange[]):
     return result;
 }
 
-function parseTimeToMinutes(timeStr: string): number {
+export function parseTimeToMinutes(timeStr: string): number {
     const [hours, minutes] = timeStr.split(':').map(Number);
     return (hours * 60) + minutes;
 }
