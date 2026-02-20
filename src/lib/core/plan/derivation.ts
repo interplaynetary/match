@@ -20,6 +20,7 @@ import {
     type AssertionPhase,
     type TemporalEnvelope,
     type SpatialEnvelope,
+    type StatePredicate,
     currentPhase,
 } from './effect';
 import { type EffectStream } from './effect-stream';
@@ -181,9 +182,9 @@ export interface SlotSatisfaction {
 // COMMONS DERIVATION
 // =============================================================================
 
-export interface CommonsDerivedState {
-    commons_id: string;
-    slots: SlotSatisfaction[];
+export interface ProcessDerivedState {
+    process_id: string;
+    slot_results: SlotSatisfaction[];
     actual: boolean;
     satisfaction_ratio: number;
     metabolism: MetabolicFlow[];
@@ -894,6 +895,20 @@ export function metabolicField(
 // CONSTRAINTS
 // =============================================================================
 
+/**
+ * Convert a StatePredicate (serializable, on effects) to an AttributeConstraint
+ * (runtime, in derivation). Bridges the two representations.
+ */
+export function predicateToConstraint(pred: StatePredicate): AttributeConstraint {
+    return {
+        entity_id: pred.entity_id,
+        attribute: pred.attribute,
+        max: pred.max,
+        min: pred.min,
+        exact: pred.exact,
+    };
+}
+
 export function checkConstraint(
     derived: DerivedValue,
     constraint: AttributeConstraint,
@@ -906,14 +921,14 @@ export function checkConstraint(
         }
     }
 
-    if (constraint.max !== undefined && typeof v === 'number') {
-        if (v > constraint.max) {
+    if (constraint.max !== undefined) {
+        if (typeof v !== 'number' || v > constraint.max) {
             return { satisfied: false, violation: `Value ${v} exceeds max ${constraint.max}` };
         }
     }
 
-    if (constraint.min !== undefined && typeof v === 'number') {
-        if (v < constraint.min) {
+    if (constraint.min !== undefined) {
+        if (typeof v !== 'number' || v < constraint.min) {
             return { satisfied: false, violation: `Value ${v} below min ${constraint.min}` };
         }
     }
@@ -989,15 +1004,15 @@ export function evaluateSlot(
 // COMMONS DERIVATION
 // =============================================================================
 
-export function deriveCommons(
+export function deriveProcess(
     stream: EffectStream,
-    commonsId: string,
+    processId: string,
     slots: {
         id: string;
         required: boolean;
         constraints: AttributeConstraint[];
     }[],
-): CommonsDerivedState {
+): ProcessDerivedState {
     const slotResults: SlotSatisfaction[] = [];
     const allMetabolism: MetabolicFlow[] = [];
 
@@ -1016,8 +1031,8 @@ export function deriveCommons(
     }
 
     return {
-        commons_id: commonsId,
-        slots: slotResults,
+        process_id: processId,
+        slot_results: slotResults,
         actual: requiredCount > 0 ? requiredSatisfied === requiredCount : true,
         satisfaction_ratio: requiredCount > 0 ? requiredSatisfied / requiredCount : 1,
         metabolism: allMetabolism,

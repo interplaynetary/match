@@ -7,7 +7,7 @@
  * Design principles:
  * 1. Append-only storage — effects are never mutated, new versions are appended
  * 2. Pluggable processors — handlers for each phase transition
- * 3. Dependency-aware — phase changes cascade to dependents
+ * 3. State-predicate-aware — phase changes re-derive state, evaluate watchers' predicates
  * 4. Bitemporal — every state change records both valid_time and known_time
  *
  * The stream is generic: it doesn't know what effects mean, only how they flow.
@@ -15,7 +15,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import { type NanoId } from './commons';
+import { type NanoId } from './ids';
 import {
     type Effect,
     type CompositeEffect,
@@ -24,8 +24,11 @@ import {
     type Delta,
     type PropagationAction,
     currentPhase,
-    computePropagation,
+    evaluatePredicates,
+    evaluateSinglePredicate,
+    stateKey,
 } from './effect';
+import { derive } from './derivation.ts';
 
 // =============================================================================
 // STREAM EVENT — What the stream emits
@@ -96,7 +99,8 @@ export class EffectStream {
     // Indexes
     private byEntity = new Map<string, Set<string>>();    // entity_id → origin_ids
     private byPhase = new Map<AssertionPhase, Set<string>>(); // phase → origin_ids
-    private dependents = new Map<string, Set<string>>();  // origin_id → dependent origin_ids
+    private stateWatchers = new Map<string, Set<string>>();    // "entity:attr" → watching effect origin_ids
+    private predicateSatisfaction = new Map<string, boolean>(); // "effectId:entity:attr" → currently satisfied?
 
     // Pluggable processors
     private processors = new Map<string, PhaseProcessor>();
@@ -153,8 +157,23 @@ export class EffectStream {
     submit(effect: Effect): Effect {
         this.store(effect);
         this.index(effect);
+
+        // Initialize predicate satisfaction for new effects
+        for (const pred of effect.predicates) {
+            const derived = derive(this, pred.entity_id, pred.attribute);
+            const satisfied = evaluateSinglePredicate(pred, derived.value);
+            const key = `${effect.origin_id}:${stateKey(pred.entity_id, pred.attribute)}`;
+            this.predicateSatisfaction.set(key, satisfied);
+        }
+
         this.queue.push(effect);
         this.emit({ type: 'submitted', effect });
+
+        // If submitted as already accepted, propagate to state watchers
+        if (currentPhase(effect) === 'accepted') {
+            this.propagate(effect);
+        }
+
         this.drain();
         return effect;
     }
@@ -260,9 +279,10 @@ export class EffectStream {
             .filter((e): e is Effect => e !== undefined);
     }
 
-    /** Get effects that depend on a given effect. */
-    dependentsOf(originId: string): Effect[] {
-        const ids = this.dependents.get(originId);
+    /** Get effects watching a specific entity+attribute state. */
+    watchersOf(entityId: string, attribute: string): Effect[] {
+        const key = stateKey(entityId, attribute);
+        const ids = this.stateWatchers.get(key);
         if (!ids) return [];
         return Array.from(ids)
             .map(id => this.latest(id))
@@ -353,20 +373,36 @@ export class EffectStream {
     // =========================================================================
 
     private async propagate(changed: Effect): Promise<void> {
-        const deps = this.dependentsOf(changed.origin_id);
-        if (deps.length === 0) return;
+        // Identify which entity+attribute pairs this effect's deltas touch
+        const touchedKeys = new Set<string>();
+        for (const delta of changed.deltas) {
+            touchedKeys.add(stateKey(delta.entity_id, delta.attribute));
+        }
 
-        const actions = computePropagation(changed, deps);
+        // For each touched state, re-derive and evaluate watchers' predicates
+        for (const key of touchedKeys) {
+            const separatorIndex = key.indexOf(':');
+            const entityId = key.slice(0, separatorIndex);
+            const attribute = key.slice(separatorIndex + 1);
 
-        for (const action of actions) {
-            const target = this.latest(action.origin_id);
-            if (!target) continue;
+            const watchers = this.watchersOf(entityId, attribute);
+            if (watchers.length === 0) continue;
 
-            this.emit({ type: 'propagation', action, source: changed, target });
+            const derivedValue = derive(this, entityId, attribute);
+            const actions = evaluatePredicates(
+                entityId, attribute, derivedValue, watchers, this.predicateSatisfaction,
+            );
 
-            if (this.propagationHandler) {
-                const ctx: ProcessorContext = { stream: this, now: this.now };
-                await this.propagationHandler(action, changed, target, ctx);
+            for (const action of actions) {
+                const target = this.latest(action.origin_id);
+                if (!target) continue;
+
+                this.emit({ type: 'propagation', action, source: changed, target });
+
+                if (this.propagationHandler) {
+                    const ctx: ProcessorContext = { stream: this, now: this.now };
+                    await this.propagationHandler(action, changed, target, ctx);
+                }
             }
         }
     }
@@ -395,11 +431,12 @@ export class EffectStream {
         phaseSet.add(effect.origin_id);
         this.byPhase.set(phase, phaseSet);
 
-        // Dependency index
-        for (const dep of effect.dependencies) {
-            const set = this.dependents.get(dep.origin_id) ?? new Set();
+        // State watcher index
+        for (const pred of effect.predicates) {
+            const key = stateKey(pred.entity_id, pred.attribute);
+            const set = this.stateWatchers.get(key) ?? new Set();
             set.add(effect.origin_id);
-            this.dependents.set(dep.origin_id, set);
+            this.stateWatchers.set(key, set);
         }
     }
 
@@ -437,7 +474,8 @@ export class EffectStream {
         this.queue = [];
         this.byEntity.clear();
         this.byPhase.clear();
-        this.dependents.clear();
+        this.stateWatchers.clear();
+        this.predicateSatisfaction.clear();
     }
 }
 

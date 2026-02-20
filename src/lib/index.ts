@@ -2,9 +2,9 @@
 
 // Types and schemas (primary definitions)
 export * from './core/types'
-export * from './core/time'
-export * from './core/desire'
-export * from './core/commons'
+export * from './core/plan/time'
+export * from './core/plan/desire'
+export * from './core/plan/process'
 
 // Enrichment (exclude Constraints which conflicts with types.ts)
 export {
@@ -57,7 +57,7 @@ export {
   groupSlotsBySpaceTime,
 } from './core/matching'
 export * from './core/match-data'
-export * from './core/feasibility'
+export * from './core/plan/feasibility'
 // Eligibility - exclude types that conflict with types.ts
 export {
   EligibilityFilters,
@@ -65,13 +65,13 @@ export {
 } from './core/eligibility'
 
 // Spatial
-export * from './core/spatial'
+export * from './core/plan/spatial'
 
 // Search
 export * from './core/search'
 
 // Skills
-export * from './core/skills'
+export * from './core/plan/skills'
 
 // AI
 export * from './core/ai-pipe'

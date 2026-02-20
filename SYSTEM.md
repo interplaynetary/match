@@ -1,4 +1,4 @@
-# The Match System: A Guide for Organizers
+# A Guide for Xorganizers
 
 ## What Is This?
 
@@ -8,34 +8,72 @@ It replaces the logic of buying and selling with the logic of coordinating direc
 
 ---
 
-## The Core Concepts
+## Three Layers
 
-### Resources: What Exists, What's Needed
+The system has three layers, each with a distinct role:
 
-A **resource** is anything that can be contributed or needed. Time, labor, tools, space, knowledge. Each resource has:
+- **State** — what IS, what's WANTED, and what's CLAIMED (capacities, needs, and allocations)
+- **Effects** — what CHANGED (transformations in space-time)
+- **Commons** — how contributions are ORGANIZED (coordination structures)
+
+These form a loop:
+
+```
+State (capacities / needs / allocations)
+    ↑ derived from
+Effects (transformations — things that happened)
+    ↑ produced when allocations are fulfilled
+Commons (coordination — slots, matching, allocation)
+    ↑ conditional on
+State ...
+```
+
+Commons read state, match capacities to needs, allocate capacity to slots, and when those allocations are fulfilled — when someone actually shows up and does the thing — effects are produced. Effects transform state. New state feeds back into the conditions that commons depend on.
+
+---
+
+## State: What IS, What's WANTED, What's CLAIMED
+
+### Capacities
+
+A **capacity** is the current state of an entity, derived from all the effects that have acted on it. "There are 20 drills at the downtown library" is the net result of every acquisition, donation, loan, breakage, and return. The number 20 is what you get when you fold all those effects together.
+
+A capacity is not a separate thing from effects. It's an effect whose changes are `set` operations — asserting the full state rather than an incremental change. It functions as a checkpoint, so you don't have to replay every effect since the beginning of time to know what's true right now.
+
+Each capacity has:
 
 - **What it is**: a type, a quantity, a unit ("10 hours of childcare", "1 workshop space", "3 power drills")
 - **Where it is**: a location, a radius, or "remote"
 - **When it's available**: a schedule — anything from "every weekday 9-5" to "first Tuesday of February, 2-4pm"
 - **What it requires**: skills, advance notice, minimum time blocks
 
-Resources aren't abstract. They exist somewhere, at some time, under some conditions. The system respects that.
+Capacities aren't abstract. They exist somewhere, at some time, under some conditions.
 
-### Commons: Coordinating Together
+Capacities exist in all temporal modes. A present capacity ("I have 20 drills now") is a snapshot of accepted effects. A future capacity can be either an **original assertion** ("Starting March 1st, I'll have a space available" — someone is accountable) or a **projection** ("At current rates, we'll have 12 drills by April" — the system extrapolated, nobody promised). The distinction matters: you can hold someone to an assertion, not to an extrapolation.
 
-A **commons** is a shared activity that needs multiple contributions to happen. Think of it as a template with slots:
+### Needs
 
-- "Block Party" needs: a venue slot, a food slot, a music slot, a cleanup slot
-- "Tool Library" needs: a storage space slot, tool donation slots, a librarian time slot
-- "Childcare Cooperative" needs: caregiver time slots for each day of the week
+A **need** is the same shape as a capacity — a type, quantity, location, schedule — but expressing what's wanted rather than what's available. A need is a predicate over state that isn't yet satisfied.
 
-Each **slot** describes what kind of contribution is needed. People fill slots by offering their resources. When all required slots are filled, the commons becomes **actual** — it's happening. Until then, it's **potential** — a plan waiting for enough participants.
+### Snapshots
 
-A commons can also reference other commons. "The neighborhood festival" might need "the childcare cooperative" to be running (so parents can attend). This creates a chain of coordination — one collective activity enabling another.
+State is derived from effects, but matching can't re-derive every entity's attributes from scratch on every query. A **snapshot** is a materialized view — derived state projected into the structured shape of a capacity or need (type, quantity, location, schedule, skills, etc.) at a point in time.
 
-### Matching: Finding the Right Fit
+Matching operates on snapshots, not raw derived state. When Maria's effects fold into "10 hours of childcare, weekdays 9-5, at the daycare, skill: early childhood," that's a snapshot. When the childcare cooperative needs "8 hours of childcare, weekdays, within 2km," that's a need. Matching compares these structured projections across seven dimensions.
 
-The system matches needs to capacities across seven dimensions:
+Snapshots are ephemeral — derived on demand, never the source of truth. The effect stream remains authoritative. But snapshots give matching a structured, multi-dimensional view to query against efficiently.
+
+### Allocations
+
+An **allocation** is a claim on capacity — "these 8 of Maria's 10 hours are pledged to the childcare cooperative." Nothing changed in the world. Maria still has 10 hours. What changed is the coordination bookkeeping: those hours are spoken for.
+
+Allocation is state, not an effect. No transformation occurred — it's a coordination decision that partitions capacity. This matters because it prevents double-counting: if Maria allocates 8 hours to one commons, the matching system sees only her remaining 2 hours as available for others.
+
+Allocation bridges capacities and commons. The matching system discovers that Maria's capacity could satisfy the childcare slot. Maria (or an organizer) decides to allocate. That allocation is state — it updates what's available. Later, when Maria actually provides childcare, *that* is an effect.
+
+### Matching
+
+Matching is **discovery** — finding capacities that could satisfy needs. The system matches across seven dimensions:
 
 1. **Time** — Do their schedules overlap? For how long?
 2. **Space** — Are they close enough? Or is it remote?
@@ -54,33 +92,25 @@ Matching also captures **desire**: just because something is feasible doesn't me
 | **Feasible** | Valid match | Suggestion (system recommends) |
 | **Not feasible** | Contradiction (want but can't) | Pruned (ignored) |
 
+Matching is not allocation. Matching discovers possibilities. Allocation claims them.
+
 ---
 
-## Effects: What Actually Happens
+## Effects: What CHANGED
 
-Here's the key insight: plans are not reality. Someone says they'll contribute 10 hours. Did they? Someone promises a venue. Did it actually open on time? The effects system tracks the gap between projection and actuality.
-
-### What Is an Effect?
-
-An effect is a **claim that something changed in the world, at a specific place and time**.
+An **effect** is a claim that something changed in the world, at a specific place and time. There's no fundamental difference between a human contribution and a natural event — both are transformations witnessed and asserted.
 
 - "5 drills were added to the tool library on Tuesday at the community center"
-- "Temperature dropped below freezing last night across the neighborhood"
 - "Maria provided 3 hours of childcare on Friday morning at the daycare"
-- "The building permit was approved on March 12th"
+- "Temperature dropped below freezing last night across the neighborhood"
 
-Every effect has:
-
-- **What changed**: which entity, which attribute, by how much (a batch of changes, all-or-nothing)
-- **Where and when**: the space-time envelope — coordinates, radius, time window
-- **Who says so**: the witness — the person or system asserting this happened
-- **A lifecycle**: projected → pending → accepted/rejected
+Every effect has what changed, where and when, who says so, and a lifecycle.
 
 ### The Lifecycle
 
-Effects flow through time:
+Plans are not reality. Someone promises a venue. Did it actually open on time? The system tracks the gap between projection and actuality.
 
-**Projected** — "We expect this to happen." Someone committed to contributing, a weather forecast predicts rain, a permit application was submitted. It's a plan, not yet reality.
+**Projected** — "We expect this to happen." A weather forecast predicts rain, a permit application was submitted. It's a plan, not yet reality.
 
 **Pending** — The moment arrives. The effect must now be judged: did this actually happen?
 
@@ -90,27 +120,31 @@ Effects flow through time:
 
 **Modified** — It happened, but differently. Maria came but only stayed 2 hours instead of 3. The venue opened at 10am instead of 9am. The effect keeps its identity — it's still "the same contribution" — but the details changed.
 
-**Retracted** — We previously accepted this, but we've since learned it was wrong. Maybe the drills were counted twice. Maybe fraud. The original acceptance stays in the record (for audit), but a retraction is appended. Everything that depended on this must now re-evaluate.
+**Retracted** — We previously accepted this, but we've since learned it was wrong. Maybe the drills were counted twice. Maybe fraud. The original acceptance stays in the record (for audit), but a retraction is appended.
 
-### No Allocation, Just Observation
+### All Effects Are Observational
 
-There's no fundamental difference between "Maria allocated her time" and "the river flooded." Both are transformations witnessed and asserted. The system treats all effects the same — same lifecycle, same propagation, same accountability.
+There's no fundamental difference between "Maria provided childcare" and "the river flooded." Both are transformations witnessed and asserted. The system treats all effects the same — same lifecycle, same propagation, same accountability.
 
 This matters because a commons doesn't just depend on human contributions. It depends on weather, permits, infrastructure, seasonal availability. A community garden commons needs rain just as much as it needs volunteers. The effects system handles both.
 
-### Dependencies
+Allocation is not an effect — it's not a transformation of the world. When Maria pledges her time, nothing in the world changed. When Maria *shows up*, that's an effect. The allocation was state; the fulfillment is a transformation.
 
-Effects can depend on other effects:
+### State Predicates
 
-- "The workshop" depends on "the venue being available" and "the instructor showing up"
-- "The harvest" depends on "the seeds being planted" (months earlier) and "adequate rainfall"
+Effects don't depend on other effects — they depend on **state**. The workshop doesn't care about the specific effect that made the venue available. It cares that the venue *is* available. If the original venue booking falls through but someone else provides one, nothing breaks.
 
-Dependencies have two strengths:
+Each effect can declare conditions on derived state:
 
-- **Hard**: if this breaks, the dependent is invalidated. The workshop can't happen without a venue.
-- **Soft**: if this breaks, the dependent is degraded but persists. Less rainfall means a smaller harvest, not no harvest.
+- "The workshop" requires "venue availability >= 1 at this location during this time" and "instructor availability >= 1"
+- "The harvest" requires "seeds planted >= minimum" and "rainfall >= adequate"
 
-When an effect is retracted or modified, the system traces all dependencies and flags what needs re-evaluation. Nothing silently breaks.
+These conditions have two strengths:
+
+- **Hard**: if this breaks, the effect is invalidated. The workshop can't happen without a venue.
+- **Soft**: if this breaks, the effect is degraded but persists. Less rainfall means a smaller harvest, not no harvest.
+
+When state changes (because an effect is accepted, retracted, or modified), the system re-derives the affected state and checks all effects watching it. Only transitions from satisfied to unsatisfied trigger alerts. Nothing silently breaks.
 
 ### Accountability Without Surveillance
 
@@ -121,6 +155,48 @@ The assertion log is append-only. Nothing is deleted or overwritten. If somethin
 - **Trust building**: over time, patterns emerge — who follows through, who doesn't, which projections tend to be accurate
 
 This isn't surveillance. There are no scores or punishments. It's shared bookkeeping — the same thing cooperatives have always done, just with better tools.
+
+---
+
+## Commons: How Contributions Are ORGANIZED
+
+A **commons** is a coordination structure — a process that organizes contributions. It doesn't "have" a capacity. When its allocations are fulfilled — when people actually do what they pledged — the resulting effects fold into state elsewhere.
+
+The childcare cooperative coordinates caregiver contributions. When caregivers actually provide hours, those effects fold into state: "childcare availability = 20 hours/week at the daycare." That state is a capacity. The commons organized its production but doesn't own it.
+
+### Slots
+
+A commons is a template with **slots** — each slot is something the commons requires. Slots come in four kinds, each with a different satisfaction mechanism:
+
+**Condition slots** are state predicates — conditions on derived state. "Venue availability >= 1", "temperature above freezing", "permit approved." They don't care *how* the condition is met, only that it holds. The venue slot checks derived state, not the effects that produced it.
+
+- "Block Party" requires: venue availability >= 1, food quantity >= 50 servings, music hours >= 4
+- "Tool Library" requires: storage space >= 1, tool count >= minimum
+- "Community Garden" requires: rainfall >= adequate (a natural condition, not a human contribution)
+
+**Need slots** carry a full resource query — "I need a sound engineer with mixing skills, available Saturday, within 5km." The matching system uses this query to discover capacities via snapshots. Once matched, an allocation binds a specific contributor. The slot is satisfied when the allocation is fulfilled (the contributor actually shows up) and the derived state meets the need.
+
+A need is a multi-dimensional query: type, quantity, skills, location, schedule. It's more than a single predicate — it's the structured shape that matching operates on. Need slots can also carry additional condition predicates beyond the resource query ("need a venue AND it can't be raining").
+
+**Composition slots** reference another commons. "The neighborhood festival needs the childcare cooperative to be running." The slot is satisfied when that commons is actual. The festival doesn't care how childcare gets organized — only that derived state says "childcare = actual." One collective activity enabling another.
+
+**Data slots** collect human input — "What should we name the event?", "How many attendees?", "Indoor or outdoor?" These aren't derived from effects or matched against capacities. Someone provides a value (a string, a number, a choice from options) and the slot is satisfied. Not everything a commons needs comes from the world; some things come from decisions.
+
+When all required slots are satisfied, the commons becomes **actual** — it's happening. Until then, it's **potential** — a plan waiting for enough contributions, conditions, decisions, and dependencies to come together.
+
+### From Match to Allocation to Fulfillment
+
+The journey from capacity to satisfied slot has three steps:
+
+1. **Matching** discovers that Maria's capacity could satisfy the caregiver slot (discovery — state layer)
+2. **Allocation** claims 8 of Maria's hours for this commons (coordination decision — state layer)
+3. **Fulfillment** happens when Maria actually provides childcare (transformation — effects layer)
+
+Matching is discovery. Allocation is a state partition. Fulfillment is a world-transformation — only fulfillment produces effects. There is no separate "delivery" record. When Maria actually provides childcare, that effect is accepted and folds into state. The slot's predicate re-evaluates against the new derived state. Coverage — how much of the slot's predicate is met — is derived, not recorded.
+
+### Composition
+
+A commons can depend on other commons. "The neighborhood festival" needs "the childcare cooperative" to be running so parents can attend. This is a composition slot — it references the childcare commons and is satisfied when that commons is actual. The festival doesn't care how childcare gets organized, only that it's happening. One collective activity enabling another.
 
 ---
 
@@ -146,7 +222,7 @@ Different points in space-time see different metabolisms. The tool library is fl
 
 When you query metabolism for a space-time region, the system:
 
-1. **Filters spatially** — only effects whose locations overlap the query region count. An effect at the downtown library doesn't affect the suburb's metabolism. Spatial overlap is binary: either the effect is reachable from the query location or it isn't (drills are at the library, not spread across a radius).
+1. **Filters spatially** — only effects whose locations overlap the query region count. An effect at the downtown library doesn't affect the suburb's metabolism. Spatial overlap is binary: either the effect is reachable from the query location or it isn't.
 
 2. **Weights temporally** — effects get weighted by how much of their time falls within the query window. If Maria volunteers "weekdays 9-5" and you query for "weekday afternoons 12-5", only 5 of her 8 daily hours count — a temporal fraction of 5/8. Her contribution is weighted proportionally.
 
@@ -180,7 +256,7 @@ The system can also map metabolism across locations for a given time window. "Du
 
 ### Why It Matters
 
-A commons might be `actual` right now — all slots filled, everything running. But if its attributes are being consumed faster than produced, it's on a trajectory toward failure. And that trajectory might only be visible at certain times or locations.
+A commons might be actual right now — all slots filled, everything running. But if its attributes are being consumed faster than produced, it's on a trajectory toward failure. And that trajectory might only be visible at certain times or locations.
 
 - The tool library looks fine in aggregate (+2 drills/week system-wide). But downtown is at -4/week and the suburbs are at +6/week. Downtown will fail in 5 weeks if nothing changes.
 - The childcare co-op is sustainable on weekdays but critically short on weekends. A flat average masks this.
@@ -190,49 +266,50 @@ Metabolism makes these patterns visible so organizers can intervene before thing
 
 ---
 
-## How It All Fits Together
+## The Loop
 
 ```
-People express what they CAN do (capacities)
-People express what they NEED (needs)
-                    ↓
-Matching finds feasible, desired connections
-                    ↓
-Commons organize these into coordinated activities
-    (slots define what's needed, people fill them)
-                    ↓
-Effects track what actually happens in space-time
-    (projected → judged → accepted or not)
-                    ↓
-Derivation computes current state from effects
-    (not stored — always freshly computed)
-                    ↓
-Metabolism shows sustainability
-    (production vs consumption, flow rates)
-                    ↓
-Dependencies propagate changes
-    (if something breaks, everything that depends on it knows)
+State: capacities describe what's available, needs describe what's wanted
+    ↓
+Matching: discovers which capacities could satisfy which needs
+    ↓
+Allocation: claims capacity for a commons' slot (state partition, no world-change)
+    ↓
+Fulfillment: someone actually does the thing (effect — a transformation in space-time)
+    ↓
+Derivation: accepted effects fold into new state (capacities update)
+    ↓
+Metabolism: reveals whether flows are sustainable across space and time
+    ↓
+Predicates: state changes propagate to effects watching that state
+    ↓
+State ...
 ```
 
 The system doesn't tell people what to do. It helps people see:
-- What's needed and what's available
-- Where there are good matches
-- Whether commitments are being followed through
-- Whether collective activities are sustainable
-- Where intervention is needed before things break down
+- What's needed and what's available (state)
+- Where there are good matches (matching)
+- What's been claimed and by whom (allocations)
+- Whether people are following through (fulfillment vs allocation gap)
+- Whether collective activities are sustainable (metabolism)
+- Where and when intervention is needed before things break down (profiles, fields)
 
 ---
 
 ## Key Principles
 
-**No outputs, only coordination.** Nobody produces a commodity. People coordinate activities directly. The "product" is the commons itself — the shared childcare, the tool library, the garden.
+**The commons is the process, not the product.** A commons organizes contributions. The product is always state — effects folded into a present-tense view.
 
-**Plans are not reality.** Every commitment is a projection that must be verified. The system tracks the gap between what was planned and what happened, and adapts accordingly.
+**Allocation is state, fulfillment is effect.** Pledging your time changes the books, not the world. Showing up changes the world. Coverage — how much of a slot's need is met — is derived from the combination of allocations (what's claimed) and accepted effects (what actually happened).
+
+**Plans are not reality.** Every projection must be verified. The system tracks the gap between what was planned and what happened, and adapts accordingly.
 
 **Everything happens somewhere, somewhen.** Contributions aren't abstract. They have locations, schedules, durations. The system respects the material reality of coordination.
 
 **State is derived, not stored.** The current state of any resource is computed from the history of effects, not read from a field. This means the system can always reconstruct, audit, and correct.
 
-**Sustainability over snapshots.** A healthy-looking moment means nothing if the flows don't balance. Metabolism makes trajectories visible.
+**Effects depend on state, not on other effects.** The workshop doesn't care which specific effect made the venue available. It cares that the venue is available. If the source changes but the state holds, nothing breaks.
+
+**Sustainability over snapshots.** A healthy-looking moment means nothing if the flows don't balance. Metabolism makes trajectories visible — across space, across time.
 
 **Accountability through transparency.** No scores, no punishments. Append-only records that everyone can see. Trust emerges from patterns, not enforcement.

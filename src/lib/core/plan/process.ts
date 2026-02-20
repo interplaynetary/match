@@ -12,17 +12,16 @@ import {
     type AvailabilityWindow
 } from './time';
 import { nanoid } from 'nanoid';
+import { NanoId } from './ids';
+import type { EffectStream } from './effect-stream';
+import { deriveProcess, type ProcessDerivedState } from './derivation';
 
 // Re-export time types for convenience
 export { TimeRangeSchema, DayOfWeekSchema, DayScheduleSchema, AvailabilityWindowSchema };
 export type { TimeRange, DayOfWeek, DaySchedule, AvailabilityWindow };
 
-// =============================================================================
-// IDs
-// =============================================================================
-
-export const NanoId = z.string().min(10).max(32);
-export type NanoId = z.infer<typeof NanoId>;
+// Re-export NanoId (many files import it from process)
+export { NanoId };
 
 // =============================================================================
 // ACCEPTANCE LOGIC
@@ -54,7 +53,7 @@ export function checkAcceptance(logic: AcceptanceLogic, context: any): boolean {
 // DESCRIPTIONS
 // =============================================================================
 
-export const CommonsDescription = z.union([
+export const ProcessDescription = z.union([
     z.object({
         type: z.literal('templated_strict'),
         requirements: z.object({
@@ -71,7 +70,7 @@ export const CommonsDescription = z.union([
     }),
     z.string(),
 ]);
-export type CommonsDescription = z.infer<typeof CommonsDescription>;
+export type ProcessDescription = z.infer<typeof ProcessDescription>;
 
 // =============================================================================
 // RESOURCE
@@ -126,6 +125,36 @@ export const Resource = z.object({
 
     // Allocation
     priority_distribution: z.record(z.string(), z.number().min(0).max(1)).optional(),
+    
+    // ===== Use-Rights (⭐) from PLAN.md =====
+    
+    /**
+     * Rights catalog: Available rights and valid combinations.
+     * 
+     * From PLAN.md:
+     * - Maintains catalog of possible combinations: { ⭐1, ⭐2, ⭐3 }
+     * - Maintains index of ⭐ distribution over time
+     */
+    rights_catalog: z.object({
+        /** All available rights for this resource */
+        available_rights: z.array(z.any()).optional(),  // UseRightSchema from rights.ts
+        
+        /** Valid combinations of rights that can coexist */
+        valid_combinations: z.array(z.object({
+            combination_id: z.string(),
+            right_ids: z.array(z.string()),
+            compatible: z.boolean(),
+        })).optional(),
+        
+        /** Default combination (if any) */
+        default_combination_id: z.string().optional(),
+    }).optional(),
+    
+    /**
+     * Governance: Who controls this resource.
+     * Can issue/grant/revoke rights.
+     */
+    governed_by: z.string().optional(),  // Governance ID
 });
 export type Resource = z.infer<typeof Resource>;
 
@@ -397,173 +426,199 @@ export const buildMatchRecord = (
 };
 
 // =============================================================================
-// INPUT DEFINITIONS
+// SLOT PREDICATE — Condition on derived state
 // =============================================================================
 
-const InputGeneric = z.object({
-    kind: z.literal('generic'),
+/**
+ * A condition on derived state that a slot requires to be satisfied.
+ * Same shape as StatePredicate in effect.ts but without binding
+ * (binding is at the slot level via required/optional).
+ */
+export const SlotPredicate = z.object({
+    entity_id: z.string().min(1),
+    attribute: z.string().min(1),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    exact: z.unknown().optional(),
+    label: z.string().optional(),
+});
+export type SlotPredicate = z.infer<typeof SlotPredicate>;
+
+// =============================================================================
+// SLOT — Discriminated union of slot kinds
+// =============================================================================
+//
+// A slot represents something a process requires to become actual.
+// Four kinds, each with a different satisfaction mechanism:
+//
+// - **need**: "I need a sound engineer" → matched via Resource snapshots,
+//   satisfied by allocation + optional state predicates.
+//
+// - **condition**: "It must not be raining" → pure state predicates on
+//   derived state, no allocation needed.
+//
+// - **composition**: "Childcare co-op must be running" → references another
+//   process, satisfied when that process is actual.
+//
+// - **data**: "What's the event name?" → collects human input (string,
+//   number, boolean, option), satisfied when a value is provided.
+
+const SlotBase = z.object({
+    id: NanoId,
+    name: z.string(),
+    description: z.string().optional(),
+    required: z.boolean().default(true),
+});
+
+/** "I need a Resource matched via snapshots" */
+export const NeedSlot = SlotBase.extend({
+    kind: z.literal('need'),
+    /** The Resource query — what we're looking for. Matching operates on this. */
+    need: Resource,
+    /** Additional state conditions beyond the Resource query. */
+    predicates: z.array(SlotPredicate).optional(),
+});
+export type NeedSlot = z.infer<typeof NeedSlot>;
+
+/** "A condition on world state must hold" */
+export const ConditionSlot = SlotBase.extend({
+    kind: z.literal('condition'),
+    /** Conditions on derived state that determine satisfaction. */
+    predicates: z.array(SlotPredicate).min(1),
+});
+export type ConditionSlot = z.infer<typeof ConditionSlot>;
+
+/** "Another process must be actual" */
+export const CompositionSlot = SlotBase.extend({
+    kind: z.literal('composition'),
+    /** The process that must be actual for this slot to be satisfied. */
+    process_id: NanoId,
+});
+export type CompositionSlot = z.infer<typeof CompositionSlot>;
+
+/** "Collect human input" */
+export const DataSlot = SlotBase.extend({
+    kind: z.literal('data'),
     data_type: z.enum(['string', 'number', 'boolean', 'option']),
     options: z.array(z.string()).optional(),
-    description: z.string().optional(),
+    value: z.unknown().optional(),
 });
+export type DataSlot = z.infer<typeof DataSlot>;
 
-const InputResource = z.object({
-    kind: z.literal('resource'),
-    resource_id: z.string(),
-});
-
-const InputCommons = z.object({
-    kind: z.literal('commons'),
-    commons_id: z.string().optional(),
-});
-
-export const InputDefinition = z.union([InputGeneric, InputResource, InputCommons]);
-export type InputDefinition = z.infer<typeof InputDefinition>;
-export type InputResource = z.infer<typeof InputResource>;
-export type InputCommons = z.infer<typeof InputCommons>;
-export type InputGeneric = z.infer<typeof InputGeneric>;
-
-// Input helpers
-export const input = {
-    resource: (resource_id: string) => ({
-        kind: 'resource' as const,
-        resource_id,
-    } satisfies InputResource),
-
-    commons: (commons_id?: string) => ({
-        kind: 'commons' as const,
-        commons_id,
-    } satisfies InputCommons),
-
-    generic: (data_type: 'string' | 'number' | 'boolean' | 'option', opts?: { options?: string[], description?: string }) => ({
-        kind: 'generic' as const,
-        data_type,
-        ...opts,
-    } satisfies InputGeneric),
-};
-
-// =============================================================================
-// SLOT
-// =============================================================================
-
-export const Slot = z.object({
-    id: NanoId,
-    name: z.string(),
-    description: z.string().optional(),
-    input: InputDefinition,
-    optional: z.boolean().default(false),
-    acceptance_logic: AcceptanceLogic.optional(),
-    filled_by: z.record(z.string(), z.union([z.boolean(), z.number(), z.string()])).optional(),
-
-    // Time accounting: commitment → completion
-    expected_duration_hours: z.number().positive().optional(), // estimated time
-    filled_at: z.date().optional(),      // when commitment was made
-    completed_at: z.date().optional(),   // when actually done
-    actual_duration_hours: z.number().nonnegative().optional(), // recorded time
-});
+export const Slot = z.discriminatedUnion('kind', [NeedSlot, ConditionSlot, CompositionSlot, DataSlot]);
 export type Slot = z.infer<typeof Slot>;
 
-export type SlotInput = {
+// ---------------------------------------------------------------------------
+// SlotInput — ergonomic construction types (no generated IDs yet)
+// ---------------------------------------------------------------------------
+
+type SlotInputBase = {
     name: string;
     description?: string;
-    input: InputDefinition;
-    optional?: boolean;
-    acceptance_logic?: AcceptanceLogic;
-    expected_duration_hours?: number; // estimated time for this contribution
+    required?: boolean;
 };
 
+export type NeedSlotInput = SlotInputBase & {
+    kind: 'need';
+    need: Resource;
+    predicates?: SlotPredicate[];
+};
+
+export type ConditionSlotInput = SlotInputBase & {
+    kind: 'condition';
+    predicates: SlotPredicate[];
+};
+
+export type CompositionSlotInput = SlotInputBase & {
+    kind: 'composition';
+    process_id: string;
+};
+
+export type DataSlotInput = SlotInputBase & {
+    kind: 'data';
+    data_type: 'string' | 'number' | 'boolean' | 'option';
+    options?: string[];
+};
+
+export type SlotInput = NeedSlotInput | ConditionSlotInput | CompositionSlotInput | DataSlotInput;
+
 // =============================================================================
-// COMMONS
+// PROCESS
 // =============================================================================
 
-export const Commons = z.object({
+export const Process = z.object({
     id: NanoId,
     name: z.string(),
-    description: CommonsDescription.optional(),
+    description: ProcessDescription.optional(),
     author: z.string(),
     offerer: z.string().optional(),
     slots: z.array(Slot),
     created_at: z.date(),
     updated_at: z.date(),
-    completed_at: z.date().optional(), // when all required slots completed
 });
-export type Commons = z.infer<typeof Commons>;
+export type Process = z.infer<typeof Process>;
 
-export const Progress = z.object({
-    requiredSlotsFilled: z.number(),
-    totalRequiredSlots: z.number(),
-    optionalSlotsFilled: z.number(),
-    totalOptionalSlots: z.number(),
-    completionPercentage: z.number().min(0).max(100),
-
-    // Time accounting
-    requiredSlotsCompleted: z.number(),
-    totalExpectedHours: z.number().optional(),  // sum of expected_duration_hours
-    totalActualHours: z.number().optional(),    // sum of actual_duration_hours
-    timeToFillHours: z.number().optional(),     // created_at → last filled_at
-    timeToCompleteHours: z.number().optional(), // created_at → completed_at
-});
-export type Progress = z.infer<typeof Progress>;
-
-export type CommonsWithState = Commons & {
-    status: 'potential' | 'actual';
-    progress: Progress;
-};
+/**
+ * Process with derived state from the effect stream.
+ * Status, satisfaction, and sustainability are all computed
+ * from accepted effects — never stored directly.
+ */
+export type ProcessWithState = Process & ProcessDerivedState;
 
 // =============================================================================
 // MANAGER
 // =============================================================================
 
-export class CommonsManager {
-    private registry = new Map<NanoId, Commons>();
-    private resources = new Map<NanoId, Resource>(); // New: resource definitions
-    private referencedBy = new Map<NanoId, Set<NanoId>>();
+export class ProcessManager {
+    private registry = new Map<NanoId, Process>();
+    private stream: EffectStream;
+
+    constructor(stream: EffectStream) {
+        this.stream = stream;
+    }
 
     /**
-     * Create a commons.
+     * Create a process — a coordination structure with typed slots.
      *
      * @example
      * manager.create({
      *   name: 'Block Party',
      *   author: 'alice',
-     *   slots: [{
-     *     name: 'Childcare',
-     *     input: input.resource(resourceId, 10)
-     *   }]
+     *   slots: [
+     *     { kind: 'condition', name: 'Venue', predicates: [{ entity_id: 'venue', attribute: 'availability', min: 1 }] },
+     *     { kind: 'need', name: 'Sound', need: soundEngineerResource },
+     *     { kind: 'composition', name: 'Childcare', process_id: childcareCoopId },
+     *     { kind: 'data', name: 'Event Name', data_type: 'string' },
+     *   ]
      * });
      */
     create(data: {
         name: string;
-        description?: CommonsDescription;
+        description?: ProcessDescription;
         author: string;
         offerer?: string;
         slots: SlotInput[];
-    }): CommonsWithState {
-        const slots: Slot[] = data.slots.map(s => ({
-            id: nanoid() as NanoId,
-            name: s.name,
-            description: s.description,
-            input: s.input,
-            optional: s.optional ?? false,
-            acceptance_logic: s.acceptance_logic,
-            expected_duration_hours: s.expected_duration_hours,
-            filled_by: undefined,
-            filled_at: undefined,
-            completed_at: undefined,
-            actual_duration_hours: undefined,
-        }));
-
-        // Validate that referenced resources exist
-        for (const slot of slots) {
-            if (slot.input.kind === 'resource') {
-                if (!this.resources.has(slot.input.resource_id as NanoId)) {
-                    // Warn or throw? For now throw to be safe.
-                    // throw new Error(`Resource ${slot.input.resource_id} not found`);
-                }
+    }): ProcessWithState {
+        const slots: Slot[] = data.slots.map(s => {
+            const base = {
+                id: nanoid() as NanoId,
+                name: s.name,
+                description: s.description,
+                required: s.required ?? true,
+            };
+            switch (s.kind) {
+                case 'need':
+                    return { ...base, kind: 'need' as const, need: s.need, predicates: s.predicates };
+                case 'condition':
+                    return { ...base, kind: 'condition' as const, predicates: s.predicates };
+                case 'composition':
+                    return { ...base, kind: 'composition' as const, process_id: s.process_id as NanoId };
+                case 'data':
+                    return { ...base, kind: 'data' as const, data_type: s.data_type, options: s.options };
             }
-        }
+        });
 
-        const commons: Commons = {
+        const process: Process = {
             id: nanoid() as NanoId,
             name: data.name,
             description: data.description,
@@ -574,283 +629,100 @@ export class CommonsManager {
             updated_at: new Date(),
         };
 
-        this.registry.set(commons.id, commons);
-        this.rebuildIndex();
-        return this.getWithState(commons.id)!;
+        this.registry.set(process.id, process);
+        return this.getWithState(process.id)!;
     }
 
-    /** Fill a slot. Cycles allowed (reciprocity). */
-    fill(
-        commonsId: NanoId,
-        slotId: NanoId,
-        filledBy: Record<string, boolean | number | string>,
-        author: string,
-    ): CommonsWithState {
-        const commons = this.registry.get(commonsId);
-        if (!commons) throw new Error(`Commons ${commonsId} not found`);
+    // =========================================================================
+    // QUERIES
+    // =========================================================================
 
-        const slot = commons.slots.find(s => s.id === slotId);
-        if (!slot) throw new Error(`Slot ${slotId} not found`);
-
-        // Causal constraint: referenced commons must exist
-        for (const ref of Object.keys(filledBy)) {
-            if (NanoId.safeParse(ref).success && !this.registry.has(ref)) {
-                throw new Error(`Referenced commons ${ref} does not exist`);
-            }
-        }
-
-        slot.filled_by = { ...slot.filled_by, ...filledBy };
-        slot.filled_at = slot.filled_at ?? new Date(); // only set once
-        commons.updated_at = new Date();
-
-        this.rebuildIndex();
-        return this.getWithState(commonsId)!;
-    }
-
-    /**
-     * Mark a slot as completed (work done, not just committed).
-     * This is the key distinction for time accounting: commitment ≠ completion.
-     */
-    complete(
-        commonsId: NanoId,
-        slotId: NanoId,
-        actualDurationHours?: number,
-    ): CommonsWithState {
-        const commons = this.registry.get(commonsId);
-        if (!commons) throw new Error(`Commons ${commonsId} not found`);
-
-        const slot = commons.slots.find(s => s.id === slotId);
-        if (!slot) throw new Error(`Slot ${slotId} not found`);
-
-        if (!slot.filled_by || Object.keys(slot.filled_by).length === 0) {
-            throw new Error(`Slot ${slotId} must be filled before completing`);
-        }
-
-        slot.completed_at = new Date();
-        if (actualDurationHours !== undefined) {
-            slot.actual_duration_hours = actualDurationHours;
-        }
-        commons.updated_at = new Date();
-
-        // Check if all required slots are now completed
-        const allRequiredCompleted = commons.slots
-            .filter(s => !s.optional)
-            .every(s => s.completed_at);
-
-        if (allRequiredCompleted && !commons.completed_at) {
-            commons.completed_at = new Date();
-        }
-
-        this.rebuildIndex();
-        return this.getWithState(commonsId)!;
-    }
-
-    /**
-     * Complete by slot name.
-     */
-    completeByName(
-        commonsId: NanoId,
-        slotName: string,
-        actualDurationHours?: number,
-    ): CommonsWithState {
-        const commons = this.registry.get(commonsId);
-        if (!commons) throw new Error(`Commons ${commonsId} not found`);
-
-        const matches = commons.slots.filter(s => s.name === slotName);
-        if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
-        if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
-
-        return this.complete(commonsId, matches[0]!.id, actualDurationHours);
-    }
-
-    /**
-     * Fill by slot name (when unique).
-     *
-     * @example
-     * manager.fillByName(commons.id, 'Childcare', { 'bob-id': true }, 'alice');
-     */
-    fillByName(
-        commonsId: NanoId,
-        slotName: string,
-        filledBy: Record<string, boolean | number | string>,
-        author: string,
-    ): CommonsWithState {
-        const commons = this.registry.get(commonsId);
-        if (!commons) throw new Error(`Commons ${commonsId} not found`);
-
-        const matches = commons.slots.filter(s => s.name === slotName);
-        if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
-        if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
-
-        return this.fill(commonsId, matches[0]!.id, filledBy, author);
-    }
-
-    /** Unfill a slot (also clears completion state). */
-    unfill(commonsId: NanoId, slotId: NanoId): CommonsWithState {
-        const commons = this.registry.get(commonsId);
-        if (!commons) throw new Error(`Commons ${commonsId} not found`);
-
-        const slot = commons.slots.find(s => s.id === slotId);
-        if (!slot) throw new Error(`Slot ${slotId} not found`);
-
-        slot.filled_by = undefined;
-        slot.filled_at = undefined;
-        slot.completed_at = undefined;
-        slot.actual_duration_hours = undefined;
-        commons.updated_at = new Date();
-
-        // If this was a required slot, clear commons completion
-        if (!slot.optional && commons.completed_at) {
-            commons.completed_at = undefined;
-        }
-
-        this.rebuildIndex();
-        return this.getWithState(commonsId)!;
-    }
-
-    /** Unfill by name. */
-    unfillByName(commonsId: NanoId, slotName: string): CommonsWithState {
-        const commons = this.registry.get(commonsId);
-        if (!commons) throw new Error(`Commons ${commonsId} not found`);
-
-        const matches = commons.slots.filter(s => s.name === slotName);
-        if (matches.length === 0) throw new Error(`No slot named "${slotName}"`);
-        if (matches.length > 1) throw new Error(`Multiple slots named "${slotName}"`);
-
-        return this.unfill(commonsId, matches[0].id);
-    }
-
-    // --- Queries ---
-
-    get(id: NanoId): Commons | undefined {
+    get(id: NanoId): Process | undefined {
         return this.registry.get(id);
     }
 
-    getWithState(id: NanoId): CommonsWithState | undefined {
-        const commons = this.registry.get(id);
-        if (!commons) return undefined;
-        return { ...commons, ...this.computeState(commons) };
+    /**
+     * Derive the current state of a process from the effect stream.
+     * Actuality, satisfaction, metabolism — all computed, never stored.
+     */
+    getWithState(id: NanoId): ProcessWithState | undefined {
+        const process = this.registry.get(id);
+        if (!process) return undefined;
+        return { ...process, ...this.deriveState(process) };
     }
 
-    all(): CommonsWithState[] {
+    all(): ProcessWithState[] {
         return Array.from(this.registry.values()).map(c => ({
             ...c,
-            ...this.computeState(c),
+            ...this.deriveState(c),
         }));
     }
 
-    dependentsOf(id: NanoId): NanoId[] {
-        return Array.from(this.referencedBy.get(id) ?? []);
-    }
-
-    dependenciesOf(id: NanoId): NanoId[] {
-        const commons = this.registry.get(id);
-        if (!commons) return [];
-        return Array.from(this.extractRefs(commons));
-    }
-
     remove(id: NanoId): boolean {
-        this.registry.delete(id);
-        this.rebuildIndex();
-        return true;
+        return this.registry.delete(id);
     }
 
     clear() {
         this.registry.clear();
-        this.referencedBy.clear();
     }
 
-    // --- Derived state: LOCAL status (not transitive) ---
+    // =========================================================================
+    // DERIVED STATE — from the effect stream via derivation
+    // =========================================================================
 
-    private computeState(commons: Commons): { status: 'potential' | 'actual'; progress: Progress } {
-        let requiredFilled = 0, totalRequired = 0;
-        let optionalFilled = 0, totalOptional = 0;
-        let requiredCompleted = 0;
-        let totalExpectedHours = 0;
-        let totalActualHours = 0;
-        let latestFilledAt: Date | undefined;
-
-        for (const slot of commons.slots) {
-            const filled = slot.filled_by && Object.keys(slot.filled_by).length > 0;
-            const completed = !!slot.completed_at;
-
-            if (slot.optional) {
-                totalOptional++;
-                if (filled) optionalFilled++;
-            } else {
-                totalRequired++;
-                if (filled) requiredFilled++;
-                if (completed) requiredCompleted++;
-            }
-
-            // Time accounting
-            if (slot.expected_duration_hours) {
-                totalExpectedHours += slot.expected_duration_hours;
-            }
-            if (slot.actual_duration_hours) {
-                totalActualHours += slot.actual_duration_hours;
-            }
-            if (slot.filled_at && (!latestFilledAt || slot.filled_at > latestFilledAt)) {
-                latestFilledAt = slot.filled_at;
-            }
-        }
-
-        // Calculate time deltas
-        const timeToFillHours = latestFilledAt
-            ? (latestFilledAt.getTime() - commons.created_at.getTime()) / (1000 * 60 * 60)
-            : undefined;
-
-        const timeToCompleteHours = commons.completed_at
-            ? (commons.completed_at.getTime() - commons.created_at.getTime()) / (1000 * 60 * 60)
-            : undefined;
-
-        return {
-            status: requiredFilled === totalRequired ? 'actual' : 'potential',
-            progress: {
-                requiredSlotsFilled: requiredFilled,
-                totalRequiredSlots: totalRequired,
-                optionalSlotsFilled: optionalFilled,
-                totalOptionalSlots: totalOptional,
-                completionPercentage: totalRequired > 0
-                    ? Math.round((requiredFilled / totalRequired) * 100)
-                    : 100,
-                requiredSlotsCompleted: requiredCompleted,
-                totalExpectedHours: totalExpectedHours > 0 ? totalExpectedHours : undefined,
-                totalActualHours: totalActualHours > 0 ? totalActualHours : undefined,
-                timeToFillHours,
-                timeToCompleteHours,
-            },
-        };
+    /** Set a data slot's value. */
+    setData(processId: NanoId, slotId: NanoId, value: unknown): ProcessWithState {
+        const process = this.registry.get(processId);
+        if (!process) throw new Error(`Process ${processId} not found`);
+        const slot = process.slots.find(s => s.id === slotId);
+        if (!slot || slot.kind !== 'data') throw new Error(`Data slot ${slotId} not found`);
+        (slot as DataSlot).value = value;
+        process.updated_at = new Date();
+        return this.getWithState(processId)!;
     }
 
-    // --- Reference index ---
-
-    private rebuildIndex() {
-        this.referencedBy.clear();
-        for (const [id, commons] of this.registry.entries()) {
-            for (const ref of this.extractRefs(commons)) {
-                if (!this.referencedBy.has(ref)) this.referencedBy.set(ref, new Set());
-                this.referencedBy.get(ref)!.add(id);
+    private deriveState(process: Process): ProcessDerivedState {
+        const slots = process.slots.map(s => {
+            const base = { id: s.id, required: s.required };
+            switch (s.kind) {
+                case 'condition':
+                    return { ...base, constraints: this.predicatesToConstraints(s.predicates) };
+                case 'composition':
+                    // Sugar: actuality of another process is a state predicate
+                    return { ...base, constraints: [{
+                        entity_id: s.process_id,
+                        attribute: 'actuality',
+                        exact: true,
+                    }] };
+                case 'need':
+                    // For now, use optional predicates if present; full Resource→snapshot matching comes later
+                    return { ...base, constraints: s.predicates ? this.predicatesToConstraints(s.predicates) : [] };
+                case 'data':
+                    // Satisfied when value is provided — synthesize an always-true or always-false constraint
+                    // We handle this by returning an empty constraint list (trivially satisfied) if value exists,
+                    // or a constraint that will fail if value is missing
+                    if (s.value !== undefined) {
+                        return { ...base, constraints: [] }; // trivially satisfied
+                    }
+                    // Unsatisfied: use a dummy constraint that can never be met
+                    return { ...base, constraints: [{
+                        entity_id: `__data_slot__${s.id}`,
+                        attribute: 'value',
+                        exact: true, // will fail because no effect sets this
+                    }] };
             }
-        }
+        });
+
+        return deriveProcess(this.stream, process.id, slots);
     }
 
-    private extractRefs(commons: Commons): Set<NanoId> {
-        const refs = new Set<NanoId>();
-        for (const slot of commons.slots) {
-            if (slot.filled_by) {
-                for (const ref of Object.keys(slot.filled_by)) {
-                    if (NanoId.safeParse(ref).success) refs.add(ref as NanoId);
-                }
-            }
-            if (slot.input.kind === 'commons' && slot.input.commons_id) {
-                if (NanoId.safeParse(slot.input.commons_id).success) {
-                    refs.add(slot.input.commons_id as NanoId);
-                }
-            }
-        }
-        return refs;
+    private predicatesToConstraints(predicates: SlotPredicate[]) {
+        return predicates.map(p => ({
+            entity_id: p.entity_id,
+            attribute: p.attribute,
+            min: p.min,
+            max: p.max,
+            exact: p.exact,
+        }));
     }
 }
-
-export const commons = new CommonsManager();

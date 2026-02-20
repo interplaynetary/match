@@ -9,7 +9,7 @@
  */
 
 import * as h3 from 'h3-js';
-import type { Resource } from './commons';
+import type { Resource } from './process';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS

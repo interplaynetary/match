@@ -1,8 +1,8 @@
 
 import { describe, expect, it } from 'bun:test';
 import { slotsCompatible, skillsCompatible, timeRangesOverlap, locationsCompatible, checkFlowConstraints } from '$lib/core/matching';
-import type { Resource, Contact } from '$lib/core/commons';
-import type { AvailabilityWindow } from '$lib/core/time';
+import type { Resource, Contact } from '$lib/core/plan/process';
+import type { AvailabilityWindow } from '$lib/core/plan/time';
 
 describe('Slot Matching Logic', () => {
 
@@ -68,22 +68,22 @@ describe('Slot Matching Logic', () => {
 
     describe('skillsCompatible', () => {
         it('should return true if no skills required', () => {
-            const need: Resource = { id: 'n1', quantity: 1 };
-            const cap: Resource = { id: 'c1', quantity: 1 };
+            const need: Resource = { id: 'n1', type_id: 't1', quantity: 1 };
+            const cap: Resource = { id: 'c1', type_id: 't1', quantity: 1 };
             expect(skillsCompatible(need, undefined, cap, undefined)).toBe(true);
         });
 
         it('should check provider skills for need', () => {
-            const need: Resource = { id: 'n1', quantity: 1, required_skills: [{ id: 's1', level: 1 }] };
-            const cap: Resource = { id: 'c1', quantity: 1 };
+            const need: Resource = { id: 'n1', type_id: 't1', quantity: 1, required_skills: [{ id: 's1', level: 1 }] };
+            const cap: Resource = { id: 'c1', type_id: 't1', quantity: 1 };
             const provider: Contact = { id: 'p1', skills: [{ id: 's1', level: 1 }] };
 
             expect(skillsCompatible(need, provider, cap, undefined)).toBe(true);
         });
 
         it('should fail if provider lacks skill', () => {
-            const need: Resource = { id: 'n1', quantity: 1, required_skills: [{ id: 's1', level: 1 }] };
-            const cap: Resource = { id: 'c1', quantity: 1 };
+            const need: Resource = { id: 'n1', type_id: 't1', quantity: 1, required_skills: [{ id: 's1', level: 1 }] };
+            const cap: Resource = { id: 'c1', type_id: 't1', quantity: 1 };
             const provider: Contact = { id: 'p1', skills: [] };
 
             expect(skillsCompatible(need, provider, cap, undefined)).toBe(false);

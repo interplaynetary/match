@@ -22,7 +22,7 @@ Effect
 ├── deltas[]         batch of attribute transformations (atomic)
 ├── envelope         where and when in space-time
 ├── assertion_log[]  append-only lifecycle history
-├── dependencies[]   what other effects this assumes
+├── predicates[]     state conditions this effect assumes hold
 ├── recorded_at      when the system learned of this (known_time)
 ├── valid_from       when the effect claims to start (valid_time)
 └── valid_until      when the effect claims to end (valid_time)
@@ -90,21 +90,26 @@ This means you can ask two different questions:
 
 Retroactive rejection works because of this: at known_time=now, we record that the effect at valid_time=past didn't actually happen. The original acceptance entry stays in the log — we just append a `retracted` entry that supersedes it.
 
-## Dependencies
+## State Predicates
 
-Effects can depend on other effects:
+Effects don't depend on other effects — they depend on **state**. The workshop doesn't care about "venue-effect-#47"; it cares that "venue availability >= 1." If effect #47 is retracted but someone else provides the same state, nothing breaks.
 
 ```
-EffectDependency
-├── origin_id        which effect we depend on
-├── assumed_phase    what phase we assumed (projected | accepted)
-├── assumed_deltas   snapshot of the values we assumed
-└── binding          hard | soft
+StatePredicate
+├── entity_id    which entity's state we're watching
+├── attribute    which attribute on that entity
+├── min          lower bound (optional)
+├── max          upper bound (optional)
+├── exact        exact match (optional)
+├── binding      hard | soft
+└── label        human-readable description (optional)
 ```
 
-**Hard binding**: if the assumption breaks, the dependent is invalidated — it must be re-judged.
+**Hard binding**: if the predicate breaks, the effect is invalidated — it must be re-judged.
 
-**Soft binding**: if the assumption breaks, the dependent degrades but persists — it gets flagged as at-risk rather than invalidated.
+**Soft binding**: if the predicate breaks, the effect degrades but persists — it gets flagged as at-risk rather than invalidated.
+
+The cycle is: Effects → (fold into) → State → (predicates met?) → New Effects. Dependencies are always on derived state, never on specific effects.
 
 ## Effect Stream (`effect-stream.ts`)
 
@@ -118,7 +123,7 @@ submit(effect)
   → queue for processing
   → drain queue through registered processors
   → processors may assert new phases
-  → phase changes trigger propagation to dependents
+  → phase changes re-derive touched state, evaluate watchers' predicates
   → propagation actions are handled by the registered handler
 ```
 
@@ -147,10 +152,13 @@ This keeps domain logic out of the stream infrastructure. The stream handles sto
 
 When an effect's phase changes, the stream:
 
-1. Finds all effects that depend on it (via the dependency index)
-2. Calls `computePropagation()` to determine which dependencies are broken
-3. Emits propagation actions: `invalidate` for broken hard bindings, `degrade` for broken soft bindings
-4. Passes each action to the registered `PropagationHandler`
+1. Identifies which entity+attribute pairs the effect's deltas touch
+2. Re-derives the current state for each touched entity+attribute
+3. Finds all effects with predicates watching that state (via the state watcher index)
+4. Evaluates each predicate against the new derived value
+5. Only fires on transition from satisfied → unsatisfied (avoids re-alarming)
+6. Emits propagation actions: `invalidate` for broken hard bindings, `degrade` for broken soft bindings
+7. Passes each action to the registered `PropagationHandler`
 
 The handler decides what to do — re-queue the dependent for re-judgment, flag it for human review, etc.
 
@@ -170,7 +178,7 @@ The stream maintains indexes for fast lookup:
 
 - **by entity**: which effects target a given entity
 - **by phase**: which effects are in each lifecycle phase
-- **by dependency**: which effects depend on a given effect
+- **by state watcher**: which effects have predicates on a given entity+attribute
 
 ## Connection to Commons
 
@@ -274,7 +282,7 @@ This connects to risk factors in the match system. A match with `FRAGMENTED_TIME
 ## Architecture Summary
 
 ```
-effect.ts          — schemas: Effect, Delta, Envelope, Assertion, Dependency
+effect.ts          — schemas: Effect, Delta, Envelope, Assertion, StatePredicate
 effect-stream.ts   — processing: queue, phase transitions, propagation, events
 derivation.ts      — computation: derive state, check constraints, metabolism
 

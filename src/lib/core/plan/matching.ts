@@ -12,10 +12,10 @@
  */
 
 import jsonLogic from 'json-logic-js';
-import type { Resource, MatchRecord, Score } from './commons';
+import type { Resource, MatchRecord, Score } from './process';
 import type { AvailabilityWindow, TimeRange, DayOfWeek, DaySchedule, WeekSchedule, MonthSchedule } from './time';
 import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, haversineDistance } from './spatial';
-import type { FilterContext, EligibilityFilter, Contact } from './types';
+import type { FilterContext, EligibilityFilter, Contact } from '../types';
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN ENTRY POINTS
@@ -779,8 +779,12 @@ export function passesSlotFilters(
 // SPACE-TIME GROUPING
 // ═══════════════════════════════════════════════════════════════════
 
-export function getSpaceTimeSignature(slot: Resource): string {
-    let timeKey: string;
+export function getTimeSignature(slot: {
+    availability_window?: AvailabilityWindow;
+    start_date?: string | null;
+    end_date?: string | null;
+    recurrence?: string | null;
+}): string {
     if (slot.availability_window) {
         const w = slot.availability_window;
         let mk = 'all-months', wk = 'all-weeks', dk = 'all-days';
@@ -791,11 +795,14 @@ export function getSpaceTimeSignature(slot: Resource): string {
         const scheds = flattenWindowToUTCDaySchedules(w);
         if (scheds.length) dk = [...new Set(scheds.map(s => s.day))].sort().join(',');
 
-        timeKey = `${slot.recurrence || 'onetime'}|${mk}|${wk}|${dk}`;
+        return `${slot.recurrence || 'onetime'}|${mk}|${wk}|${dk}`;
     } else {
-        timeKey = [slot.start_date || 'any', slot.end_date || 'any', slot.recurrence || 'onetime'].join('|');
+        return [slot.start_date || 'any', slot.end_date || 'any', slot.recurrence || 'onetime'].join('|');
     }
+}
 
+export function getSpaceTimeSignature(slot: Resource): string {
+    const timeKey = getTimeSignature(slot);
     const locKey = (slot.location_type?.includes('remote') || slot.online_link) ? 'remote' :
         [slot.city || 'any', slot.country || 'any', slot.latitude?.toFixed(2) || 'any'].join('|');
 

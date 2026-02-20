@@ -5,65 +5,11 @@ import {
     Breakdown,
     DIMENSIONS,
     type Dimension
-} from './commons';
-
+} from './process';
+import { FeasibilityStatusSchema } from './feasibility';
 // Re-export for convenience
 export { BlockReason, RiskFactor, DIMENSIONS };
 export type { Dimension };
-
-// ═══════════════════════════════════════════════════════════════════
-// FEASIBILITY (The "Possible")
-// ═══════════════════════════════════════════════════════════════════
-
-/**
- * Simple numeric scores for each feasibility dimension.
- * Use this for quick checks; use FeasibilityBreakdown for detailed analysis.
- */
-export const FeasibilityScoresSchema = z.object({
-    time: z.number().min(0).max(1).default(1),
-    location: z.number().min(0).max(1).default(1),
-    skills: z.number().min(0).max(1).default(1),
-    travel: z.number().min(0).max(1).default(1),
-    resources: z.number().min(0).max(1).default(1),
-    affinity: z.number().min(0).max(1).default(1),
-    continuity: z.number().min(0).max(1).default(1)
-});
-
-export type FeasibilityScores = z.infer<typeof FeasibilityScoresSchema>;
-
-/** Default scores (all 1.0) */
-const defaultScores = (): FeasibilityScores => ({
-    time: 1, location: 1, skills: 1, travel: 1, resources: 1, affinity: 1, continuity: 1
-});
-
-/**
- * Feasibility status - discriminated union of possible/impossible.
- * Optionally includes detailed breakdown for debugging/UI.
- */
-export const FeasibilityStatusSchema = z.discriminatedUnion('type', [
-    z.object({
-        type: z.literal('possible'),
-        /** Aggregated confidence (0-1), product of all dimension scores */
-        confidence: z.number().min(0).max(1).default(1.0),
-        /** Risk factors if confidence < 1.0 */
-        risk_factors: z.array(RiskFactor).optional(),
-        /** Simple dimension scores */
-        scores: FeasibilityScoresSchema.default(defaultScores),
-        /** Optional detailed breakdown (for debugging/UI) */
-        breakdown: Breakdown.optional()
-    }),
-    z.object({
-        type: z.literal('impossible'),
-        /** Why is it impossible */
-        reasons: z.array(BlockReason),
-        /** Dimension scores (blocking dimensions will be 0) */
-        scores: FeasibilityScoresSchema.default(defaultScores),
-        /** Optional detailed breakdown */
-        breakdown: Breakdown.optional()
-    })
-]);
-
-export type FeasibilityStatus = z.infer<typeof FeasibilityStatusSchema>;
 
 
 // ═══════════════════════════════════════════════════════════════════

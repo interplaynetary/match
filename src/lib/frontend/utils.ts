@@ -1,4 +1,4 @@
-import { embeddingToColor, type PCATransform } from '../core/semantic-colors'
+import { embeddingToColor, type PCATransform } from '../core/semantic-colors.ts'
 import { DEFAULT_CAPACITY_COLOR, DEFAULT_NEED_COLOR } from './constants.ts'
 import type { Match } from './types'
 

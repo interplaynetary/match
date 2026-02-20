@@ -15,9 +15,9 @@ import {
   computeSpecificity,
   type CategoryInfo,
 } from './category-matcher'
-import { haversineDistance } from './spatial'
-import { availabilityWindowsOverlapWithTimezone } from './matching'
-import type { AvailabilityWindow, DayOfWeek, TimeRange } from './time'
+import { haversineDistance } from './plan/spatial'
+import { availabilityWindowsOverlapWithTimezone } from './plan/matching'
+import type { AvailabilityWindow, DayOfWeek, TimeRange } from './plan/time'
 
 export type EmbeddingsLookup = Record<string, number[]>
 

@@ -44,13 +44,16 @@ declare module '$env/static/private' {
 	export const MEMORY_PRESSURE_WRITE: string;
 	export const npm_config_local_prefix: string;
 	export const XMODIFIERS: string;
+	export const HOMEBREW_PREFIX: string;
 	export const DESKTOP_SESSION: string;
 	export const ANTIGRAVITY_CLI_ALIAS: string;
+	export const GUIX_EXTENSIONS_PATH: string;
 	export const GTK_MODULES: string;
 	export const PWD: string;
 	export const LOGNAME: string;
 	export const XDG_SESSION_DESKTOP: string;
 	export const XDG_SESSION_TYPE: string;
+	export const PNPM_HOME: string;
 	export const BUN_WHICH_IGNORE_CWD: string;
 	export const SYSTEMD_EXEC_PID: string;
 	export const GUILE_LOAD_PATH: string;
@@ -83,6 +86,7 @@ declare module '$env/static/private' {
 	export const VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
 	export const GNOME_SETUP_DISPLAY: string;
 	export const VSCODE_PYTHON_AUTOACTIVATE_GUARD: string;
+	export const CLAUDE_CODE_SSE_PORT: string;
 	export const LESSCLOSE: string;
 	export const XDG_SESSION_CLASS: string;
 	export const TERM: string;
@@ -90,6 +94,7 @@ declare module '$env/static/private' {
 	export const LESSOPEN: string;
 	export const USER: string;
 	export const VSCODE_GIT_IPC_HANDLE: string;
+	export const HOMEBREW_CELLAR: string;
 	export const CLUTTER_DISABLE_MIPMAPPED_TEXT: string;
 	export const DISPLAY: string;
 	export const SHLVL: string;
@@ -97,6 +102,7 @@ declare module '$env/static/private' {
 	export const GUIX_LOCPATH: string;
 	export const GSM_SKIP_SSH_AGENT_WORKAROUND: string;
 	export const QT_IM_MODULE: string;
+	export const HOMEBREW_REPOSITORY: string;
 	export const npm_config_user_agent: string;
 	export const XDG_STATE_HOME: string;
 	export const npm_execpath: string;
@@ -113,6 +119,7 @@ declare module '$env/static/private' {
 	export const GDMSESSION: string;
 	export const DBUS_SESSION_BUS_ADDRESS: string;
 	export const NVM_BIN: string;
+	export const EMACSLOADPATH: string;
 	export const GIO_LAUNCHED_DESKTOP_FILE_PID: string;
 	export const npm_node_execpath: string;
 	export const GIO_LAUNCHED_DESKTOP_FILE: string;
@@ -164,13 +171,16 @@ declare module '$env/dynamic/private' {
 		MEMORY_PRESSURE_WRITE: string;
 		npm_config_local_prefix: string;
 		XMODIFIERS: string;
+		HOMEBREW_PREFIX: string;
 		DESKTOP_SESSION: string;
 		ANTIGRAVITY_CLI_ALIAS: string;
+		GUIX_EXTENSIONS_PATH: string;
 		GTK_MODULES: string;
 		PWD: string;
 		LOGNAME: string;
 		XDG_SESSION_DESKTOP: string;
 		XDG_SESSION_TYPE: string;
+		PNPM_HOME: string;
 		BUN_WHICH_IGNORE_CWD: string;
 		SYSTEMD_EXEC_PID: string;
 		GUILE_LOAD_PATH: string;
@@ -203,6 +213,7 @@ declare module '$env/dynamic/private' {
 		VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
 		GNOME_SETUP_DISPLAY: string;
 		VSCODE_PYTHON_AUTOACTIVATE_GUARD: string;
+		CLAUDE_CODE_SSE_PORT: string;
 		LESSCLOSE: string;
 		XDG_SESSION_CLASS: string;
 		TERM: string;
@@ -210,6 +221,7 @@ declare module '$env/dynamic/private' {
 		LESSOPEN: string;
 		USER: string;
 		VSCODE_GIT_IPC_HANDLE: string;
+		HOMEBREW_CELLAR: string;
 		CLUTTER_DISABLE_MIPMAPPED_TEXT: string;
 		DISPLAY: string;
 		SHLVL: string;
@@ -217,6 +229,7 @@ declare module '$env/dynamic/private' {
 		GUIX_LOCPATH: string;
 		GSM_SKIP_SSH_AGENT_WORKAROUND: string;
 		QT_IM_MODULE: string;
+		HOMEBREW_REPOSITORY: string;
 		npm_config_user_agent: string;
 		XDG_STATE_HOME: string;
 		npm_execpath: string;
@@ -233,6 +246,7 @@ declare module '$env/dynamic/private' {
 		GDMSESSION: string;
 		DBUS_SESSION_BUS_ADDRESS: string;
 		NVM_BIN: string;
+		EMACSLOADPATH: string;
 		GIO_LAUNCHED_DESKTOP_FILE_PID: string;
 		npm_node_execpath: string;
 		GIO_LAUNCHED_DESKTOP_FILE: string;

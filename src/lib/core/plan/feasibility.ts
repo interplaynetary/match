@@ -9,20 +9,75 @@ import {
     type SkillsScore,
     type TravelScore,
     type AffinityScore,
-    type Breakdown,
+    Breakdown,
     type Overlap,
-    type BlockReason,
-    type RiskFactor,
+    BlockReason,
+    RiskFactor,
     type MatchRecord,
     type SemanticScore,
     buildMatchRecord,
     getBlockReasons,
     getRiskFactors,
-} from './commons';
-import { type Contact } from './types';
-import { type FeasibilityStatus, type FeasibilityScores } from './desire.js';
+} from './process.js';
+import { type Contact } from '../types.js';
 import { availabilityWindowsOverlapWithTimezone, calculateAvailabilityIntersection } from './matching.js';
 import { haversineDistance, REMOTE_H3_INDEX, DEFAULT_SEARCH_RADIUS_KM } from './spatial.js';
+
+
+// ═══════════════════════════════════════════════════════════════════
+// FEASIBILITY (The "Possible")
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Simple numeric scores for each feasibility dimension.
+ * Use this for quick checks; use FeasibilityBreakdown for detailed analysis.
+ */
+export const FeasibilityScoresSchema = z.object({
+    time: z.number().min(0).max(1).default(1),
+    location: z.number().min(0).max(1).default(1),
+    skills: z.number().min(0).max(1).default(1),
+    travel: z.number().min(0).max(1).default(1),
+    resources: z.number().min(0).max(1).default(1),
+    affinity: z.number().min(0).max(1).default(1),
+    continuity: z.number().min(0).max(1).default(1)
+});
+
+export type FeasibilityScores = z.infer<typeof FeasibilityScoresSchema>;
+
+/** Default scores (all 1.0) */
+const defaultScores = (): FeasibilityScores => ({
+    time: 1, location: 1, skills: 1, travel: 1, resources: 1, affinity: 1, continuity: 1
+});
+
+/**
+ * Feasibility status - discriminated union of possible/impossible.
+ * Optionally includes detailed breakdown for debugging/UI.
+ */
+export const FeasibilityStatusSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('possible'),
+        /** Aggregated confidence (0-1), product of all dimension scores */
+        confidence: z.number().min(0).max(1).default(1.0),
+        /** Risk factors if confidence < 1.0 */
+        risk_factors: z.array(RiskFactor).optional(),
+        /** Simple dimension scores */
+        scores: FeasibilityScoresSchema.default(defaultScores),
+        /** Optional detailed breakdown (for debugging/UI) */
+        breakdown: Breakdown.optional()
+    }),
+    z.object({
+        type: z.literal('impossible'),
+        /** Why is it impossible */
+        reasons: z.array(BlockReason),
+        /** Dimension scores (blocking dimensions will be 0) */
+        scores: FeasibilityScoresSchema.default(defaultScores),
+        /** Optional detailed breakdown */
+        breakdown: Breakdown.optional()
+    })
+]);
+
+export type FeasibilityStatus = z.infer<typeof FeasibilityStatusSchema>;
+
 
 // ═══════════════════════════════════════════════════════════════════
 // SCORE CALCULATORS (7 Dimensions)
@@ -227,8 +282,8 @@ function computeAffinityScore(
     providerWeights?: GlobalRecognitionWeights | null,
     seekerWeights?: GlobalRecognitionWeights | null
 ): AffinityScore {
-    const s2p = (capacityOwner && seekerWeights?.[capacityOwner]) ?? 1;
-    const p2s = (needOwner && providerWeights?.[needOwner]) ?? 1;
+    const s2p = (capacityOwner && (seekerWeights?.get(capacityOwner) as number | undefined)) ?? 1;
+    const p2s = (needOwner && (providerWeights?.get(needOwner) as number | undefined)) ?? 1;
     const v = Math.min(s2p, p2s);
 
     if (v === 1) return { value: 1, reason: 'Default trust', seeker_to_provider: s2p, provider_to_seeker: p2s };

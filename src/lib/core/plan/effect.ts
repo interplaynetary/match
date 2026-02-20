@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { NanoId } from './commons';
+import { NanoId } from './ids';
 import {
     TimeRangeSchema,
     AvailabilityWindowSchema,
-} from './time';
+} from './time.ts';
 
 // =============================================================================
 // DELTA — A single attribute transformation
@@ -90,20 +90,32 @@ export const AssertionEntry = z.object({
 export type AssertionEntry = z.infer<typeof AssertionEntry>;
 
 // =============================================================================
-// DEPENDENCY — What an effect assumes about other effects
+// STATE PREDICATE — What an effect assumes about derived state
 // =============================================================================
 
 export const DependencyBinding = z.enum(['hard', 'soft']);
 export type DependencyBinding = z.infer<typeof DependencyBinding>;
 
-export const EffectDependency = z.object({
-    origin_id: NanoId,
-    assumed_phase: z.enum(['projected', 'accepted']),
-    /** Snapshot of the delta values we assumed when creating this dependency. */
-    assumed_deltas: z.array(Delta).optional(),
+/**
+ * A condition on derived state. Effects don't depend on other effects —
+ * they depend on state. The workshop doesn't care about "venue-effect-#47";
+ * it cares that "venue availability >= 1."
+ */
+export const StatePredicate = z.object({
+    entity_id: z.string().min(1),
+    attribute: z.string().min(1),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    exact: z.unknown().optional(),
     binding: DependencyBinding,
+    /** Human-readable description of what this predicate means. */
+    label: z.string().optional(),
 });
-export type EffectDependency = z.infer<typeof EffectDependency>;
+export type StatePredicate = z.infer<typeof StatePredicate>;
+
+/** Index key for state watchers: "entity_id:attribute" */
+export const stateKey = (entityId: string, attribute: string): string =>
+    `${entityId}:${attribute}`;
 
 // =============================================================================
 // EFFECT — Atomic batch of transformations in a space-time envelope
@@ -123,8 +135,8 @@ export const Effect = z.object({
     // Lifecycle (append-only)
     assertion_log: z.array(AssertionEntry).min(1),
 
-    // Dependencies on other effects
-    dependencies: z.array(EffectDependency).default([]),
+    // State predicates — conditions on derived state that must hold
+    predicates: z.array(StatePredicate).default([]),
 
     // Bitemporal bookkeeping
     recorded_at: z.coerce.date(),   // when the system first learned of this effect
@@ -187,46 +199,64 @@ export const phaseAt = (effect: Effect, knownTime: Date): AssertionPhase | undef
 };
 
 // =============================================================================
-// PROPAGATION — Finding effects that need re-evaluation
+// PROPAGATION — Evaluating state predicates when state changes
 // =============================================================================
 
 export type PropagationAction =
     | { type: 'invalidate'; origin_id: string; reason: string }
     | { type: 'degrade'; origin_id: string; risk: string };
 
+/** Check a single predicate against a derived value. */
+export const evaluateSinglePredicate = (
+    pred: StatePredicate,
+    value: unknown,
+): boolean => {
+    if (pred.exact !== undefined && value !== pred.exact) return false;
+    if (pred.min !== undefined && (typeof value !== 'number' || value < pred.min)) return false;
+    if (pred.max !== undefined && (typeof value !== 'number' || value > pred.max)) return false;
+    return true;
+};
+
 /**
- * Given a changed effect and a set of dependents, determine what actions to take.
- * Does not mutate — returns a list of actions for the caller to execute.
+ * Evaluate state predicates for effects watching a given entity+attribute.
+ * Only propagates on transition from satisfied → unsatisfied (avoids re-alarming).
+ * Caller must persist the previouslySatisfied map across calls.
  */
-export const computePropagation = (
-    changed: Effect,
-    dependents: Effect[],
+export const evaluatePredicates = (
+    entityId: string,
+    attribute: string,
+    derivedValue: { value: unknown },
+    watchingEffects: Effect[],
+    previouslySatisfied: Map<string, boolean>,
 ): PropagationAction[] => {
-    const changedPhase = currentPhase(changed);
     const actions: PropagationAction[] = [];
 
-    for (const dep of dependents) {
-        const link = dep.dependencies.find(d => d.origin_id === changed.origin_id);
-        if (!link) continue;
+    for (const effect of watchingEffects) {
+        for (const pred of effect.predicates) {
+            if (pred.entity_id !== entityId || pred.attribute !== attribute) continue;
 
-        const assumptionBroken =
-            (link.assumed_phase === 'accepted' && changedPhase !== 'accepted') ||
-            (link.assumed_phase === 'projected' && (changedPhase === 'rejected' || changedPhase === 'retracted'));
+            const satisfied = evaluateSinglePredicate(pred, derivedValue.value);
+            const key = `${effect.origin_id}:${stateKey(pred.entity_id, pred.attribute)}`;
+            const wasSatisfied = previouslySatisfied.get(key) ?? true;
 
-        if (!assumptionBroken) continue;
+            // Only propagate on transition: satisfied → unsatisfied
+            if (wasSatisfied && !satisfied) {
+                if (pred.binding === 'hard') {
+                    actions.push({
+                        type: 'invalidate',
+                        origin_id: effect.origin_id,
+                        reason: `State predicate broken: ${pred.entity_id}.${pred.attribute} = ${derivedValue.value}${pred.label ? ` — ${pred.label}` : ''}`,
+                    });
+                } else {
+                    actions.push({
+                        type: 'degrade',
+                        origin_id: effect.origin_id,
+                        risk: `State predicate degraded: ${pred.entity_id}.${pred.attribute} = ${derivedValue.value}${pred.label ? ` — ${pred.label}` : ''}`,
+                    });
+                }
+            }
 
-        if (link.binding === 'hard') {
-            actions.push({
-                type: 'invalidate',
-                origin_id: dep.origin_id,
-                reason: `Hard dependency on effect ${changed.origin_id} broken: expected ${link.assumed_phase}, got ${changedPhase}`,
-            });
-        } else {
-            actions.push({
-                type: 'degrade',
-                origin_id: dep.origin_id,
-                risk: `Soft dependency on effect ${changed.origin_id} degraded: expected ${link.assumed_phase}, got ${changedPhase}`,
-            });
+            previouslySatisfied.set(key, satisfied);
         }
     }
 

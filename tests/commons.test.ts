@@ -24,7 +24,7 @@ import {
     getRiskFactors,
     buildMatchRecord,
     DIMENSIONS,
-} from '$lib/core/commons';
+} from '$lib/core/plan/process';
 
 // =============================================================================
 // SCHEMA VALIDATION TESTS

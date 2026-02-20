@@ -1,0 +1,77 @@
+src/docs/lacan/fca-enhanced/tests/fca-basic.test.ts(7,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/fca-enhanced/tests/temporal-quilting.test.ts(7,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/tests/condensation.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/tests/metaphor.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/tests/metonymy.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/tests/retroaction.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/tests/similarity.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/docs/lacan/tests/subject.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+src/lib/core/ai-pipe.ts(2,20): error TS2307: Cannot find module 'openai' or its corresponding type declarations.
+src/lib/core/ai-pipe.ts(3,35): error TS2307: Cannot find module 'openai/helpers/zod' or its corresponding type declarations.
+src/lib/core/ai-pipe.ts(254,38): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/core/ai-pipe.ts(312,37): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/core/embeddings.ts(62,29): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/core/enrichment.ts(11,28): error TS2307: Cannot find module 'crypto' or its corresponding type declarations.
+src/lib/core/feasibility.ts(230,35): error TS7052: Element implicitly has an 'any' type because type 'Map<string, number>' has no index signature. Did you mean to call 'seekerWeights.get'?
+src/lib/core/feasibility.ts(231,31): error TS7052: Element implicitly has an 'any' type because type 'Map<string, number>' has no index signature. Did you mean to call 'providerWeights.get'?
+src/lib/core/plan/matching.ts(16,105): error TS2307: Cannot find module './time' or its corresponding type declarations.
+src/lib/core/plan/matching.ts(17,78): error TS2307: Cannot find module './spatial' or its corresponding type declarations.
+src/lib/core/plan/matching.ts(404,59): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/lib/core/plan/matching.ts(409,75): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/lib/core/plan/matching.ts(410,39): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/lib/core/plan/matching.ts(424,60): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/lib/core/plan/matching.ts(425,31): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/lib/core/plan/matching.ts(448,37): error TS7006: Parameter 'day' implicitly has an 'any' type.
+src/lib/core/taxonomy-store.ts(24,16): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/core/taxonomy-store.ts(32,24): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/core/taxonomy-store.ts(57,9): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/examples/ai-pipe-usage.ts(317,17): error TS2339: Property 'main' does not exist on type 'ImportMeta'.
+src/lib/examples/test-healing.ts(93,17): error TS2339: Property 'main' does not exist on type 'ImportMeta'.
+src/lib/index.ts(7,1): error TS2308: Module './core/types' has already exported a member named 'CategoryMatch'. Consider explicitly re-exporting to resolve the ambiguity.
+src/lib/scripts/analyze-specificity.ts(7,14): error TS2554: Expected 1 arguments, but got 0.
+src/lib/scripts/enrich-categories.ts(14,37): error TS2307: Cannot find module 'child_process' or its corresponding type declarations.
+src/lib/scripts/enrich-categories.ts(72,17): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/scripts/enrich-categories.ts(76,41): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/scripts/enrich-categories.ts(81,41): error TS2580: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/scripts/enrich-categories.ts(89,28): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/lib/scripts/enrich-categories.ts(97,28): error TS7006: Parameter 'code' implicitly has an 'any' type.
+src/lib/scripts/enrich-categories.ts(205,22): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/enrich-categories.ts(208,22): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/enrich-categories.ts(266,15): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/enrich-categories.ts(272,15): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/generate-embeddings.ts(35,40): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/generate-embeddings.ts(40,32): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/generate-embeddings.ts(57,36): error TS2345: Argument of type 'RawExample[]' is not assignable to parameter of type 'import("/home/ruzgar/Programs/match/src/lib/core/example-converter").RawExample[]'.
+  Type 'RawExample' is not assignable to type 'import("/home/ruzgar/Programs/match/src/lib/core/example-converter").RawExample'.
+    Types of property 'id' are incompatible.
+      Type 'number' is not assignable to type 'string'.
+src/lib/scripts/generate-embeddings.ts(91,9): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/run-enrichment.ts(25,14): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/scripts/run-enrichment.ts(36,25): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/run-enrichment.ts(67,5): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/scripts/run-enrichment.ts(70,5): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+src/lib/scripts/run-enrichment.ts(127,11): error TS2339: Property 'badRoots' does not exist on type 'CategoryStats'.
+src/lib/scripts/run-enrichment.ts(129,28): error TS2339: Property 'badRoots' does not exist on type 'CategoryStats'.
+src/lib/scripts/run-enrichment.ts(175,9): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+src/lib/scripts/transform-examples.ts(30,45): error TS2307: Cannot find module 'fs' or its corresponding type declarations.
+tests/category-matcher.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/commons.test.ts(1,44): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/constraint-descriptions.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/feasibility.test.ts(1,44): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/feasibility.test.ts(301,70): error TS2345: Argument of type '{ owner1: number; }' is not assignable to parameter of type 'Map<string, number>'.
+  Type '{ owner1: number; }' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+tests/feasibility.test.ts(309,64): error TS2345: Argument of type '{ owner2: number; }' is not assignable to parameter of type 'Map<string, number>'.
+  Type '{ owner2: number; }' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+tests/matcher.test.ts(1,40): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/matcher.test.ts(261,20): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.
+tests/repulsion.test.ts(1,30): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/slot-matching.test.ts(2,38): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/slot-matching.test.ts(4,25): error TS2305: Module '"$lib/core/process"' has no exported member 'Contact'.
+tests/slot-matching.test.ts(71,19): error TS2741: Property 'type_id' is missing in type '{ id: string; quantity: number; }' but required in type '{ id: string; type_id: string; quantity: number; unit?: string | undefined; emoji?: string | undefined; description?: string | undefined; min_atomic_size?: number | undefined; max_participation?: number | undefined; ... 28 more ...; governed_by?: string | undefined; }'.
+tests/slot-matching.test.ts(72,19): error TS2741: Property 'type_id' is missing in type '{ id: string; quantity: number; }' but required in type '{ id: string; type_id: string; quantity: number; unit?: string | undefined; emoji?: string | undefined; description?: string | undefined; min_atomic_size?: number | undefined; max_participation?: number | undefined; ... 28 more ...; governed_by?: string | undefined; }'.
+tests/slot-matching.test.ts(77,19): error TS2741: Property 'type_id' is missing in type '{ id: string; quantity: number; required_skills: { id: string; level: number; }[]; }' but required in type '{ id: string; type_id: string; quantity: number; unit?: string | undefined; emoji?: string | undefined; description?: string | undefined; min_atomic_size?: number | undefined; max_participation?: number | undefined; ... 28 more ...; governed_by?: string | undefined; }'.
+tests/slot-matching.test.ts(78,19): error TS2741: Property 'type_id' is missing in type '{ id: string; quantity: number; }' but required in type '{ id: string; type_id: string; quantity: number; unit?: string | undefined; emoji?: string | undefined; description?: string | undefined; min_atomic_size?: number | undefined; max_participation?: number | undefined; ... 28 more ...; governed_by?: string | undefined; }'.
+tests/slot-matching.test.ts(85,19): error TS2741: Property 'type_id' is missing in type '{ id: string; quantity: number; required_skills: { id: string; level: number; }[]; }' but required in type '{ id: string; type_id: string; quantity: number; unit?: string | undefined; emoji?: string | undefined; description?: string | undefined; min_atomic_size?: number | undefined; max_participation?: number | undefined; ... 28 more ...; governed_by?: string | undefined; }'.
+tests/slot-matching.test.ts(86,19): error TS2741: Property 'type_id' is missing in type '{ id: string; quantity: number; }' but required in type '{ id: string; type_id: string; quantity: number; unit?: string | undefined; emoji?: string | undefined; description?: string | undefined; min_atomic_size?: number | undefined; max_participation?: number | undefined; ... 28 more ...; governed_by?: string | undefined; }'.
+tests/system.test.ts(19,50): error TS2307: Cannot find module 'bun:test' or its corresponding type declarations.
+tests/system.test.ts(1407,31): error TS2322: Type 'number' is not assignable to type 'void | Promise<void>'.

@@ -160,10 +160,10 @@ async function useCustomProvider() {
 }
 
 // =============================================================================
-// EXAMPLE 5: Using with existing schemas (like Resource from commons.ts)
+// EXAMPLE 5: Using with existing schemas (like Resource from process.ts)
 // =============================================================================
 
-import { Resource } from '../core/commons'
+import { Resource } from '../core/plan/process'
 
 async function generateResourceFromNL() {
   const pipe = createOpenAIPipe()
