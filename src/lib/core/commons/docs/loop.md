@@ -1,8 +1,10 @@
 ok and would this strategy work even for small scale? very local ehxagons? one thing im wondering is the bottom up approach? where by we:
 
-attempt need satisfaction in order of criticality, via an operation in
+attempt need satisfaction in order of criticality:
 
-stockbook.ts
+dependant demand planning
+intermediate needs
+
 replace MOP, derive insurance for replacement, expansion_of_means_of_production, then loop continue to try satisfy more needs in order of critically
 substitute operations trying to solve satisfy as many needs as possible with as little total-SNLT as possible
 continue to loop until we satisfy as much of needs ranked by criticality. then show what needs where pruned if impossible
