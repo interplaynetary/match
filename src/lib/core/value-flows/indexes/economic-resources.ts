@@ -11,6 +11,16 @@ export interface EconomicResourceIndex {
     accountable_index: Map<string, Set<string>>;   // primaryAccountable Agent ID → ids
     stage_index:       Map<string, Set<string>>;   // stage ProcessSpec ID → ids
     location_index:    Map<string, Set<string>>;   // currentLocation SpatialThing ID → ids
+    /**
+     * Canonical spatial join key at the clustering resolution (default h3 res 7).
+     * Maps H3 cell → resource IDs in that cell.
+     *
+     * Resources have no temporal dimension (they are current-state snapshots), so
+     * cross-index joins use only the spatial component. This index provides O(1)
+     * lookup by the same H3 cell string used in Commitment/Event space_time_index
+     * entries, enabling "what inventory exists where a commitment is planned?" queries.
+     */
+    cell_index:        Map<string, Set<string>>;   // h3Cell@clusterRes → ids
     spatial_hierarchy: HexIndex<EconomicResource>;
 }
 
@@ -31,6 +41,7 @@ export function buildEconomicResourceIndex(
         accountable_index: new Map(),
         stage_index: new Map(),
         location_index: new Map(),
+        cell_index: new Map(),
         spatial_hierarchy: createHexIndex<EconomicResource>(),
     };
 
@@ -44,11 +55,14 @@ export function buildEconomicResourceIndex(
 
         const st = resource.currentLocation ? locations.get(resource.currentLocation) : undefined;
         if (st) {
+            const h3Cell = spatialThingToH3(st, h3Resolution);
+            addTo(index.cell_index, h3Cell, resource.id);
+
             addItemToHexIndex(
                 index.spatial_hierarchy,
                 resource,
                 resource.id,
-                { lat: st.lat, lon: st.long, h3_index: spatialThingToH3(st, h3Resolution) },
+                { lat: st.lat, lon: st.long, h3_index: h3Cell },
                 {
                     quantity: resource.onhandQuantity?.hasNumericalValue,
                     hours: 0,
@@ -92,6 +106,18 @@ export function queryResourcesBySpecAndLocation(
         .filter(id => spatialIds.has(id))
         .map(id => index.resources.get(id)!)
         .filter(Boolean);
+}
+
+/**
+ * Resources at an exact H3 cell (at the clustering resolution used during build).
+ *
+ * Use this for cross-index spatial joins — e.g. given a commitment at h3Cell,
+ * find inventory that is physically co-located with it.
+ * Complement with queryResourcesBySpec to filter by type.
+ */
+export function queryResourcesByCell(index: EconomicResourceIndex, h3Cell: string): EconomicResource[] {
+    const ids = index.cell_index.get(h3Cell) ?? new Set<string>();
+    return [...ids].map(id => index.resources.get(id)!).filter(Boolean);
 }
 
 export function queryResourcesByHex(index: EconomicResourceIndex, cell: string): HexNode<EconomicResource> | null {

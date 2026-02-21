@@ -9,31 +9,54 @@
  */
 
 import * as h3 from 'h3-js';
-import type { AvailabilityWindow, DayOfWeek } from './time';
+import type { AvailabilityWindow, TemporalExpression, DayOfWeek } from './time';
+import { isSpecificDateWindow } from './time';
+import { calendarComponents } from './space-time-keys';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 /**
- * Aggregated statistics for a spatial node.
- * Flexible structure to support Labor (hours), Resources (quantity), etc.
+ * Aggregated statistics for a spatial node or temporal bin.
+ *
+ * IMPORTANT — denominator semantics vary by context:
+ *
+ *   HexNode.stats        → spatial aggregate across ALL temporal contexts in this cell.
+ *                          count = number of items physically in this cell (or its children).
+ *                          Do NOT sum across cells at different resolutions (same item is
+ *                          counted at every ancestor, so totals would double-count).
+ *
+ *   TimeBin.stats        → temporal aggregate for ONE bin (a specific date, or full_time).
+ *                          count = number of items in THIS bin only.
+ *                          Summing across bins (e.g. all specific_dates) gives total
+ *                          activity across dates, NOT unique items.
+ *
+ *   DayNode.stats        → items available on this day-of-week pattern.
+ *   WeekNode.stats       → items in this week-of-month pattern.
+ *   MonthNode.stats      → items in this month pattern.
+ *
+ * For unique item counts use the `items: Set<string>` field — its `.size` is always
+ * the number of distinct IDs regardless of how many temporal bins they appear in.
  */
 export interface HexStats {
-    /** Number of unique items in this cell (or its children) */
+    /** Items in this node/bin. See denominator note above before summing across bins. */
     count: number;
-    
-    /** Sum of 'quantity' (for Resources/Needs) */
+
+    /** Sum of resource quantity values for items in this node/bin. */
     sum_quantity: number;
-    
-    /** Sum of 'total_hours' (for Labor) */
+
+    /** Sum of effort/hour values for items in this node/bin. */
     sum_hours: number;
-    
-    /** Custom aggregations can be added here */
 }
 
 /**
- * Leaf Temporal Node (Specific Time Slot/Bin)
+ * Leaf Temporal Node — one discrete time slot.
+ *
+ * `items` is the authoritative set of IDs in this bin.
+ * `stats` is a pre-computed aggregate over those items (for cheap analytics).
+ * Never sum stats.count across different TimeBins to get unique item counts —
+ * use Set union on `items` instead.
  */
 export interface TimeBin {
     stats: HexStats;
@@ -247,8 +270,7 @@ export function addItemToHexIndex<T>(
     itemId: string,
     location: { lat?: number; lon?: number; h3_index?: string },
     values: { quantity?: number; hours?: number } = {},
-    availability?: AvailabilityWindow,
-    specificDate?: string, // YYYY-MM-DD — for one-time events (EconomicEvent, Commitment, etc.)
+    temporal?: TemporalExpression,
 ): void {
     // 1. Determine Leaf Cell
     let leafCell: string;
@@ -303,17 +325,21 @@ export function addItemToHexIndex<T>(
         node.items.add(itemId);
         
         // 3. Update Temporal Index
-        if (availability) {
-            // Recurring pattern — walk the AvailabilityWindow hierarchy
-            indexItemTemporally(node.temporal, availability, itemId, quantity, hours);
-        } else if (specificDate) {
-            // One-time event — bin into the specific date slot
-            let bin = node.temporal.specific_dates.get(specificDate);
-            if (!bin) {
-                bin = createTimeBin();
-                node.temporal.specific_dates.set(specificDate, bin);
+        if (temporal) {
+            if (isSpecificDateWindow(temporal)) {
+                // Point-in-time: bin each specific date
+                for (const date of temporal.specific_dates) {
+                    let bin = node.temporal.specific_dates.get(date);
+                    if (!bin) {
+                        bin = createTimeBin();
+                        node.temporal.specific_dates.set(date, bin);
+                    }
+                    addToBin(bin, quantity, hours, itemId);
+                }
+            } else {
+                // AvailabilityWindow — walk the recurring hierarchy
+                indexItemTemporally(node.temporal, temporal, itemId, quantity, hours);
             }
-            addToBin(bin, quantity, hours, itemId);
         } else {
             // No temporal context — treat as always available
             addToBin(node.temporal.recurring.full_time, quantity, hours, itemId);
@@ -494,7 +520,7 @@ function indexItemTemporally(
                     dNode = createDayNode();
                     index.recurring.days.set(day, dNode);
                 }
-                addToBin(dNode.stats as any, quantity, hours, itemId); // DayNode IS a bin
+                addToBin(dNode, quantity, hours, itemId);
             }
         }
         return;
@@ -524,7 +550,7 @@ function addToWeekNode(
                 dNode = createDayNode();
                 node.days.set(day, dNode);
             }
-            addToBin(dNode.stats as any, q, h, id);
+            addToBin(dNode, q, h, id);
         }
     }
 }
@@ -542,7 +568,7 @@ function addToMonthDayNode(
                 dNode = createDayNode();
                 node.days.set(day, dNode);
             }
-            addToBin(dNode.stats as any, q, h, id);
+            addToBin(dNode, q, h, id);
         }
     }
 }
@@ -552,4 +578,141 @@ function addToBin(bin: { stats: HexStats, items: Set<string> }, q: number, h: nu
     bin.stats.sum_quantity += q;
     bin.stats.sum_hours += h;
     bin.items.add(id);
+}
+
+// =============================================================================
+// TEMPORAL QUERY API
+// =============================================================================
+
+function unionSets(...sets: (Set<string> | undefined)[]): Set<string> {
+    const result = new Set<string>();
+    for (const s of sets) {
+        if (s) for (const id of s) result.add(id);
+    }
+    return result;
+}
+
+/**
+ * Items explicitly indexed on a specific date (YYYY-MM-DD).
+ *
+ * Returns only items from the `specific_dates` bin — point-in-time events and
+ * single-date commitments that were recorded on exactly this date.
+ * Does NOT include recurring items (use queryNodeOnCalendarDate for that).
+ */
+export function queryNodeByDate<T>(node: HexNode<T>, date: string): Set<string> {
+    return new Set(node.temporal.specific_dates.get(date)?.items ?? []);
+}
+
+/**
+ * Items indexed for a recurring day-of-week pattern across ALL months and weeks.
+ * Returns items from `recurring.days[day]` — standing offers/commitments with
+ * a simple weekly recurrence.
+ */
+export function queryNodeByDayOfWeek<T>(node: HexNode<T>, day: DayOfWeek): Set<string> {
+    return new Set(node.temporal.recurring.days.get(day)?.items ?? []);
+}
+
+/**
+ * Items indexed for a recurring week-of-month pattern (across ALL months).
+ * Returns items from `recurring.weeks[week]` and all day sub-nodes within it.
+ */
+export function queryNodeByWeekOfMonth<T>(node: HexNode<T>, week: number): Set<string> {
+    const wNode = node.temporal.recurring.weeks.get(week);
+    if (!wNode) return new Set();
+    return unionSets(wNode.items, wNode.full_time.items, ...[...wNode.days.values()].map(d => d.items));
+}
+
+/**
+ * Items indexed for a specific month pattern.
+ * Returns items from `recurring.months[month]` and all week/day sub-nodes within it.
+ */
+export function queryNodeByMonth<T>(node: HexNode<T>, month: number): Set<string> {
+    const mNode = node.temporal.recurring.months.get(month);
+    if (!mNode) return new Set();
+    const weekItems = [...mNode.weeks.values()].flatMap(w => [
+        w.items, w.full_time.items, ...[...w.days.values()].map(d => d.items),
+    ]);
+    return unionSets(mNode.items, mNode.full_time.items, ...[...mNode.days.values()].map(d => d.items), ...weekItems);
+}
+
+/**
+ * ALL items that apply on a given calendar date — the calendar expansion query.
+ *
+ * Unions:
+ *   1. specific_dates[date]               ← one-time events/commitments on this date
+ *   2. recurring.days[dayOfWeek]          ← standing weekly offers covering this day
+ *   3. recurring.weeks[weekOfMonth] (and its day sub-node for this day)
+ *   4. recurring.months[month] (and its week/day sub-nodes for this day/week)
+ *   5. recurring.full_time                ← always-on items (no temporal context)
+ *
+ * This is the primary query for "what's available/happening on DATE at this cell?"
+ * Contrast with queryNodeByDate which returns ONLY point-in-time indexed items.
+ */
+export function queryNodeOnCalendarDate<T>(node: HexNode<T>, isoDate: string): Set<string> {
+    const { day, week, month } = calendarComponents(isoDate);
+    const t = node.temporal;
+
+    // Month sub-structures matching this date
+    const mNode = t.recurring.months.get(month);
+    const mFullTime   = mNode?.full_time.items;
+    const mDayNode    = mNode?.days.get(day)?.items;
+    const mWeekNode   = mNode?.weeks.get(week);
+    const mWeekFull   = mWeekNode?.full_time.items;
+    const mWeekDay    = mWeekNode?.days.get(day)?.items;
+
+    // Week sub-structures matching this date
+    const wNode = t.recurring.weeks.get(week);
+    const wFull = wNode?.full_time.items;
+    const wDay  = wNode?.days.get(day)?.items;
+
+    return unionSets(
+        t.specific_dates.get(isoDate)?.items,  // exact date
+        t.recurring.days.get(day)?.items,       // every [day]
+        wFull, wDay,                            // week [N] of any month
+        mFullTime, mDayNode, mWeekFull, mWeekDay, // month [M] patterns
+        t.recurring.full_time.items,            // always-on
+    );
+}
+
+/**
+ * Spatial radius query filtered to a specific calendar date.
+ *
+ * Returns item IDs that are BOTH within the search radius AND active on the
+ * given date — combining specific_dates entries with all recurring patterns
+ * that cover the date (day-of-week, week-of-month, month, full-time).
+ *
+ * This is the primary combined space-time query primitive for analytics and
+ * gap detection (planned vs realized at a place on a date).
+ *
+ * Implementation note: temporal bins are propagated to all ancestor H3 cells
+ * during indexing, so any node whose `items` set overlaps the spatial result
+ * carries correct temporal data for its subtree. We collect temporal matches
+ * from those overlapping nodes and intersect with the spatial set.
+ */
+export function queryHexOnDate<T>(
+    index: HexIndex<T>,
+    query: {
+        h3_index?: string;
+        latitude?: number;
+        longitude?: number;
+        radius_km?: number;
+    },
+    isoDate: string,
+): Set<string> {
+    const spatialIds = queryHexIndexRadius(index, query);
+    if (spatialIds.size === 0) return new Set();
+
+    // Collect temporal items from every node that overlaps the spatial result.
+    const temporalIds = new Set<string>();
+    for (const node of index.nodes.values()) {
+        let overlaps = false;
+        for (const id of node.items) {
+            if (spatialIds.has(id)) { overlaps = true; break; }
+        }
+        if (overlaps) {
+            for (const id of queryNodeOnCalendarDate(node, isoDate)) temporalIds.add(id);
+        }
+    }
+
+    return new Set([...spatialIds].filter(id => temporalIds.has(id)));
 }

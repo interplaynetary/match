@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { AvailabilityWindowSchema } from './utils/time';
+import { TemporalExpressionSchema } from './utils/time';
 
 // =============================================================================
 // PRIMITIVES
@@ -759,11 +759,11 @@ export const IntentSchema = z.object({
 
     finished: z.boolean().default(false),
 
-    // Matching-layer extension — recurring availability pattern.
-    // Not in the VF core spec; fills the gap where Intents express standing
-    // offers (e.g. "every Monday 9-5") rather than single-window requests.
+    // Matching-layer extension — temporal expression.
+    // Not in the VF core spec; covers both recurring patterns (AvailabilityWindow)
+    // and specific calendar dates (SpecificDateWindow) in a unified type.
     // When present, takes precedence over hasBeginning/hasEnd for temporal indexing.
-    availability_window: AvailabilityWindowSchema.optional(),
+    availability_window: TemporalExpressionSchema.optional(),
 });
 export type Intent = z.infer<typeof IntentSchema>;
 
@@ -816,6 +816,12 @@ export const CommitmentSchema = z.object({
     plannedWithin: z.string().optional(),                  // Plan ID
 
     finished: z.boolean().default(false),
+
+    // Matching-layer extension — temporal expression.
+    // Inherited from a recurring Intent when the Commitment satisfies one;
+    // expresses "this commitment recurs on the same schedule as its intent".
+    // When present, takes precedence over hasBeginning/hasEnd for temporal indexing.
+    availability_window: TemporalExpressionSchema.optional(),
 });
 export type Commitment = z.infer<typeof CommitmentSchema>;
 

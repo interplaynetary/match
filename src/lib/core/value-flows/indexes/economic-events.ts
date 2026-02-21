@@ -2,7 +2,7 @@ import {
     createHexIndex, addItemToHexIndex, queryHexIndexRadius,
     type HexIndex, type HexNode,
 } from '../utils/space-time-index';
-import { getSpaceTimeSignature, economicEventToSpaceTimeContext, toDateKey } from '../utils/space-time-keys';
+import { getSpaceTimeSignature, economicEventToSpaceTimeContext, toDateKey, wrapDate } from '../utils/space-time-keys';
 import { spatialThingToH3 } from '../utils/space';
 import type { EconomicEvent, SpatialThing } from '../schemas';
 
@@ -71,8 +71,7 @@ export function buildEconomicEventIndex(
                     quantity: event.resourceQuantity?.hasNumericalValue,
                     hours: event.effortQuantity?.hasNumericalValue,
                 },
-                undefined,    // EconomicEvents are immutable facts — never recurring
-                eventDateKey,
+                wrapDate(eventDateKey), // EconomicEvents are immutable facts — always point-in-time
             );
         }
 
@@ -88,8 +87,7 @@ export function buildEconomicEventIndex(
                     quantity: event.resourceQuantity?.hasNumericalValue,
                     hours: event.effortQuantity?.hasNumericalValue,
                 },
-                undefined,
-                eventDateKey,
+                wrapDate(eventDateKey),
             );
         }
     }

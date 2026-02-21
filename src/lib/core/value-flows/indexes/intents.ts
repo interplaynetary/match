@@ -2,7 +2,7 @@ import {
     createHexIndex, addItemToHexIndex, queryHexIndexRadius,
     type HexIndex, type HexNode,
 } from '../utils/space-time-index';
-import { getSpaceTimeSignature, intentToSpaceTimeContext, toDateKey } from '../utils/space-time-keys';
+import { getSpaceTimeSignature, intentToSpaceTimeContext, toDateKey, wrapDate } from '../utils/space-time-keys';
 import { spatialThingToH3 } from '../utils/space';
 import type { Intent, SpatialThing } from '../schemas';
 
@@ -61,8 +61,8 @@ export function buildIntentIndex(
                     quantity: intent.resourceQuantity?.hasNumericalValue,
                     hours: intent.effortQuantity?.hasNumericalValue,
                 },
-                intent.availability_window,                          // recurring pattern when present
-                toDateKey(intent.hasBeginning ?? intent.hasPointInTime), // one-time fallback
+                intent.availability_window                           // TemporalExpression when present
+                    ?? wrapDate(toDateKey(intent.hasBeginning ?? intent.hasPointInTime)),
             );
         }
     }

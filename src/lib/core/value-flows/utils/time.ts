@@ -124,6 +124,64 @@ export const AvailabilityWindowSchema = z.object({
 
     // LEVEL 4: Simple time ranges (same for all days/weeks/months)
     time_ranges: z.array(TimeRangeSchema).optional()
-});
+}).refine(
+    (w) =>
+        (w.month_schedules?.length ?? 0) > 0 ||
+        (w.week_schedules?.length ?? 0)  > 0 ||
+        (w.day_schedules?.length ?? 0)   > 0 ||
+        (w.time_ranges?.length ?? 0)     > 0,
+    { message: 'AvailabilityWindow must have at least one schedule or time_ranges entry' },
+);
 
 export type AvailabilityWindow = z.infer<typeof AvailabilityWindowSchema>;
+
+// ═══════════════════════════════════════════════════════════════════
+// TEMPORAL EXPRESSION — universal temporal language
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Specific Date Window — one-time or ad-hoc multi-date temporal expression.
+ *
+ * The point-in-time counterpart to AvailabilityWindow's recurring patterns.
+ * Use when a flow applies to exact calendar dates rather than a repeating pattern.
+ *
+ * Examples:
+ *   single date:   { specific_dates: ['2026-03-15'] }
+ *   multi-date:    { specific_dates: ['2026-04-01', '2026-04-08'] }
+ *   with time:     { specific_dates: ['2026-03-15'], time_ranges: [{ start_time: '09:00', end_time: '12:00' }] }
+ */
+export const SpecificDateWindowSchema = z.object({
+    specific_dates: z.array(z.string()),        // YYYY-MM-DD
+    time_ranges: z.array(TimeRangeSchema).optional(),
+});
+
+export type SpecificDateWindow = z.infer<typeof SpecificDateWindowSchema>;
+
+/**
+ * Temporal Expression — the universal temporal language for the VF matching layer.
+ *
+ * Either a set of specific calendar dates (point-in-time / ad-hoc)
+ * or a recurring availability pattern.
+ *
+ * Used everywhere time needs to be expressed:
+ *   - Intent.availability_window  → standing offer or bounded window
+ *   - Commitment.availability_window → recurring or scheduled commitment
+ *   - HexIndex temporal binning → routes to the right TemporalIndex slot
+ *
+ * Priority in z.union: SpecificDateWindow is tried first (requires specific_dates),
+ * so AvailabilityWindow objects (which lack specific_dates) always fall through correctly.
+ */
+export const TemporalExpressionSchema = z.union([
+    SpecificDateWindowSchema,
+    AvailabilityWindowSchema,
+]);
+
+export type TemporalExpression = z.infer<typeof TemporalExpressionSchema>;
+
+/**
+ * Type guard: is this TemporalExpression a SpecificDateWindow?
+ * Discriminated by the required `specific_dates` field.
+ */
+export function isSpecificDateWindow(t: TemporalExpression): t is SpecificDateWindow {
+    return 'specific_dates' in t;
+}

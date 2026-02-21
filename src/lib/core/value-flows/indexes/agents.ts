@@ -23,7 +23,7 @@ import {
     type HexIndex, type HexNode,
 } from '../utils/space-time-index';
 import { getSpaceTimeSignature, intentToSpaceTimeContext } from '../utils/space-time-keys';
-import type { AvailabilityWindow } from '../utils/time';
+import type { TemporalExpression } from '../utils/time';
 import { spatialThingToH3 } from '../utils/space';
 import type { Agent, Intent, SpatialThing } from '../schemas';
 
@@ -162,7 +162,7 @@ export function buildAgentIndex(
         resource_specs: Set<string>;
         intent_ids: string[];
         st?: SpatialThing;
-        availability_window?: AvailabilityWindow; // from first Intent in group (same sig → same window)
+        availability_window?: TemporalExpression; // from first Intent in group (same sig → same window)
         start_date?: string | null;
         end_date?: string | null;
     }>();
@@ -239,7 +239,7 @@ export function buildAgentIndex(
                 capacityId,
                 { lat: acc.st.lat, lon: acc.st.long, h3_index: h3Cell },
                 { hours: acc.max_hours },
-                acc.availability_window, // populates temporal hierarchy when a standing offer
+                acc.availability_window, // TemporalExpression — populates temporal hierarchy when present
             );
         }
     }

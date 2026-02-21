@@ -1,6 +1,7 @@
 import * as h3 from 'h3-js';
 import { computeH3Index, REMOTE_H3_INDEX, spatialThingToH3 } from './space';
-import type { AvailabilityWindow, TimeRange, DaySchedule, WeekSchedule, MonthSchedule } from './time';
+import type { AvailabilityWindow, TemporalExpression, TimeRange, DaySchedule, WeekSchedule, MonthSchedule } from './time';
+import { isSpecificDateWindow } from './time';
 import type { Intent, Commitment, EconomicEvent, SpatialThing } from '../schemas';
 
 /**
@@ -67,12 +68,16 @@ export function getCanonicalAvailabilityWindow(window: AvailabilityWindow): stri
  * Generates a purely temporal bucket string with absolute precision.
  */
 export function getTimeSignature(slot: {
-    availability_window?: AvailabilityWindow;
+    availability_window?: TemporalExpression;
     start_date?: string | null;
     end_date?: string | null;
     recurrence?: string | null;
 }): string {
     if (slot.availability_window) {
+        if (isSpecificDateWindow(slot.availability_window)) {
+            const dates = [...slot.availability_window.specific_dates].sort().join(',');
+            return `specific|${dates}`;
+        }
         return `recurring|${getCanonicalAvailabilityWindow(slot.availability_window)}`;
     } else {
         return [slot.start_date || 'any', slot.end_date || 'any', slot.recurrence || 'onetime'].join('|');
@@ -89,6 +94,46 @@ export function toDateKey(iso: string | null | undefined): string | undefined {
 }
 
 /**
+ * Wrap a YYYY-MM-DD date key into a SpecificDateWindow TemporalExpression.
+ *
+ * Canonical helper — import this instead of defining locally in each index file.
+ * Returns undefined when the date key is absent, so the item falls to full_time.
+ */
+export function wrapDate(dateKey: string | undefined): TemporalExpression | undefined {
+    return dateKey ? { specific_dates: [dateKey] } : undefined;
+}
+
+/**
+ * Decompose a YYYY-MM-DD string into the calendar components used throughout
+ * the temporal indexing and recurrence systems.
+ *
+ * Always uses noon UTC (`T12:00:00Z`) to avoid DST edge cases — dates near
+ * midnight can shift to a different local day depending on timezone offset.
+ *
+ * This is the single canonical implementation.  Both space-time-index.ts
+ * (for index queries) and recurrence.ts (for occurrence matching) import it.
+ *
+ *   day   — lowercase day-of-week matching DayOfWeek enum ('monday' … 'sunday')
+ *   week  — week-of-month 1–5, defined as Math.ceil(dayOfMonth / 7)
+ *   month — calendar month 1–12
+ */
+export function calendarComponents(isoDate: string): {
+    day: DayOfWeek;
+    week: number;
+    month: number;
+} {
+    const DAY_NAMES: DayOfWeek[] = [
+        'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+    ];
+    const d = new Date(`${isoDate}T12:00:00Z`);
+    return {
+        day:   DAY_NAMES[d.getUTCDay()],
+        week:  Math.ceil(d.getUTCDate() / 7),
+        month: d.getUTCMonth() + 1,
+    };
+}
+
+/**
  * Interface representing the spatial and temporal context needed to compute a signature
  */
 export interface SpaceTimeContext {
@@ -99,7 +144,7 @@ export interface SpaceTimeContext {
     longitude?: number;
     city?: string;
     country?: string;
-    availability_window?: AvailabilityWindow;
+    availability_window?: TemporalExpression;
     start_date?: string | null;
     end_date?: string | null;
     recurrence?: string | null;
@@ -262,6 +307,7 @@ export function commitmentToSpaceTimeContext(
 
     return {
         ...spatial,
+        availability_window: commitment.availability_window,
         start_date,
         end_date,
         recurrence: null,

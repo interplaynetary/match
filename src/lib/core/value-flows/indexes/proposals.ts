@@ -3,7 +3,7 @@ import {
     type HexIndex, type HexNode,
 } from '../utils/space-time-index';
 import { spatialThingToH3 } from '../utils/space';
-import { toDateKey } from '../utils/space-time-keys';
+import { getSpaceTimeSignature, toDateKey, wrapDate } from '../utils/space-time-keys';
 import type { Proposal, SpatialThing } from '../schemas';
 
 export interface ProposalIndex {
@@ -44,13 +44,14 @@ export function buildProposalIndex(
 
         const st = proposal.eligibleLocation ? locations.get(proposal.eligibleLocation) : undefined;
 
-        // Space-time signature using inline spatial bridge + time from hasBeginning/hasEnd
         const h3Cell = st ? spatialThingToH3(st, h3Resolution) : undefined;
-        const startDate = proposal.hasBeginning ?? null;
-        const endDate = proposal.hasEnd ?? null;
-        const timePart = [startDate ?? 'any', endDate ?? 'any', 'onetime'].join('|');
-        const locPart = h3Cell ?? 'remote';
-        const sig = `${timePart}::${locPart}`;
+        const sig = getSpaceTimeSignature({
+            h3_index: h3Cell,
+            latitude: st?.lat,
+            longitude: st?.long,
+            start_date: proposal.hasBeginning ?? null,
+            end_date: proposal.hasEnd ?? null,
+        }, h3Resolution);
         addTo(index.space_time_index, sig, proposal.id);
 
         if (st) {
@@ -60,8 +61,7 @@ export function buildProposalIndex(
                 proposal.id,
                 { lat: st.lat, lon: st.long, h3_index: h3Cell },
                 { quantity: 0, hours: 0 },
-                undefined, // Proposals have a window but not a recurring pattern
-                toDateKey(proposal.hasBeginning),
+                wrapDate(toDateKey(proposal.hasBeginning)),
             );
         }
     }

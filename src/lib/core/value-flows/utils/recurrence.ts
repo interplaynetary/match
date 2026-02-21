@@ -18,7 +18,8 @@
  *   OccurrenceStatus — derived view joining the two (analytics layer)
  */
 
-import type { AvailabilityWindow, DayOfWeek } from './time';
+import type { AvailabilityWindow } from './time';
+import { calendarComponents, toDateKey } from './space-time-keys';
 import type { EconomicEvent, Commitment } from '../schemas';
 
 // =============================================================================
@@ -58,8 +59,7 @@ export interface OccurrenceStatus {
  * Returns undefined if no date is available.
  */
 export function occurrenceDateKey(event: EconomicEvent): string | undefined {
-    const iso = event.hasPointInTime ?? event.hasBeginning ?? event.created;
-    return iso ? iso.slice(0, 10) : undefined;
+    return toDateKey(event.hasPointInTime ?? event.hasBeginning ?? event.created);
 }
 
 /**
@@ -122,27 +122,17 @@ export function getOccurrenceStatus(
 // EAGER PATH — enumerate expected dates (use sparingly)
 // =============================================================================
 
-// Lowercase matches DayOfWeek enum in time.ts
-const DAY_NAMES: DayOfWeek[] = [
-    'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
-];
-
-/**
- * Week-of-month (1–5) for a given date.
- * Defined as Math.ceil(dayOfMonth / 7) — aligns with AvailabilityWindow.week_schedules.
- */
-function weekOfMonth(date: Date): number {
-    return Math.ceil(date.getDate() / 7);
-}
-
 /**
  * Returns true if a given calendar date falls within an AvailabilityWindow pattern.
- * Mirrors the priority hierarchy in space-time-index.ts: month > week > day > time_ranges.
+ *
+ * Priority hierarchy (mirrors TemporalIndex structure in space-time-index.ts):
+ *   month_schedules > week_schedules > day_schedules > time_ranges
+ *
+ * Accepts a YYYY-MM-DD string; uses calendarComponents (UTC noon) for consistency
+ * with the temporal index and spatial signature systems.
  */
-export function dateMatchesWindow(date: Date, window: AvailabilityWindow): boolean {
-    const day   = DAY_NAMES[date.getDay()];
-    const month = date.getMonth() + 1;    // 1-12
-    const week  = weekOfMonth(date);       // 1-5
+export function dateMatchesWindow(isoDate: string, window: AvailabilityWindow): boolean {
+    const { day, week, month } = calendarComponents(isoDate);
 
     // Level 1: month_schedules
     if (window.month_schedules?.length) {
@@ -205,8 +195,9 @@ export function materializeOccurrenceDates(
     const end    = new Date(`${to}T12:00:00Z`);
 
     while (cursor <= end) {
-        if (dateMatchesWindow(cursor, window)) {
-            results.push(cursor.toISOString().slice(0, 10));
+        const isoDate = cursor.toISOString().slice(0, 10);
+        if (dateMatchesWindow(isoDate, window)) {
+            results.push(isoDate);
         }
         cursor.setUTCDate(cursor.getUTCDate() + 1);
     }

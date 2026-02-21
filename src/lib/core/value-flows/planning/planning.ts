@@ -42,6 +42,7 @@ import type {
     Scenario,
     ScenarioDefinition,
 } from '../schemas';
+import type { TemporalExpression } from '../utils/time';
 import { RecipeStore } from '../knowledge/recipes';
 import { ProcessRegistry } from '../process-registry';
 import { Observer } from '../observation/observer';
@@ -185,16 +186,23 @@ export class PlanStore {
             state: intent.state,
             provider,
             receiver,
+            atLocation: intent.atLocation,
             due: intent.due,
             hasBeginning: intent.hasBeginning,
             hasEnd: intent.hasEnd,
+            hasPointInTime: intent.hasPointInTime,
             plannedWithin: intent.plannedWithin,
             satisfies: intentId,
+            availability_window: intent.availability_window,
             finished: false,
         });
 
-        // Mark intent as satisfied (a commitment now covers it)
-        intent.finished = true;
+        // Mark intent as satisfied only when it is NOT recurring.
+        // A recurring Intent (availability_window set) stays open — each Commitment
+        // fulfills one occurrence, not the standing offer as a whole.
+        if (!intent.availability_window) {
+            intent.finished = true;
+        }
 
         return commitment;
     }
@@ -348,6 +356,8 @@ export class PlanStore {
         resourceQuantity?: Measure;
         effortQuantity?: Measure;
         note?: string;
+        atLocation?: string;
+        availability_window?: TemporalExpression;
         reciprocal?: {
             action: Intent['action'];
             resourceConformsTo?: string;
@@ -362,6 +372,8 @@ export class PlanStore {
             resourceQuantity: params.resourceQuantity,
             effortQuantity: params.effortQuantity,
             note: params.note,
+            atLocation: params.atLocation,
+            availability_window: params.availability_window,
             finished: false,
         });
 
@@ -396,6 +408,8 @@ export class PlanStore {
         resourceQuantity?: Measure;
         effortQuantity?: Measure;
         note?: string;
+        atLocation?: string;
+        availability_window?: TemporalExpression;
     }): { proposal: Proposal; primaryIntent: Intent } {
         const primaryIntent = this.addIntent({
             action: params.action,
@@ -405,6 +419,8 @@ export class PlanStore {
             resourceQuantity: params.resourceQuantity,
             effortQuantity: params.effortQuantity,
             note: params.note,
+            atLocation: params.atLocation,
+            availability_window: params.availability_window,
             finished: false,
         });
 
