@@ -1,148 +1,127 @@
 /**
- * Effect Stream: A processing queue for effects flowing through space-time.
+ * Observer — EconomicEvent-based resource state derivation.
  *
- * Effects enter the stream and advance through lifecycle phases:
- *   projected → pending → judged (accepted | rejected | modified) → propagated
+ * The Observer IS the stockbook. It:
+ *   1. Receives EconomicEvents (immutable observed facts)
+ *   2. Applies action effects to derive EconomicResource state (inventory)
+ *   3. Tracks batch/lot records for produced resources
+ *   4. Tracks fulfillment of Commitments OR satisfaction of Intents (never both)
+ *   5. Emits stream events for listeners
  *
- * Design principles:
- * 1. Append-only storage — effects are never mutated, new versions are appended
- * 2. Pluggable processors — handlers for each phase transition
- * 3. State-predicate-aware — phase changes re-derive state, evaluate watchers' predicates
- * 4. Bitemporal — every state change records both valid_time and known_time
+ * VF rule: An event either `fulfills` a Commitment OR `satisfies` an Intent
+ * directly (when no Commitment exists), never both.
  *
- * The stream is generic: it doesn't know what effects mean, only how they flow.
- * Domain logic lives in the processors you plug in.
+ * Resources are DERIVED from events. Current state can always be
+ * recalculated by replaying events in order.
  */
 
 import { nanoid } from 'nanoid';
 import {
-    type Effect,
-    type CompositeEffect,
-    type AssertionPhase,
-    type AssertionEntry,
-    type Delta,
-    type PropagationAction,
-    currentPhase,
-    evaluatePredicates,
-    evaluateSinglePredicate,
-    stateKey,
-} from './effect.ts';
-import { derive } from '../matching/derivation.ts';
-import { createHexIndex, addItemToHexIndex, type HexIndex } from '../primitives/space-time-index.ts';
+    type EconomicEvent,
+    type EconomicResource,
+    type Commitment,
+    type Intent,
+    type Process,
+    type Agreement,
+    type Measure,
+    type VfAction,
+    type ActionDefinition,
+    type BatchLotRecord,
+    ACTION_DEFINITIONS,
+} from '../schemas';
+import { ProcessRegistry } from '../process-registry';
 
 // =============================================================================
-// STREAM EVENT — What the stream emits
+// STREAM EVENTS — What the observer emits
 // =============================================================================
 
-export type StreamEvent =
-    | { type: 'submitted'; effect: Effect }
-    | { type: 'phase_changed'; effect: Effect; from: AssertionPhase; to: AssertionPhase }
-    | { type: 'propagation'; action: PropagationAction; source: Effect; target: Effect }
-    | { type: 'composed'; composite: CompositeEffect; constituents: Effect[] }
-    | { type: 'error'; effect_id: string; error: string };
+export type ObserverEvent =
+    | { type: 'recorded'; event: EconomicEvent }
+    | { type: 'resource_created'; resource: EconomicResource; event: EconomicEvent }
+    | { type: 'resource_updated'; resource: EconomicResource; event: EconomicEvent; changes: string[] }
+    | { type: 'batch_created'; batch: BatchLotRecord; resource: EconomicResource; event: EconomicEvent }
+    | { type: 'fulfilled'; event: EconomicEvent; commitmentId: string }
+    | { type: 'satisfied'; event: EconomicEvent; intentId: string }
+    | { type: 'error'; eventId: string; error: string };
+
+export type ObserverListener = (event: ObserverEvent) => void | Promise<void>;
 
 // =============================================================================
-// PROCESSORS — Pluggable phase-transition handlers
+// FULFILLMENT / SATISFACTION TRACKING
 // =============================================================================
 
-/**
- * A processor decides whether/how an effect transitions between phases.
- * Return the new assertion entry to apply, or null to skip.
- */
-export type PhaseProcessor = (
-    effect: Effect,
-    context: ProcessorContext,
-) => AssertionEntry | null | Promise<AssertionEntry | null>;
+export interface FulfillmentState {
+    commitmentId: string;
+    totalCommitted: Measure;
+    totalFulfilled: Measure;
+    fulfillingEvents: string[];
+    finished: boolean;
+}
 
-/**
- * A propagation handler decides what to do when a dependent is affected.
- * Called once per propagation action.
- */
-export type PropagationHandler = (
-    action: PropagationAction,
-    source: Effect,
-    target: Effect,
-    context: ProcessorContext,
-) => void | Promise<void>;
-
-/**
- * A merge handler resolves how constituent effects combine into a composite.
- * Returns the merged deltas for the composite effect.
- */
-export type MergeHandler = (
-    constituents: Effect[],
-    strategy: CompositeEffect['merge_strategy'],
-    rule?: unknown,
-) => Delta[];
-
-export interface ProcessorContext {
-    stream: EffectStream;
-    now: () => Date;
+export interface SatisfactionState {
+    intentId: string;
+    totalDesired: Measure;
+    totalSatisfied: Measure;
+    satisfyingEvents: string[];
+    satisfyingCommitments: string[];
+    finished: boolean;
 }
 
 // =============================================================================
-// LISTENER — Subscribe to stream events
+// INVENTORY VIEW
 // =============================================================================
 
-export type StreamListener = (event: StreamEvent) => void | Promise<void>;
+export interface InventoryEntry {
+    resource: EconomicResource;
+    spec: string;           // conformsTo (ResourceSpecification ID)
+    accountingQty: number;
+    onhandQty: number;
+    unit: string;
+    location?: string;
+    accountable?: string;   // Agent ID
+    batches: BatchLotRecord[];
+}
 
 // =============================================================================
-// EFFECT STREAM
+// OBSERVER
 // =============================================================================
 
-export class EffectStream {
+export class Observer {
     // Storage
-    private effects = new Map<string, Effect[]>();        // origin_id → versions (ordered)
-    private queue: Effect[] = [];                         // pending processing
-    private processing = false;
+    private events: EconomicEvent[] = [];
+    private resources = new Map<string, EconomicResource>();
+    private batches = new Map<string, BatchLotRecord>();       // batchId → record
+    private resourceBatches = new Map<string, string[]>();     // resourceId → batchIds
+
+    // Shared process registry (same instances as planning layer)
+    readonly processes: ProcessRegistry;
+
+    // Fulfillment/Satisfaction tracking
+    private fulfillments = new Map<string, FulfillmentState>();
+    private satisfactions = new Map<string, SatisfactionState>();
 
     // Indexes
-    private byEntity = new Map<string, Set<string>>();    // entity_id → origin_ids
-    private byPhase = new Map<AssertionPhase, Set<string>>(); // phase → origin_ids
-    private stateWatchers = new Map<string, Set<string>>();    // "entity:attr" → watching effect origin_ids
-    private predicateSatisfaction = new Map<string, boolean>(); // "effectId:entity:attr" → currently satisfied?
-    
-    // Space-Time Index
-    public hexIndex: HexIndex<Effect> = createHexIndex<Effect>();
-
-    // Pluggable processors
-    private processors = new Map<string, PhaseProcessor>();
-    private propagationHandler: PropagationHandler | null = null;
-    private mergeHandler: MergeHandler | null = null;
+    private eventsByResource = new Map<string, string[]>();
+    private eventsByProcess = new Map<string, string[]>();
+    private eventsByAgent = new Map<string, string[]>();
+    private eventsByAction = new Map<VfAction, string[]>();
+    private eventsById = new Map<string, EconomicEvent>();
 
     // Listeners
-    private listeners: StreamListener[] = [];
+    private listeners: ObserverListener[] = [];
 
-    constructor(private now: () => Date = () => new Date()) {}
+    constructor(
+        processRegistry?: ProcessRegistry,
+        private generateId: () => string = () => nanoid(),
+    ) {
+        this.processes = processRegistry ?? new ProcessRegistry(generateId);
+    }
 
     // =========================================================================
-    // CONFIGURATION
+    // SUBSCRIBE
     // =========================================================================
 
-    /**
-     * Register a processor for a specific phase transition.
-     * Key format: "from→to" (e.g., "projected→pending", "pending→accepted").
-     * Use "*→pending" to match any source phase transitioning to pending.
-     */
-    on(transition: string, processor: PhaseProcessor): this {
-        this.processors.set(transition, processor);
-        return this;
-    }
-
-    /** Set the handler for dependency propagation. */
-    onPropagation(handler: PropagationHandler): this {
-        this.propagationHandler = handler;
-        return this;
-    }
-
-    /** Set the handler for composite effect merging. */
-    onMerge(handler: MergeHandler): this {
-        this.mergeHandler = handler;
-        return this;
-    }
-
-    /** Subscribe to stream events. Returns unsubscribe function. */
-    subscribe(listener: StreamListener): () => void {
+    subscribe(listener: ObserverListener): () => void {
         this.listeners.push(listener);
         return () => {
             this.listeners = this.listeners.filter(l => l !== listener);
@@ -150,337 +129,600 @@ export class EffectStream {
     }
 
     // =========================================================================
-    // SUBMIT — Entry point for new effects
+    // RECORD — Entry point for new economic events
     // =========================================================================
 
     /**
-     * Submit a new effect into the stream.
-     * It will be stored and queued for processing.
+     * Record an observed economic event.
+     *
+     * VF rule: an event must target either fulfills (Commitment) or
+     * satisfies (Intent), never both. If both are set, the event is rejected.
+     *
+     * @returns Affected EconomicResources, or throws on validation error.
      */
-    submit(effect: Effect): Effect {
-        this.store(effect);
-        this.index(effect);
-
-        // Initialize predicate satisfaction for new effects
-        for (const pred of effect.predicates) {
-            const derived = derive(this, pred.entity_id, pred.attribute);
-            const satisfied = evaluateSinglePredicate(pred, derived.value);
-            const key = `${effect.origin_id}:${stateKey(pred.entity_id, pred.attribute)}`;
-            this.predicateSatisfaction.set(key, satisfied);
+    record(event: EconomicEvent): EconomicResource[] {
+        // --- Validation ---
+        const hasFulfills = !!event.fulfills;
+        const hasSatisfies = !!event.satisfies;
+        if (hasFulfills && hasSatisfies) {
+            const error = `Event ${event.id}: cannot both fulfill a Commitment and satisfy an Intent. Target one or the other.`;
+            this.emit({ type: 'error', eventId: event.id, error });
+            throw new Error(error);
         }
 
-        this.queue.push(effect);
-        this.emit({ type: 'submitted', effect });
-
-        // If submitted as already accepted, propagate to state watchers
-        if (currentPhase(effect) === 'accepted') {
-            this.propagate(effect);
+        // --- Correction handling ---
+        if (event.corrects) {
+            this.applyCorrection(event);
         }
 
-        this.drain();
-        return effect;
-    }
-
-    /**
-     * Submit a composite effect, merging its constituents.
-     */
-    submitComposite(composite: CompositeEffect): CompositeEffect {
-        const constituents = composite.composed_of
-            .map(id => this.latest(id))
-            .filter((e): e is Effect => e !== undefined);
-
-        if (this.mergeHandler && constituents.length > 0) {
-            const merged = this.mergeHandler(
-                constituents,
-                composite.merge_strategy,
-                composite.merge_rule,
-            );
-            // Replace deltas with merged result
-            (composite as any).deltas = merged.length > 0 ? merged : composite.deltas;
-        }
-
-        this.store(composite);
-        this.index(composite);
-        this.queue.push(composite);
-        this.emit({ type: 'composed', composite, constituents });
-        this.drain();
-        return composite;
-    }
-
-    // =========================================================================
-    // ASSERT — Advance an effect's lifecycle
-    // =========================================================================
-
-    /**
-     * Assert a new phase for an effect. Creates a new version with the
-     * assertion appended. Returns the updated effect.
-     */
-    assert(
-        originId: string,
-        entry: Omit<AssertionEntry, 'at'> & { at?: Date },
-    ): Effect {
-        const current = this.latest(originId);
-        if (!current) throw new Error(`Effect ${originId} not found`);
-
-        const fromPhase = currentPhase(current);
-        const newEntry: AssertionEntry = {
-            ...entry,
-            at: entry.at ?? this.now(),
-        };
-
-        const next: Effect = {
-            ...current,
-            version: current.version + 1,
-            assertion_log: [...current.assertion_log, newEntry],
-        };
-
-        this.store(next);
-        this.reindex(next);
-        this.emit({ type: 'phase_changed', effect: next, from: fromPhase, to: newEntry.phase });
-
-        // Propagate to dependents
-        this.propagate(next);
-
-        return next;
-    }
-
-    // =========================================================================
-    // QUERIES
-    // =========================================================================
-
-    /** Get the latest version of an effect by origin_id. */
-    latest(originId: string): Effect | undefined {
-        const versions = this.effects.get(originId);
-        return versions?.[versions.length - 1];
-    }
-
-    /** Get all versions of an effect. */
-    versions(originId: string): Effect[] {
-        return this.effects.get(originId) ?? [];
-    }
-
-    /** Get a specific version. */
-    version(originId: string, version: number): Effect | undefined {
-        return this.effects.get(originId)?.[version];
-    }
-
-    /** Get all effects currently in a given phase. */
-    inPhase(phase: AssertionPhase): Effect[] {
-        const ids = this.byPhase.get(phase);
-        if (!ids) return [];
-        return Array.from(ids)
-            .map(id => this.latest(id))
-            .filter((e): e is Effect => e !== undefined);
-    }
-
-    /** Get all effects targeting a specific entity. */
-    forEntity(entityId: string): Effect[] {
-        const ids = this.byEntity.get(entityId);
-        if (!ids) return [];
-        return Array.from(ids)
-            .map(id => this.latest(id))
-            .filter((e): e is Effect => e !== undefined);
-    }
-
-    /** Get effects watching a specific entity+attribute state. */
-    watchersOf(entityId: string, attribute: string): Effect[] {
-        const key = stateKey(entityId, attribute);
-        const ids = this.stateWatchers.get(key);
-        if (!ids) return [];
-        return Array.from(ids)
-            .map(id => this.latest(id))
-            .filter((e): e is Effect => e !== undefined);
-    }
-
-    /** All effects (latest versions). */
-    all(): Effect[] {
-        return Array.from(this.effects.keys())
-            .map(id => this.latest(id))
-            .filter((e): e is Effect => e !== undefined);
-    }
-
-    /** Queue depth. */
-    get pending(): number {
-        return this.queue.length;
-    }
-
-    // =========================================================================
-    // PROCESSING — Drain the queue through registered processors
-    // =========================================================================
-
-    /**
-     * Manually trigger processing of the queue.
-     * Normally called automatically on submit, but can be called
-     * after registering new processors to reprocess.
-     */
-    async drain(): Promise<void> {
-        if (this.processing) return;
-        this.processing = true;
-
-        try {
-            while (this.queue.length > 0) {
-                const effect = this.queue.shift()!;
-                await this.process(effect);
+        // --- Breadcrumbs for track/trace ---
+        // When an event references a resource, chain the previousEvent pointers
+        if (event.resourceInventoriedAs) {
+            const resource = this.resources.get(event.resourceInventoriedAs);
+            if (resource) {
+                event.previousEvent = resource.previousEvent;
+                resource.previousEvent = event.id;
             }
-        } finally {
-            this.processing = false;
         }
+
+        // Store
+        this.events.push(event);
+        this.eventsById.set(event.id, event);
+        this.indexEvent(event);
+        this.emit({ type: 'recorded', event });
+
+        // Apply action effects to resources
+        const affected = this.applyEffects(event);
+
+        // Track fulfillment or satisfaction (mutually exclusive)
+        if (hasFulfills) {
+            this.trackFulfillment(event);
+        } else if (hasSatisfies) {
+            this.trackSatisfaction(event);
+        }
+
+        return affected;
     }
 
-    private async process(effect: Effect): Promise<void> {
-        const phase = currentPhase(effect);
-        const ctx: ProcessorContext = { stream: this, now: this.now };
+    // =========================================================================
+    // REGISTRATION — Register planning constructs for tracking
+    // =========================================================================
 
-        // Try specific transition processors first, then wildcard
-        const transitions = this.possibleTransitions(phase);
+    registerCommitment(commitment: Commitment): void {
+        const qty = commitment.resourceQuantity ?? commitment.effortQuantity;
+        if (!qty) return;
+        this.fulfillments.set(commitment.id, {
+            commitmentId: commitment.id,
+            totalCommitted: { ...qty },
+            totalFulfilled: { hasNumericalValue: 0, hasUnit: qty.hasUnit },
+            fulfillingEvents: [],
+            finished: false,
+        });
+    }
 
-        for (const to of transitions) {
-            const key = `${phase}→${to}`;
-            const wildcard = `*→${to}`;
-            const processor = this.processors.get(key) ?? this.processors.get(wildcard);
+    registerIntent(intent: Intent): void {
+        const qty = intent.resourceQuantity ?? intent.effortQuantity;
+        if (!qty) return;
+        this.satisfactions.set(intent.id, {
+            intentId: intent.id,
+            totalDesired: { ...qty },
+            totalSatisfied: { hasNumericalValue: 0, hasUnit: qty.hasUnit },
+            satisfyingEvents: [],
+            satisfyingCommitments: [],
+            finished: false,
+        });
+    }
 
-            if (processor) {
-                try {
-                    const entry = await processor(effect, ctx);
-                    if (entry) {
-                        // Processor returned an assertion — apply it
-                        const updated = this.assert(effect.origin_id, entry);
-                        // Re-queue the updated effect for further processing
-                        this.queue.push(updated);
-                        return; // only one transition per processing step
-                    }
-                } catch (err) {
-                    this.emit({
-                        type: 'error',
-                        effect_id: effect.origin_id,
-                        error: err instanceof Error ? err.message : String(err),
-                    });
+    registerProcess(process: Omit<Process, 'id'> & { id?: string }): Process {
+        return this.processes.register(process);
+    }
+
+    /**
+     * Seed a resource (e.g. initial inventory bootstrap).
+     * Normally resources are created by events.
+     */
+    seedResource(resource: EconomicResource): void {
+        this.resources.set(resource.id, { ...resource });
+    }
+
+    // =========================================================================
+    // ACTION EFFECTS — Apply event effects to resources
+    // =========================================================================
+
+    private applyEffects(event: EconomicEvent): EconomicResource[] {
+        const def = ACTION_DEFINITIONS[event.action];
+        const affected: EconomicResource[] = [];
+
+        // --- "from" resource (resourceInventoriedAs) ---
+        if (event.resourceInventoriedAs) {
+            let resource = this.resources.get(event.resourceInventoriedAs);
+
+            if (!resource && def.createResource === 'optional') {
+                resource = this.createResource(event, event.resourceInventoriedAs);
+                this.emit({ type: 'resource_created', resource, event });
+
+                // Create batch if this is a produce event
+                if (event.action === 'produce') {
+                    this.createBatch(resource, event);
                 }
             }
-        }
-    }
 
-    private possibleTransitions(from: AssertionPhase): AssertionPhase[] {
-        switch (from) {
-            case 'projected': return ['pending'];
-            case 'pending': return ['accepted', 'rejected', 'modified'];
-            case 'accepted': return ['retracted'];
-            case 'modified': return ['retracted'];
-            case 'rejected': return [];     // terminal
-            case 'retracted': return [];    // terminal
-        }
-    }
-
-    // =========================================================================
-    // PROPAGATION
-    // =========================================================================
-
-    private async propagate(changed: Effect): Promise<void> {
-        // Identify which entity+attribute pairs this effect's deltas touch
-        const touchedKeys = new Set<string>();
-        for (const delta of changed.deltas) {
-            touchedKeys.add(stateKey(delta.entity_id, delta.attribute));
-        }
-
-        // For each touched state, re-derive and evaluate watchers' predicates
-        for (const key of touchedKeys) {
-            const separatorIndex = key.indexOf(':');
-            const entityId = key.slice(0, separatorIndex);
-            const attribute = key.slice(separatorIndex + 1);
-
-            const watchers = this.watchersOf(entityId, attribute);
-            if (watchers.length === 0) continue;
-
-            const derivedValue = derive(this, entityId, attribute);
-            const actions = evaluatePredicates(
-                entityId, attribute, derivedValue, watchers, this.predicateSatisfaction,
-            );
-
-            for (const action of actions) {
-                const target = this.latest(action.origin_id);
-                if (!target) continue;
-
-                this.emit({ type: 'propagation', action, source: changed, target });
-
-                if (this.propagationHandler) {
-                    const ctx: ProcessorContext = { stream: this, now: this.now };
-                    await this.propagationHandler(action, changed, target, ctx);
+            if (resource) {
+                const changes = this.applyResourceEffects(resource, event, def, 'from');
+                if (changes.length > 0) {
+                    this.emit({ type: 'resource_updated', resource, event, changes });
                 }
+                affected.push(resource);
             }
         }
+
+        // --- "to" resource (toResourceInventoriedAs) ---
+        if (event.toResourceInventoriedAs) {
+            let toResource = this.resources.get(event.toResourceInventoriedAs);
+
+            if (!toResource && (def.createResource === 'optionalTo' || def.createResource === 'optional')) {
+                toResource = this.createResource(event, event.toResourceInventoriedAs);
+                this.emit({ type: 'resource_created', resource: toResource, event });
+            }
+
+            if (toResource) {
+                const changes = this.applyResourceEffects(toResource, event, def, 'to');
+                if (changes.length > 0) {
+                    this.emit({ type: 'resource_updated', resource: toResource, event, changes });
+                }
+                affected.push(toResource);
+            }
+        }
+
+        return affected;
+    }
+
+    private createResource(event: EconomicEvent, id: string): EconomicResource {
+        const unit = event.resourceQuantity?.hasUnit ?? 'each';
+        const resource: EconomicResource = {
+            id,
+            conformsTo: event.resourceConformsTo ?? '',
+            classifiedAs: event.resourceClassifiedAs,
+            accountingQuantity: { hasNumericalValue: 0, hasUnit: unit },
+            onhandQuantity: { hasNumericalValue: 0, hasUnit: unit },
+            primaryAccountable: event.receiver,
+            currentLocation: event.toLocation,
+            state: event.state,
+        };
+        this.resources.set(id, resource);
+        return resource;
+    }
+
+    /**
+     * Create a batch/lot record for a produced resource.
+     */
+    private createBatch(resource: EconomicResource, event: EconomicEvent): void {
+        const batchId = this.generateId();
+        const batch: BatchLotRecord = {
+            id: batchId,
+            batchLotCode: `batch-${event.hasPointInTime ?? new Date().toISOString()}-${batchId.slice(0, 6)}`,
+        };
+        this.batches.set(batchId, batch);
+
+        const existing = this.resourceBatches.get(resource.id) ?? [];
+        existing.push(batchId);
+        this.resourceBatches.set(resource.id, existing);
+
+        // Link batch to resource
+        resource.lot = batch;
+
+        this.emit({ type: 'batch_created', batch, resource, event });
+    }
+
+    private applyResourceEffects(
+        resource: EconomicResource,
+        event: EconomicEvent,
+        def: ActionDefinition,
+        direction: 'from' | 'to',
+    ): string[] {
+        const changes: string[] = [];
+        const qty = event.resourceQuantity?.hasNumericalValue ?? 0;
+
+        // --- Accounting quantity ---
+        if (def.accountingEffect !== 'noEffect' && resource.accountingQuantity) {
+            const shouldApply =
+                (def.accountingEffect === 'increment' && direction === 'from') ||
+                (def.accountingEffect === 'decrement' && direction === 'from') ||
+                (def.accountingEffect === 'decrementIncrement') ||
+                (def.accountingEffect === 'incrementTo' && direction === 'to');
+
+            if (shouldApply) {
+                const sign =
+                    (def.accountingEffect === 'decrement') ? -1 :
+                    (def.accountingEffect === 'decrementIncrement' && direction === 'from') ? -1 :
+                    1;
+                resource.accountingQuantity.hasNumericalValue += sign * qty;
+                changes.push(`accountingQuantity:${sign > 0 ? 'increment' : 'decrement'}`);
+            }
+        }
+
+        // --- Onhand quantity ---
+        if (def.onhandEffect !== 'noEffect' && resource.onhandQuantity) {
+            const shouldApply =
+                (def.onhandEffect === 'increment' && direction === 'from') ||
+                (def.onhandEffect === 'decrement' && direction === 'from') ||
+                (def.onhandEffect === 'decrementIncrement') ||
+                (def.onhandEffect === 'incrementTo' && direction === 'to');
+
+            if (shouldApply) {
+                const sign =
+                    (def.onhandEffect === 'decrement') ? -1 :
+                    (def.onhandEffect === 'decrementIncrement' && direction === 'from') ? -1 :
+                    1;
+                resource.onhandQuantity.hasNumericalValue += sign * qty;
+                changes.push(`onhandQuantity:${sign > 0 ? 'increment' : 'decrement'}`);
+            }
+        }
+
+        // --- Location ---
+        if (event.toLocation) {
+            if ((def.locationEffect === 'update' && direction === 'from') ||
+                (def.locationEffect === 'updateTo' && direction === 'to') ||
+                (def.locationEffect === 'new' && direction === 'from')) {
+                resource.currentLocation = event.toLocation;
+                changes.push('currentLocation');
+            }
+        }
+
+        // --- Containment ---
+        if (def.containedEffect === 'update' && direction === 'from' && event.toResourceInventoriedAs) {
+            resource.containedIn = event.toResourceInventoriedAs;
+            changes.push('containedIn');
+        } else if (def.containedEffect === 'remove' && direction === 'from') {
+            resource.containedIn = undefined;
+            changes.push('containedIn:removed');
+        }
+
+        // --- Primary accountable ---
+        if ((def.accountableEffect === 'new' && direction === 'from') ||
+            (def.accountableEffect === 'updateTo' && direction === 'to')) {
+            resource.primaryAccountable = event.receiver;
+            changes.push('primaryAccountable');
+        }
+
+        // --- Stage (from process specification) ---
+        if (def.stageEffect === 'update' && direction === 'from' && event.outputOf) {
+            const process = this.processes.get(event.outputOf);
+            if (process?.basedOn) {
+                resource.stage = process.basedOn;
+                changes.push('stage');
+            }
+        }
+
+        // --- State ---
+        if (event.state) {
+            if ((def.stateEffect === 'update' && direction === 'from') ||
+                (def.stateEffect === 'updateTo' && direction === 'to')) {
+                resource.state = event.state;
+                changes.push('state');
+            }
+        }
+
+        return changes;
     }
 
     // =========================================================================
-    // STORAGE & INDEXING
+    // FULFILLMENT & SATISFACTION — mutually exclusive per event
     // =========================================================================
 
-    private store(effect: Effect): void {
-        const versions = this.effects.get(effect.origin_id) ?? [];
-        versions.push(effect);
-        this.effects.set(effect.origin_id, versions);
+    private trackFulfillment(event: EconomicEvent): void {
+        if (!event.fulfills) return;
+        const commitmentId = event.fulfills;
+        const state = this.fulfillments.get(commitmentId);
+        if (!state) return;
+        const qty = event.resourceQuantity ?? event.effortQuantity;
+        if (qty) {
+            state.totalFulfilled.hasNumericalValue += qty.hasNumericalValue;
+        }
+        state.fulfillingEvents.push(event.id);
+        state.finished = state.totalFulfilled.hasNumericalValue >= state.totalCommitted.hasNumericalValue;
+        this.emit({ type: 'fulfilled', event, commitmentId });
     }
 
-    private index(effect: Effect): void {
-        // Entity index
-        for (const delta of effect.deltas) {
-            const set = this.byEntity.get(delta.entity_id) ?? new Set();
-            set.add(effect.origin_id);
-            this.byEntity.set(delta.entity_id, set);
+    private trackSatisfaction(event: EconomicEvent): void {
+        if (!event.satisfies) return;
+        const intentId = event.satisfies;
+        const state = this.satisfactions.get(intentId);
+        if (!state) return;
+        const qty = event.resourceQuantity ?? event.effortQuantity;
+        if (qty) {
+            state.totalSatisfied.hasNumericalValue += qty.hasNumericalValue;
         }
-
-        // Phase index
-        const phase = currentPhase(effect);
-        const phaseSet = this.byPhase.get(phase) ?? new Set();
-        phaseSet.add(effect.origin_id);
-        this.byPhase.set(phase, phaseSet);
-
-        // State watcher index
-        for (const pred of effect.predicates) {
-            const key = stateKey(pred.entity_id, pred.attribute);
-            const set = this.stateWatchers.get(key) ?? new Set();
-            set.add(effect.origin_id);
-            this.stateWatchers.set(key, set);
-        }
-
-        // Spatial-Temporal index
-        // Extract basic availability and location to properly index
-        if (effect.envelope.spatial || effect.envelope.temporal) {
-            addItemToHexIndex(
-                this.hexIndex,
-                effect,
-                effect.origin_id,
-                {
-                    lat: effect.envelope.spatial?.latitude,
-                    lon: effect.envelope.spatial?.longitude,
-                    h3_index: effect.envelope.spatial?.h3_index,
-                },
-                {},
-                effect.envelope.temporal?.availability_window,
-            );
-        }
-    }
-
-    private reindex(effect: Effect): void {
-        // Update phase index: remove from old, add to new
-        const phase = currentPhase(effect);
-        for (const [p, ids] of this.byPhase.entries()) {
-            if (p !== phase) ids.delete(effect.origin_id);
-        }
-        const phaseSet = this.byPhase.get(phase) ?? new Set();
-        phaseSet.add(effect.origin_id);
-        this.byPhase.set(phase, phaseSet);
+        state.satisfyingEvents.push(event.id);
+        state.finished = state.totalSatisfied.hasNumericalValue >= state.totalDesired.hasNumericalValue;
+        this.emit({ type: 'satisfied', event, intentId });
     }
 
     // =========================================================================
-    // EVENTS
+    // QUERIES — Events
     // =========================================================================
 
-    private async emit(event: StreamEvent): Promise<void> {
+    getEvent(id: string): EconomicEvent | undefined {
+        return this.eventsById.get(id);
+    }
+
+    allEvents(): EconomicEvent[] {
+        return [...this.events];
+    }
+
+    eventsForResource(resourceId: string): EconomicEvent[] {
+        const ids = this.eventsByResource.get(resourceId) ?? [];
+        return ids.map(id => this.eventsById.get(id)!).filter(Boolean);
+    }
+
+    eventsForProcess(processId: string): EconomicEvent[] {
+        const ids = this.eventsByProcess.get(processId) ?? [];
+        return ids.map(id => this.eventsById.get(id)!).filter(Boolean);
+    }
+
+    eventsForAgent(agentId: string): EconomicEvent[] {
+        const ids = this.eventsByAgent.get(agentId) ?? [];
+        return ids.map(id => this.eventsById.get(id)!).filter(Boolean);
+    }
+
+    eventsWithAction(action: VfAction): EconomicEvent[] {
+        const ids = this.eventsByAction.get(action) ?? [];
+        return ids.map(id => this.eventsById.get(id)!).filter(Boolean);
+    }
+
+    // =========================================================================
+    // QUERIES — Resources / Inventory
+    // =========================================================================
+
+    getResource(id: string): EconomicResource | undefined {
+        return this.resources.get(id);
+    }
+
+    allResources(): EconomicResource[] {
+        return Array.from(this.resources.values());
+    }
+
+    /**
+     * Get inventory view — all resources grouped with quantities and batches.
+     * This IS the stockbook: "what do we have?"
+     */
+    inventory(): InventoryEntry[] {
+        return this.allResources().map(r => ({
+            resource: r,
+            spec: r.conformsTo,
+            accountingQty: r.accountingQuantity?.hasNumericalValue ?? 0,
+            onhandQty: r.onhandQuantity?.hasNumericalValue ?? 0,
+            unit: r.accountingQuantity?.hasUnit ?? r.onhandQuantity?.hasUnit ?? 'each',
+            location: r.currentLocation,
+            accountable: r.primaryAccountable,
+            batches: this.batchesForResource(r.id),
+        }));
+    }
+
+    /**
+     * Get inventory for a specific ResourceSpecification.
+     */
+    inventoryForSpec(specId: string): InventoryEntry[] {
+        return this.inventory().filter(e => e.spec === specId);
+    }
+
+    /**
+     * Get inventory at a specific location.
+     */
+    inventoryAtLocation(locationId: string): InventoryEntry[] {
+        return this.inventory().filter(e => e.location === locationId);
+    }
+
+    /**
+     * Get inventory held by a specific agent.
+     */
+    inventoryForAgent(agentId: string): InventoryEntry[] {
+        return this.inventory().filter(e => e.accountable === agentId);
+    }
+
+    // =========================================================================
+    // QUERIES — Batches
+    // =========================================================================
+
+    batchesForResource(resourceId: string): BatchLotRecord[] {
+        const ids = this.resourceBatches.get(resourceId) ?? [];
+        return ids.map(id => this.batches.get(id)!).filter(Boolean);
+    }
+
+    getBatch(batchId: string): BatchLotRecord | undefined {
+        return this.batches.get(batchId);
+    }
+
+    // =========================================================================
+    // QUERIES — Fulfillment / Satisfaction
+    // =========================================================================
+
+    getFulfillment(commitmentId: string): FulfillmentState | undefined {
+        return this.fulfillments.get(commitmentId);
+    }
+
+    getSatisfaction(intentId: string): SatisfactionState | undefined {
+        return this.satisfactions.get(intentId);
+    }
+
+    /**
+     * Inverse query: get all events that fulfill a given Commitment.
+     */
+    fulfilledBy(commitmentId: string): EconomicEvent[] {
+        return this.events.filter(e => e.fulfills === commitmentId);
+    }
+
+    /**
+     * Inverse query: get all events that satisfy a given Intent.
+     */
+    satisfiedBy(intentId: string): EconomicEvent[] {
+        return this.events.filter(e => e.satisfies === intentId);
+    }
+
+    /**
+     * Inverse query: get all resources conforming to a given spec.
+     */
+    conformingResources(specId: string): EconomicResource[] {
+        return this.allResources().filter(r => r.conformsTo === specId);
+    }
+
+    /**
+     * Get events on a process that don't fulfill any commitment (unplanned work).
+     */
+    unplannedEvents(processId: string): EconomicEvent[] {
+        return this.eventsForProcess(processId).filter(e => !e.fulfills);
+    }
+
+    /**
+     * Record an unplanned exchange — two reciprocal events tied to an Agreement
+     * without any prior Commitments. Uses `realizationOf` on the events.
+     *
+     * This is the VF pattern for point-of-sale / informal exchanges.
+     */
+    recordExchange(params: {
+        agreement: Agreement;
+        primaryEvent: EconomicEvent;
+        reciprocalEvent: EconomicEvent;
+    }): { primary: EconomicResource[]; reciprocal: EconomicResource[] } {
+        params.primaryEvent.realizationOf = params.agreement.id;
+        params.reciprocalEvent.realizationOf = params.agreement.id;
+        const primary = this.record(params.primaryEvent);
+        const reciprocal = this.record(params.reciprocalEvent);
+        return { primary, reciprocal };
+    }
+
+    getProcess(id: string): Process | undefined {
+        return this.processes.get(id);
+    }
+
+    // =========================================================================
+    // DERIVED — Recompute resource from events
+    // =========================================================================
+
+    /**
+     * Recompute a resource's state from scratch by replaying all its events.
+     * Useful for verification, auditing, or after corrections.
+     */
+    recomputeResource(resourceId: string): EconomicResource | undefined {
+        const events = this.eventsForResource(resourceId);
+        if (events.length === 0) return undefined;
+
+        const resource = this.resources.get(resourceId);
+        if (!resource) return undefined;
+
+        // Reset quantities
+        if (resource.accountingQuantity) resource.accountingQuantity.hasNumericalValue = 0;
+        if (resource.onhandQuantity) resource.onhandQuantity.hasNumericalValue = 0;
+
+        // Replay (skip correction events — their originals are already negated)
+        for (const event of events) {
+            if (event.corrects) continue;
+            const def = ACTION_DEFINITIONS[event.action];
+            const direction =
+                event.resourceInventoriedAs === resourceId ? 'from' :
+                event.toResourceInventoriedAs === resourceId ? 'to' : null;
+            if (direction) {
+                this.applyResourceEffects(resource, event, def, direction);
+            }
+        }
+
+        return resource;
+    }
+
+    /**
+     * Apply a correction event.
+     *
+     * VF rule: original events are immutable. To fix a mistake,
+     * record a correction event that references the original via `corrects`.
+     * The Observer negates the original's effects, then applies the correction.
+     */
+    private applyCorrection(correctionEvent: EconomicEvent): void {
+        const originalId = correctionEvent.corrects!;
+        const original = this.eventsById.get(originalId);
+        if (!original) return;
+
+        // Negate the original event's effects on resources
+        const def = ACTION_DEFINITIONS[original.action];
+        if (original.resourceInventoriedAs) {
+            const resource = this.resources.get(original.resourceInventoriedAs);
+            if (resource) this.negateResourceEffects(resource, original, def, 'from');
+        }
+        if (original.toResourceInventoriedAs) {
+            const resource = this.resources.get(original.toResourceInventoriedAs);
+            if (resource) this.negateResourceEffects(resource, original, def, 'to');
+        }
+    }
+
+    /**
+     * Negate (reverse) the effects of an event on a resource.
+     */
+    private negateResourceEffects(
+        resource: EconomicResource,
+        event: EconomicEvent,
+        def: ActionDefinition,
+        direction: 'from' | 'to',
+    ): void {
+        const qty = def.eventQuantity === 'effortQuantity'
+            ? event.effortQuantity : event.resourceQuantity;
+        if (!qty) return;
+
+        // Reverse the quantity effects
+        const accountingEff = direction === 'to' && def.accountingEffect === 'noEffect'
+            ? 'noEffect' : def.accountingEffect;
+        const onhandEff = direction === 'to' && def.onhandEffect === 'noEffect'
+            ? 'noEffect' : def.onhandEffect;
+
+        if (accountingEff === 'increment' && resource.accountingQuantity) {
+            resource.accountingQuantity.hasNumericalValue -= qty.hasNumericalValue;
+        } else if (accountingEff === 'decrement' && resource.accountingQuantity) {
+            resource.accountingQuantity.hasNumericalValue += qty.hasNumericalValue;
+        }
+
+        if (onhandEff === 'increment' && resource.onhandQuantity) {
+            resource.onhandQuantity.hasNumericalValue -= qty.hasNumericalValue;
+        } else if (onhandEff === 'decrement' && resource.onhandQuantity) {
+            resource.onhandQuantity.hasNumericalValue += qty.hasNumericalValue;
+        }
+    }
+
+    // =========================================================================
+    // INTERNAL — Indexing
+    // =========================================================================
+
+    private indexEvent(event: EconomicEvent): void {
+        if (event.resourceInventoriedAs) {
+            this.appendIndex(this.eventsByResource, event.resourceInventoriedAs, event.id);
+        }
+        if (event.toResourceInventoriedAs) {
+            this.appendIndex(this.eventsByResource, event.toResourceInventoriedAs, event.id);
+        }
+        if (event.inputOf) {
+            this.appendIndex(this.eventsByProcess, event.inputOf, event.id);
+        }
+        if (event.outputOf) {
+            this.appendIndex(this.eventsByProcess, event.outputOf, event.id);
+        }
+        this.appendIndex(this.eventsByAgent, event.provider, event.id);
+        this.appendIndex(this.eventsByAgent, event.receiver, event.id);
+        this.appendIndex(this.eventsByAction, event.action, event.id);
+    }
+
+    private appendIndex<K>(map: Map<K, string[]>, key: K, value: string): void {
+        const list = map.get(key) ?? [];
+        list.push(value);
+        map.set(key, list);
+    }
+
+    // =========================================================================
+    // INTERNAL — Event emission
+    // =========================================================================
+
+    private async emit(event: ObserverEvent): Promise<void> {
         for (const listener of this.listeners) {
             try {
                 await listener(event);
             } catch {
-                // listeners should not crash the stream
+                // listeners should not crash the observer
             }
         }
     }
@@ -490,18 +732,17 @@ export class EffectStream {
     // =========================================================================
 
     clear(): void {
-        this.effects.clear();
-        this.queue = [];
-        this.byEntity.clear();
-        this.byPhase.clear();
-        this.stateWatchers.clear();
-        this.predicateSatisfaction.clear();
-        this.hexIndex = createHexIndex<Effect>();
+        this.events = [];
+        this.resources.clear();
+        this.processes.clear();
+        this.batches.clear();
+        this.resourceBatches.clear();
+        this.fulfillments.clear();
+        this.satisfactions.clear();
+        this.eventsByResource.clear();
+        this.eventsByProcess.clear();
+        this.eventsByAgent.clear();
+        this.eventsByAction.clear();
+        this.eventsById.clear();
     }
 }
-
-// =============================================================================
-// DEFAULT INSTANCE
-// =============================================================================
-
-export const effectStream = new EffectStream();

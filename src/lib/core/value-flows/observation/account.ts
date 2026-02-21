@@ -1,3 +1,5 @@
+// this is roughly sketched, and not yet integrated.
+
 export class Commune {
   // Global Variables tied to the physical world and the 🏛️ plan
   public current_consumption_pool: number = 2000; // Sum of SNLT of all 🟦 currently in pool

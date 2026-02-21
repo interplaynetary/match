@@ -9,7 +9,7 @@
  */
 
 import * as h3 from 'h3-js';
-import type { Resource } from '../planning/process';
+import type { Resource } from '../../commons/matching/slot';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
