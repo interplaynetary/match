@@ -1,6 +1,7 @@
 import * as h3 from 'h3-js';
-import { computeH3Index, REMOTE_H3_INDEX } from './space';
+import { computeH3Index, REMOTE_H3_INDEX, spatialThingToH3 } from './space';
 import type { AvailabilityWindow, TimeRange, DaySchedule, WeekSchedule, MonthSchedule } from './time';
+import type { Intent, Commitment, EconomicEvent, SpatialThing } from '../schemas';
 
 /**
  * Creates a deterministic, normalized string representation of a TimeRange.
@@ -79,6 +80,15 @@ export function getTimeSignature(slot: {
 }
 
 /**
+ * Extract the YYYY-MM-DD date key from an ISO datetime string.
+ * Used to bin one-time VF types (EconomicEvent, Commitment, Proposal)
+ * into the TemporalIndex.specific_dates map.
+ */
+export function toDateKey(iso: string | null | undefined): string | undefined {
+    return iso ? iso.slice(0, 10) : undefined;
+}
+
+/**
  * Interface representing the spatial and temporal context needed to compute a signature
  */
 export interface SpaceTimeContext {
@@ -146,19 +156,149 @@ export interface QuantifiedSpaceTimeContext extends SpaceTimeContext {
  * Groups a collection of slots by their exact Space-Time properties
  */
 export function groupSlotsBySpaceTime<T extends QuantifiedSpaceTimeContext>(
-    slots: T[], 
+    slots: T[],
     h3Resolution: number = 7
 ): Map<string, { quantity: number; slots: T[] }> {
     const groups = new Map<string, { quantity: number; slots: T[] }>();
     for (const slot of slots) {
         const sig = getSpaceTimeSignature(slot, h3Resolution);
         const ex = groups.get(sig);
-        if (ex) { 
-            ex.quantity += slot.quantity; 
-            ex.slots.push(slot); 
+        if (ex) {
+            ex.quantity += slot.quantity;
+            ex.slots.push(slot);
         } else {
             groups.set(sig, { quantity: slot.quantity, slots: [slot] });
         }
     }
     return groups;
+}
+
+// =============================================================================
+// VF BRIDGES — convert VF planning/observation types to SpaceTimeContext
+// =============================================================================
+
+/**
+ * Extract the spatial component of a SpaceTimeContext from a resolved SpatialThing.
+ * VF SpatialThing uses `lat`/`long` (not `latitude`/`longitude`).
+ * Returns only the spatial fields; time fields are left to the caller.
+ */
+function spatialContextFromSpatialThing(
+    st: SpatialThing | undefined,
+    h3Resolution: number = 7,
+): Pick<SpaceTimeContext, 'latitude' | 'longitude' | 'h3_index'> {
+    if (!st) return {};
+    return {
+        latitude: st.lat,
+        longitude: st.long,
+        h3_index: spatialThingToH3(st, h3Resolution),
+    };
+}
+
+/**
+ * Convert a VF Intent to a SpaceTimeContext for bucketing/indexing.
+ *
+ * Time mapping:
+ *   availability_window (if present) → recurring pattern, takes precedence
+ *   hasBeginning → start_date (point-in-time fallback)
+ *   hasEnd / due → end_date  (hasEnd takes precedence)
+ *   hasPointInTime → both start_date and end_date (instantaneous)
+ *
+ * When availability_window is set, getSpaceTimeSignature will produce a
+ * `recurring|...` key, correctly separating standing offers from one-off requests.
+ *
+ * @param intent    - VF Intent
+ * @param location  - Resolved SpatialThing for intent.atLocation (caller must resolve the ID)
+ * @param h3Resolution - H3 resolution for spatial bucketing (default 7 ≈ 1km)
+ */
+export function intentToSpaceTimeContext(
+    intent: Intent,
+    location?: SpatialThing,
+    h3Resolution: number = 7,
+): SpaceTimeContext {
+    const spatial = spatialContextFromSpatialThing(location, h3Resolution);
+
+    const start_date = intent.hasBeginning
+        ?? intent.hasPointInTime
+        ?? null;
+
+    const end_date = intent.hasEnd
+        ?? intent.due
+        ?? intent.hasPointInTime
+        ?? null;
+
+    return {
+        ...spatial,
+        availability_window: intent.availability_window, // undefined when not a standing offer
+        start_date,
+        end_date,
+        recurrence: null,
+    };
+}
+
+/**
+ * Convert a VF Commitment to a SpaceTimeContext for bucketing/indexing.
+ *
+ * Time mapping identical to intentToSpaceTimeContext.
+ *
+ * @param commitment - VF Commitment
+ * @param location   - Resolved SpatialThing for commitment.atLocation
+ * @param h3Resolution - H3 resolution for spatial bucketing (default 7 ≈ 1km)
+ */
+export function commitmentToSpaceTimeContext(
+    commitment: Commitment,
+    location?: SpatialThing,
+    h3Resolution: number = 7,
+): SpaceTimeContext {
+    const spatial = spatialContextFromSpatialThing(location, h3Resolution);
+
+    const start_date = commitment.hasBeginning
+        ?? commitment.hasPointInTime
+        ?? null;
+
+    const end_date = commitment.hasEnd
+        ?? commitment.due
+        ?? commitment.hasPointInTime
+        ?? null;
+
+    return {
+        ...spatial,
+        start_date,
+        end_date,
+        recurrence: null,
+    };
+}
+
+/**
+ * Convert a VF EconomicEvent to a SpaceTimeContext.
+ * Useful for indexing observed events spatially and temporally.
+ * Uses atLocation (where event occurred); toLocation is ignored here
+ * since SpaceTimeContext represents a single place.
+ *
+ * @param event    - VF EconomicEvent
+ * @param location - Resolved SpatialThing for event.atLocation
+ * @param h3Resolution - H3 resolution for spatial bucketing (default 7 ≈ 1km)
+ */
+export function economicEventToSpaceTimeContext(
+    event: EconomicEvent,
+    location?: SpatialThing,
+    h3Resolution: number = 7,
+): SpaceTimeContext {
+    const spatial = spatialContextFromSpatialThing(location, h3Resolution);
+
+    const start_date = event.hasBeginning
+        ?? event.hasPointInTime
+        ?? event.created
+        ?? null;
+
+    const end_date = event.hasEnd
+        ?? event.hasPointInTime
+        ?? event.created
+        ?? null;
+
+    return {
+        ...spatial,
+        start_date,
+        end_date,
+        recurrence: null,
+    };
 }

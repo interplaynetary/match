@@ -9,7 +9,7 @@
  */
 
 import * as h3 from 'h3-js';
-import type { Resource } from '../../commons/matching/slot';
+import type { SpatialThing } from '../schemas';
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -137,19 +137,38 @@ export function isRemoteSlot(slot: {
 }
 
 /**
- * Ensure slot has H3 index computed
- * Mutates the slot to add h3_index if missing
- * 
- * @param slot - Slot to ensure has H3 index
- * @returns The slot with h3_index populated
+ * Derive an H3 cell from a VF SpatialThing.
+ * Pure — does not mutate. Returns undefined if coordinates are absent.
+ * Note: SpatialThing uses `lat`/`long` (VF field names), not `latitude`/`longitude`.
  */
-export function ensureH3Index<T extends Resource>(slot: T): T {
+export function spatialThingToH3(
+	st: SpatialThing,
+	resolution: number = DEFAULT_H3_RESOLUTION,
+): string | undefined {
+	if (st.lat === undefined || st.long === undefined) return undefined;
+	if (resolution < 0 || resolution > 15) return undefined;
+	return h3.latLngToCell(st.lat, st.long, resolution);
+}
+
+/**
+ * Ensure slot has H3 index computed.
+ * Mutates the slot to add h3_index if missing.
+ * For VF types use spatialThingToH3() instead (pure, no mutation).
+ */
+export function ensureH3Index<T extends {
+	id?: string;
+	h3_index?: string;
+	h3_resolution?: number;
+	latitude?: number;
+	longitude?: number;
+	location_type?: string;
+	online_link?: string;
+}>(slot: T): T {
 	if (!slot.h3_index) {
 		try {
 			slot.h3_index = computeH3Index(slot);
 		} catch (e) {
 			console.warn('[H3] Failed to compute H3 index for slot:', slot.id, e);
-			// Set to remote as fallback
 			slot.h3_index = REMOTE_H3_INDEX;
 		}
 	}

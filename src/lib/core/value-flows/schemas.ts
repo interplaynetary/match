@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import { AvailabilityWindowSchema } from './utils/time';
 
 // =============================================================================
 // PRIMITIVES
@@ -757,6 +758,12 @@ export const IntentSchema = z.object({
     plannedWithin: z.string().optional(),
 
     finished: z.boolean().default(false),
+
+    // Matching-layer extension — recurring availability pattern.
+    // Not in the VF core spec; fills the gap where Intents express standing
+    // offers (e.g. "every Monday 9-5") rather than single-window requests.
+    // When present, takes precedence over hasBeginning/hasEnd for temporal indexing.
+    availability_window: AvailabilityWindowSchema.optional(),
 });
 export type Intent = z.infer<typeof IntentSchema>;
 

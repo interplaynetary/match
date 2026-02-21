@@ -248,7 +248,7 @@ export function addItemToHexIndex<T>(
     location: { lat?: number; lon?: number; h3_index?: string },
     values: { quantity?: number; hours?: number } = {},
     availability?: AvailabilityWindow,
-    timeSignature?: string // KEEPING FOR COMPATIBILITY / DEBUGGING but primary is availability
+    specificDate?: string, // YYYY-MM-DD — for one-time events (EconomicEvent, Commitment, etc.)
 ): void {
     // 1. Determine Leaf Cell
     let leafCell: string;
@@ -304,10 +304,18 @@ export function addItemToHexIndex<T>(
         
         // 3. Update Temporal Index
         if (availability) {
+            // Recurring pattern — walk the AvailabilityWindow hierarchy
             indexItemTemporally(node.temporal, availability, itemId, quantity, hours);
+        } else if (specificDate) {
+            // One-time event — bin into the specific date slot
+            let bin = node.temporal.specific_dates.get(specificDate);
+            if (!bin) {
+                bin = createTimeBin();
+                node.temporal.specific_dates.set(specificDate, bin);
+            }
+            addToBin(bin, quantity, hours, itemId);
         } else {
-            // Fallback: If no window provided, we assume it's "always available" or "unknown" 
-            // and add it to the 'full_time' bin.
+            // No temporal context — treat as always available
             addToBin(node.temporal.recurring.full_time, quantity, hours, itemId);
         }
 
