@@ -12,8 +12,8 @@
  *   OPENAI_API_KEY environment variable (Bun auto-loads from .env)
  */
 
-import { OpenAIEmbeddingProvider, generateEmbeddingText } from '$lib/core/embeddings'
-import { convertExamples } from '../core/example-converter'
+import { OpenAIEmbeddingProvider, generateEmbeddingText } from '$lib/core/ai/embeddings'
+import { convertExamples } from '../core/ai/example-converter'
 
 const EXAMPLES_FILE = './data/matching-examples.json'
 const EMBEDDINGS_FILE = './data/embeddings.json'

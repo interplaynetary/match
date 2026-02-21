@@ -2,11 +2,11 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import * as h3 from 'h3-js';
-import { Person } from '../src/lib/core/plan/person';
-import { buildLaborIndex, queryLaborByHex } from '../src/lib/core/plan/labor';
-import { Resource } from '../src/lib/core/plan/process';
-import { buildResourceIndex, queryResourcesByHex } from '../src/lib/core/plan/resource';
-import { Need, buildNeedIndex, queryNeedsByHex } from '../src/lib/core/plan/need';
+import { Person } from '../src/lib/core/commons/person';
+import { buildLaborIndex, queryLaborByHex } from '../src/lib/core/commons/labor';
+import { Resource } from '../src/lib/core/commons/planning/process';
+import { buildResourceIndex, queryResourcesByHex } from '../src/lib/core/commons/resource';
+import { Need, buildNeedIndex, queryNeedsByHex } from '../src/lib/core/commons/need';
 
 describe('Hex Index Integration', () => {
     // Berlin Alexanderplatz

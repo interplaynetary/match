@@ -1,5 +1,5 @@
-import type { PCATransform } from '../core/semantic-colors'
-import type { ConstraintDetail } from '../core/types'
+import type { PCATransform } from '../core/ai/semantic-colors'
+import type { ConstraintDetail } from '../core/ai/types'
 
 export type { ConstraintDetail }
 

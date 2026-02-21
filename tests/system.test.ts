@@ -43,7 +43,7 @@ import {
     type AttributeConstraint,
     type DerivedValue,
 } from '$lib/core/plan/derivation';
-import { ProcessManager, type SlotPredicate } from '$lib/core/plan/process';
+import { ProcessManager, type SlotPredicate } from '$lib/core/commons/planning/process';
 import { Allocations, isActiveCommitment } from '$lib/core/plan/allocation';
 import type { NanoId } from '$lib/core/plan/ids';
 

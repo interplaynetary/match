@@ -12,7 +12,7 @@ import {
     deserialisePlan,
     getPlanKey,
     type PlanScore,
-} from '../src/lib/core/plan/space-time-plan';
+} from '../src/lib/core/commons/space-time-plan';
 
 // =============================================================================
 // HELPERS

@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'bun:test'
-import { Matcher } from '$lib/core/matcher'
-import type { Capacity, Need } from '$lib/core/types'
-import { cosineSimilarity, generateEmbeddingText } from '$lib/core/embeddings'
+import { Matcher } from '$lib/core/ai/matcher'
+import type { Capacity, Need } from '$lib/core/ai/types'
+import { cosineSimilarity, generateEmbeddingText } from '$lib/core/ai/embeddings'
 
 describe('Cosine Similarity', () => {
   test('identical vectors have similarity 1', () => {
@@ -252,7 +252,7 @@ describe('Constraint Feasibility', () => {
 })
 
 // Test against the dataset
-import { convertExamples, type EmbeddingsStore } from '../src/lib/core/example-converter'
+import { convertExamples, type EmbeddingsStore } from '../src/lib/core/ai/example-converter'
 import embeddingsData from '../src/lib/data/embeddings.json'
 
 // Try to load enriched examples (with category chains), fall back to original

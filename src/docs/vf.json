@@ -1,0 +1,4909 @@
+{
+  "@context": {
+    "@base": "https://w3id.org/valueflows/ont/vf",
+    "vf": "https://w3id.org/valueflows/ont/vf#",
+    "as": "https://www.w3.org/ns/activitystreams#",
+    "cc": "http://creativecommons.org/ns#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "dtype": "http://www.linkedmodel.org/schema/dtype#",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "geo": "http://www.w3.org/2003/01/geo/wgs84_pos#",
+    "geosparql": "http://www.opengis.net/ont/geosparql#",
+    "om": "http://www.ontology-of-units-of-measure.org/resource/om-2/",
+    "org": "http://www.w3.org/ns/org#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "spdxt": "http://spdx.org/rdf/terms#",
+    "spdxl": "https://spdx.org/licenses/",
+    "time": "http://www.w3.org/2006/time#",
+    "vann": "http://purl.org/vocab/vann/",
+    "vs": "http://www.w3.org/2003/06/sw-vocab-status/ns#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#"
+  },
+  "@graph": [
+    {
+      "@id": "https://w3id.org/valueflows/ont/vf",
+      "@type": "owl:Ontology",
+      "dcterms:title": "Valueflows Ontology",
+      "dcterms:description": "A vocabulary for the distributed economic networks of the next economy, to coordinate the creation, distribution, and exchange of economic resources",
+      "dcterms:type": {
+        "@id": "http://purl.org/adms/assettype/Ontology"
+      },
+      "vann:preferredNamespacePrefix": "vf",
+      "vann:preferredNamespaceUri": "https://w3id.org/valueflows/ont/vf#",
+      "owl:versionInfo": "1.0.0",
+      "owl:versionIRI": {
+        "@id": "https://w3id.org/valueflows/ont/1.0.0/vf"
+      },
+      "dcterms:status": {
+        "@id": "http://purl.org/adms/status/UnderDevelopment"
+      },
+      "dcterms:license": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "cc:license": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "spdxt:licenseDeclared": {
+        "@id": "spdxl:CC-BY-SA-4.0"
+      },
+      "dcterms:source": "https://codeberg.org/valueflows/pages/src/branch/main/assets/all_vf.TTL"
+    },
+    {
+      "@id": "vf:Action",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Action",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "An action verb defining the kind of flow and its behavior.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:ProcessSpecification",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Process Specification",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Specifies the kind of process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Recipe",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Recipe",
+        "@language": "en"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "Optional instance of a recipe which directly specifies the recipe processes included.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:RecipeExchange",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Recipe Exchange",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Specifies an exchange type agreement as part of a recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:RecipeFlow",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Recipe Flow",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The specification of a resource inflow to, or outflow from, a recipe process; and/or a clause, or reciprocal clause, of a recipe exchange.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:RecipeProcess",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Recipe Process",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Specifies a process in a recipe for use in planning from recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:ResourceSpecification",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Resource Specification",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Specifies the kind of economic or environmental resource, even if the resource is not instantiated as an EconomicResource. Could define a material or digital thing, service, medium of exchange or currency, skill or type of work.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Agreement",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Agreement",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A set of reciprocal commitments among economic agents, and/or a set of reciprocal economic events.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:AgreementBundle",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Agreement Bundle",
+        "@language": "en"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "A grouping of agreements to bundle detailed line item reciprocity.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Claim",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Claim",
+        "@language": "en"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "A claim for a future economic event(s) in reciprocity for an economic event that already occurred.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Commitment",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Commitment",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A planned economic flow that has been scheduled or promised by one agent to another agent.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Intent",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Intent",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A desired or proposed or planned or estimated economic flow, usually with only one agent associated, which could become a commitment and/or economic event.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Plan",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Plan",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A logical collection of processes, with optional connected agreements, that constitute a body of scheduled work with defined deliverable(s).",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Process",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Process",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "An activity that changes inputs into outputs, by transforming or transporting economic resource(s).",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Proposal",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Proposal",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Published requests or offers, sometimes with what is expected in return.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:ProposalList",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Proposal List",
+        "@language": "en"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "A grouping of proposals, for publishing as a list.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Agent",
+      "@type": "owl:Class",
+      "rdfs:seeAlso": {
+        "@id": "foaf:Agent"
+      },
+      "rdfs:label": {
+        "@value": "Agent",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "An identifiable entity that can commit to and/or perform economic and/or ecological activity under its own power or authority.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:BatchLotRecord",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Batch Lot Record",
+        "@language": "en"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "A document which contains all the needed detail related to the production process of a particular batch or lot, a resource processed in the same process(es) so that it is expected to be homogeneous.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:EcologicalAgent",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Ecological Agent",
+        "@language": "en"
+      },
+      "rdfs:subClassOf": {
+        "@id": "vf:Agent"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "A non-human being; or a functional group of non-human beings; or an ecosystem of living beings that includes non-humans; but it has agency and receives and/or provides economic/ecological resources.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:EconomicEvent",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Economic Event",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "An observed economic flow, which could reflect creation or a change in the quantity, location, accountability and/or responsibility, of an economic resource, whether material or not.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:EconomicResource",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Economic Resource",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Economic or environmental things (material or digital), media of exchange, which agents agree should be accounted for and which can be inventoried.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Organization",
+      "@type": "owl:Class",
+      "rdfs:seeAlso": {
+        "@id": "org:Organization"
+      },
+      "rdfs:label": {
+        "@value": "Organization",
+        "@language": "en"
+      },
+      "rdfs:subClassOf": {
+        "@id": "vf:Agent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A functional structure, formal or informal, which can include people and/or other organizations, and has its own agency.  Something called a group is an Organization in Valueflows if it has agency as the group.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Person",
+      "@type": "owl:Class",
+      "rdfs:seeAlso": {
+        "@id": "foaf:Person"
+      },
+      "rdfs:label": {
+        "@value": "Person",
+        "@language": "en"
+      },
+      "rdfs:subClassOf": {
+        "@id": "vf:Agent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A human being. All persons are considered agents.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Measure",
+      "@type": "owl:Class",
+      "rdfs:subClassOf": {
+        "@id": "om:Measure"
+      },
+      "rdfs:label": {
+        "@value": "Measure",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A quantity expressed as a numeric value with a unit of measure.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:SpatialThing",
+      "@type": "owl:Class",
+      "rdfs:subClassOf": {
+        "@id": "geo:SpatialThing"
+      },
+      "rdfs:label": {
+        "@value": "Spatial Thing",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Data that locates something relative to the Earth, usually a somewhat fixed location.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:Unit",
+      "@type": "owl:Class",
+      "rdfs:subClassOf": {
+        "@id": "om:Unit"
+      },
+      "rdfs:label": {
+        "@value": "Unit",
+        "@language": "en"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A standard unit of measure, defined and adopted by convention or by law.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:ActionDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:action",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ClassifiedAsDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:classifiedAs",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Process"
+          },
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:Organization"
+          },
+          {
+            "@id": "vf:EcologicalAgent"
+          },
+          {
+            "@id": "vf:Unit"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:CreatedDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:created",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Agreement"
+          },
+          {
+            "@id": "vf:AgreementBundle"
+          },
+          {
+            "@id": "vf:Claim"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Plan"
+          },
+          {
+            "@id": "vf:Proposal"
+          },
+          {
+            "@id": "vf:ProposalList"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:DueDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:due",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Plan"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Claim"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:EffortQuantityDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:effortQuantity",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:FinishedDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:finished",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Process"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:HasBeginningDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:hasBeginning",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Proposal"
+          },
+          {
+            "@id": "vf:Process"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:HasEndDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:hasEnd",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Proposal"
+          },
+          {
+            "@id": "vf:Process"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:HasInputRange",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Range for vf:hasInput",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:HasOutputRange",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Range for vf:hasOutput",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:HasPointInTimeDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:hasPointInTime",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ImageDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:image",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Agent"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:ResourceSpecification"
+          },
+          {
+            "@id": "vf:ProcessSpecification"
+          },
+          {
+            "@id": "vf:RecipeProcess"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ImageListDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:imageList",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:ResourceSpecification"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:InputOfDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:inputOf",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:LabelDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:label",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Unit"
+          },
+          {
+            "@id": "vf:Action"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:NameDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:name",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Agent"
+          },
+          {
+            "@id": "vf:Agreement"
+          },
+          {
+            "@id": "vf:AgreementBundle"
+          },
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Plan"
+          },
+          {
+            "@id": "vf:Process"
+          },
+          {
+            "@id": "vf:ProcessSpecification"
+          },
+          {
+            "@id": "vf:Proposal"
+          },
+          {
+            "@id": "vf:ProposalList"
+          },
+          {
+            "@id": "vf:Recipe"
+          },
+          {
+            "@id": "vf:RecipeExchange"
+          },
+          {
+            "@id": "vf:RecipeProcess"
+          },
+          {
+            "@id": "vf:ResourceSpecification"
+          },
+          {
+            "@id": "vf:SpatialThing"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:NoteDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:note",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Agent"
+          },
+          {
+            "@id": "vf:Agreement"
+          },
+          {
+            "@id": "vf:AgreementBundle"
+          },
+          {
+            "@id": "vf:Claim"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Plan"
+          },
+          {
+            "@id": "vf:Process"
+          },
+          {
+            "@id": "vf:ProcessSpecification"
+          },
+          {
+            "@id": "vf:Proposal"
+          },
+          {
+            "@id": "vf:ProposalList"
+          },
+          {
+            "@id": "vf:Recipe"
+          },
+          {
+            "@id": "vf:RecipeExchange"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          },
+          {
+            "@id": "vf:RecipeProcess"
+          },
+          {
+            "@id": "vf:ResourceSpecification"
+          },
+          {
+            "@id": "vf:SpatialThing"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:OutputOfDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:outputOf",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:PlanIncludesRange",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Range for vf:planIncludes",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Process"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:PlannedWithinDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:plannedWithin",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Process"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ProposedToDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:proposedTo",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Proposal"
+          },
+          {
+            "@id": "vf:ProposalList"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ProviderDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:provider",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ReceiverDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:receiver",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ResourceClassifiedAsDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:resourceClassifiedAs",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:ResourceSpecification"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ResourceConformsToDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:resourceConformsTo",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Claim"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ResourceInventoriedAsDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:resourceInventoriedAs",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:ResourceQuantityDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:resourceQuantity",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          },
+          {
+            "@id": "vf:Claim"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:SatisfiesDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:satisfies",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:StageDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:stage",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:StateDomain",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Domain for vf:state",
+        "@language": "en"
+      },
+      "owl:unionOf": {
+        "@list": [
+          {
+            "@id": "vf:EconomicResource"
+          },
+          {
+            "@id": "vf:EconomicEvent"
+          },
+          {
+            "@id": "vf:RecipeFlow"
+          },
+          {
+            "@id": "vf:Commitment"
+          },
+          {
+            "@id": "vf:Intent"
+          }
+        ]
+      }
+    },
+    {
+      "@id": "vf:action",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "action",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ActionDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Action"
+      },
+      "owl:cardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Defines the kind of flow, such as consume, produce, work, transfer, etc.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:inputOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "input of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:InputOfDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Process"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Relates an input flow to its process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasInput",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:inputOf"
+      },
+      "rdfs:label": {
+        "@value": "has input",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Process"
+      },
+      "rdfs:range": {
+        "@id": "vf:HasInputRange"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the input flows of a process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:outputOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "output of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:OutputOfDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Process"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Relates an output flow to its process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasOutput",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:outputOf"
+      },
+      "rdfs:label": {
+        "@value": "has output",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Process"
+      },
+      "rdfs:range": {
+        "@id": "vf:HasOutputRange"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the output flows of a process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeInputOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "recipe input of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeFlow"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeProcess"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Relates an input flow to its process in a recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasRecipeInput",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:recipeInputOf"
+      },
+      "rdfs:label": {
+        "@value": "has recipe input",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeProcess"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeFlow"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the inputs of a recipe process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeOutputOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "recipe output of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeFlow"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeProcess"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Relates an output flow to its process in a recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasRecipeOutput",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:recipeOutputOf"
+      },
+      "rdfs:label": {
+        "@value": "has recipe output",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeProcess"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeFlow"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the outputs of a recipe process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeClauseOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "recipe clause of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeFlow"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeExchange"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Relates a flow to its exchange agreement in a recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeStipulates",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:recipeClauseOf"
+      },
+      "rdfs:label": {
+        "@value": "recipe stipulates",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeExchange"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeFlow"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the primary clauses of a recipe exchange.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeReciprocalClauseOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "recipe reciprocal clause of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeFlow"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeExchange"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Relates a reciprocal flow to its exchange agreement in a recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeStipulatesReciprocal",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:recipeReciprocalClauseOf"
+      },
+      "rdfs:label": {
+        "@value": "recipe stipulates reciprocal",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeExchange"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeFlow"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the reciprocal clauses of a recipe exchange.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:primaryOutput",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "primary output",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Recipe"
+      },
+      "rdfs:range": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The main type of resource the recipe is intended to produce or deliver.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:recipeIncludes",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "recipe includes",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Recipe"
+      },
+      "rdfs:range": {
+        "@id": "vf:RecipeProcess"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The collection of processes needed for this recipe.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:plannedWithin",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "planned within",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:PlannedWithinDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Plan"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The process with its inputs and outputs, or the non-process commitment or intent, is part of the plan.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:planIncludes",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:plannedWithin"
+      },
+      "rdfs:label": {
+        "@value": "plan includes",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Plan"
+      },
+      "rdfs:range": {
+        "@id": "vf:PlanIncludesRange"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The processes and and non-process commitments/intents that constitute the plan.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:independentDemandOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "independent demand of",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "vf:Plan"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Commitment"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "This plan is the way this commitment or intent will be realized.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasIndependentDemand",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:independentDemandOf"
+      },
+      "rdfs:label": {
+        "@value": "has independent demand",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "vf:Commitment"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Plan"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The commitments and/or intents which this plan was created to deliver.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:resourceInventoriedAs",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "resource inventoried as",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceInventoriedAsDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicResource"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Economic resource involved in the flow.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:toResourceInventoriedAs",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "to resource inventoried as",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicResource"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Additional economic resource on the economic event when needed by the receiver. Used when a transfer or move, or sometimes other actions, requires explicitly identifying an economic resource by the receiver, which is identified differently by the sender.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:provider",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:ProviderDomain"
+      },
+      "rdfs:label": {
+        "@value": "provider",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agent"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The economic agent by whom the intended, committed, or actual economic event is initiated.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:receiver",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:ReceiverDomain"
+      },
+      "rdfs:label": {
+        "@value": "receiver",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agent"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The economic agent whom the intended, committed, or actual economic event is for.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:inScopeOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Process"
+      },
+      "rdfs:label": {
+        "@value": "in scope of",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agent"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "Scope here means executed in the context of an agent.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:triggeredBy",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "triggered by",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Claim"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicEvent"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "References an economic event that implied the claim, often based on a prior agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:corrects",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "corrects",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicEvent"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "Used when an event was entered incorrectly and needs to be backed out or corrected. (The initial event cannot be changed.)",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:settles",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "settles",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:Claim"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The claim(s) settled fully or partially by the economic event.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:containedIn",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "contained in",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicResource"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "Used when an economic resource contains units also defined as separate economic resources, for example a tool kit or a package of resources for shipping.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:contains",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:containedIn"
+      },
+      "rdfs:label": {
+        "@value": "contains",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicResource"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "An economic resource contains at least one other economic resource, for example a tool kit or package of resources for shipping.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:primaryAccountable",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "primary accountable",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agent"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The agent currently with primary rights and responsibilites for the economic resource. It is the agent that is associated with the accountingQuantity of the economic resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasBeginning",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "time:hasBeginning"
+      },
+      "rdfs:label": {
+        "@value": "has beginning",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:HasBeginningDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:dateTimeStamp"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The planned or actual beginning date, and time if desired, of a flow or process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasEnd",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "time:hasEnd"
+      },
+      "rdfs:label": {
+        "@value": "has end",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:HasEndDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:dateTimeStamp"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The planned or actual ending date, and time if desired, of a flow or process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasPointInTime",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "time:inXSDDateTimeStamp"
+      },
+      "rdfs:label": {
+        "@value": "has point in time",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:HasPointInTimeDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:dateTimeStamp"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The planned or actual date, and time if desired, of a flow; can be used instead of hasBeginning and hasEnd, if so, hasBeginning and hasEnd should be able to return this value.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasDuration",
+      "@type": "owl:ObjectProperty",
+      "rdfs:seeAlso": {
+        "@id": "time:hasDuration"
+      },
+      "rdfs:label": {
+        "@value": "has duration",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeProcess"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The temporal extent of the process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:due",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "due",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:DueDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:dateTimeStamp"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The date, and time if desired, something is expected to be complete.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasNumericalValue",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "om:hasNumericalValue"
+      },
+      "rdfs:label": {
+        "@value": "has numerical value",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Measure"
+      },
+      "rdfs:range": {
+        "@id": "dtype:numericUnion"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A numeric amount.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasUnit",
+      "@type": "owl:ObjectProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "om:hasUnit"
+      },
+      "rdfs:label": {
+        "@value": "has unit",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Measure"
+      },
+      "rdfs:range": {
+        "@id": "vf:Unit"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A standard unit of measure.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:omUnitIdentifier",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "om unit identifier",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Unit"
+      },
+      "rdfs:range": {
+        "@id": "xsd:anyURI"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The unique identifier of the om unit of measure, for standardization across networks.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:label",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "rdfs:label"
+      },
+      "rdfs:label": {
+        "@value": "label",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:LabelDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:cardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The display label defined for the network for the unit of measure, overrides om.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:symbol",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "om:symbol"
+      },
+      "rdfs:label": {
+        "@value": "symbol",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Unit"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The display symbol defined for the network for the unit of measure, overrides om.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:accountingQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "accounting quantity",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The current amount and unit of the economic resource for which the agent has primary rights and responsibilities, sometimes thought of as ownership. This can be either stored or derived from economic events affecting the resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:onhandQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "onhand quantity",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The current amount and unit of the economic resource which is under direct control of the agent.  It may be more or less than the accounting quantity. This can be either stored or derived from economic events affecting the resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:resourceQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "resource quantity",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceQuantityDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The amount and unit of the economic resource counted or inventoried.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:effortQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "effort quantity",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EffortQuantityDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The amount and unit of the work or use or citation effort-based action. This is often expressed with a time unit, but also could be cycle counts or other measures of effort or usefulness.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:availableQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "available quantity",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Intent"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The amount and unit of the offered resource currently available.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:minimumQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "minimum quantity",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Intent"
+      },
+      "rdfs:range": {
+        "@id": "vf:Measure"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The minimum required order amount and unit of the offered resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:unitBased",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "unit based",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Proposal"
+      },
+      "rdfs:range": {
+        "@id": "xsd:boolean"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "This group of intents contains unit based quantities, which can be multipied to create commitments; commonly seen in a price list or e-commerce. Default false.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:purpose",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "purpose",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Proposal"
+      },
+      "rdfs:range": {
+        "@id": "vf:ProposalPurpose"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The type of proposal, whether offer or request (others may be added as need arises).",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:created",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:seeAlso": {
+        "@id": "dcterms:created"
+      },
+      "rdfs:label": {
+        "@value": "created",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:CreatedDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:dateTimeStamp"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The date, and time if desired, the information was agreed to or recorded.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:long",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "geo:long"
+      },
+      "rdfs:label": {
+        "@value": "longitude",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "dtype:numericUnion"
+      },
+      "rdfs:domain": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": "The WGS84 longitude of a spatial thing (decimal degrees)."
+    },
+    {
+      "@id": "vf:lat",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "geo:lat"
+      },
+      "rdfs:label": {
+        "@value": "latitude",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "dtype:numericUnion"
+      },
+      "rdfs:domain": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": "The WGS84 latitude of a spatial thing (decimal degrees)."
+    },
+    {
+      "@id": "vf:alt",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "geo:alt"
+      },
+      "rdfs:label": {
+        "@value": "altitude",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "dtype:numericUnion"
+      },
+      "rdfs:domain": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": "The WGS84 altitude of a spatial thing (decimal meters above the local reference ellipsoid)"
+    },
+    {
+      "@id": "vf:mappableAddress",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "mappable address",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:SpatialThing"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A textual address that can be mapped using mapping software.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:hasDetailedGeometry",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "has detailed geometry",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:SpatialThing"
+      },
+      "rdfs:range": {
+        "@id": "geosparql:Geometry"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "A spatial geometry of any complexity and tooling supported by geosparql.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:currentLocation",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "current location",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The current physical location of an economic resource.  Could be at any level of granularity, from a town to an address to a warehouse location.  Usually mappable.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:currentVirtualLocation",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "current virtual location",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "xsd:anyURI"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The current virtual place a digital economic resource is located. Usually used for documents, code, or other electronic resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:currentCurrencyLocation",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "current currency location",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The current virtual place a currency economic resource is located, for example the address for a bank account, crypto wallet, etc., in a domain standard format.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:primaryLocation",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "primary location",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Agent"
+      },
+      "rdfs:range": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The main place an agent is located, often an address where activities occur and mail can be sent. This is usually a mappable geographic location.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:eligibleLocation",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "eligible location",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Proposal"
+      },
+      "rdfs:range": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "Location or area where the proposal is valid.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:toLocation",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "to location",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:SpatialThing"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The new location of the receiver resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:image",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "image",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ImageDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:anyURI"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The uri to an image relevant to the entity, such as a logo, avatar, photo, diagram, etc.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:imageList",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "image list",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ImageListDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:anyURI"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "A comma separated list of uri addresses to images relevant to the resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:name",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "name",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "rdfs:domain": {
+        "@id": "vf:NameDomain"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "An informal or formal textual identifier for an object. Does not imply uniqueness.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:note",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:subPropertyOf": {
+        "@id": "skos:note"
+      },
+      "rdfs:label": {
+        "@value": "note",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:NoteDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Any useful textual information related to the item.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:trackingIdentifier",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "tracking identifier",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Any identifier used to track a singular resource, such as a serial number or VIN.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:ofBatchLot",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "of batch or lot",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:BatchLotRecord"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The batch lot record of this resource, if it is a batch or lot resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:mediumOfExchange",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "medium of exchange",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "rdfs:range": {
+        "@id": "xsd:boolean"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "True if the resource is a currency, money, token, credit, etc. used as a medium of exchange.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:batchLotCode",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "batch or lot code",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:BatchLotRecord"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The code or identifier for this batch or lot, used to physically label individuals in the batch or lot.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:expirationDate",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "expiration date",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:BatchLotRecord"
+      },
+      "rdfs:range": {
+        "@id": "xsd:dateTimeStamp"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The date after which a resource of this batch or lot should no longer be used or consumed.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:fulfills",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "fulfills",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:Commitment"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The commitment(s) fulfilled completely or partially by an economic event.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:satisfies",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "satisfies",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:SatisfiesDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Intent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The intent(s) satisfied fully or partially by an economic event or commitment.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:publishes",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "publishes",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Proposal"
+      },
+      "rdfs:range": {
+        "@id": "vf:Intent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The primary intent(s) of this published proposal. Would be used in intent matching.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:reciprocal",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "reciprocal",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Proposal"
+      },
+      "rdfs:range": {
+        "@id": "vf:Intent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The reciprocal intent(s) of this published proposal. Not meant to be used for intent matching.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:proposedTo",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "proposed to",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ProposedToDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agent"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The agent(s) to which the proposal or proposal list is published.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:listedIn",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "listed in",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Proposal"
+      },
+      "rdfs:range": {
+        "@id": "vf:ProposalList"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "This proposal is part of these lists of proposals.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:lists",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:listedIn"
+      },
+      "rdfs:label": {
+        "@value": "lists",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ProposalList"
+      },
+      "rdfs:range": {
+        "@id": "vf:Proposal"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "All the proposals included in this proposal list.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:finished",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:domain": {
+        "@id": "vf:FinishedDomain"
+      },
+      "rdfs:label": {
+        "@value": "finished",
+        "@language": "en"
+      },
+      "rdfs:range": {
+        "@id": "xsd:boolean"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The commitment or intent or process is complete or not.  This is irrespective of if the original goal has been met, and indicates simply that no more will be done.  Default false.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:substitutable",
+      "@type": "owl:DatatypeProperty",
+      "rdfs:label": {
+        "@value": "substitutable",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "rdfs:range": {
+        "@id": "xsd:boolean"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "Defines if any resource of that type can be freely substituted for any other resource of that type when used, consumed, traded, etc.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:unitOfEffort",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "unit of effort",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:Unit"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The unit used for use or work or sometimes cite actions.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:defaultUnitOfEffort",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "default unit of effort",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "rdfs:range": {
+        "@id": "vf:Unit"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The default unit used for use or work.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:defaultUnitOfResource",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "default unit of resource",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "rdfs:range": {
+        "@id": "vf:Unit"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The default unit used for the resource itself.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:basedOn",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "based on",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Process"
+      },
+      "rdfs:range": {
+        "@id": "vf:ProcessSpecification"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The definition or standard specification for a process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:classifiedAs",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "classified as",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ClassifiedAsDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "References one or more uri's for a concept in a common taxonomy or other classification scheme for purposes of categorization or grouping; or it can be one or more string classifications such as tags.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:resourceClassifiedAs",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "resource classified as",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceClassifiedAsDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "References one or more uri's for a concept in a common taxonomy or other classification scheme for purposes of categorization or grouping; or can be one or more string classifications such as tags.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:processClassifiedAs",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "process classified as",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeProcess"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "References one or more uri's for a concept in a common taxonomy or other classification scheme for purposes of categorization or grouping; or can be one or more string classifications such as tags.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:processConformsTo",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "process conforms to",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:RecipeProcess"
+      },
+      "rdfs:range": {
+        "@id": "vf:ProcessSpecification"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The standard specification or definition of a type of process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:resourceConformsTo",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "resource conforms to",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:ResourceConformsToDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The lowest level resource specification or definition of an existing or potential economic resource, whether one will ever be instantiated or not.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:conformsTo",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "conforms to",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicResource"
+      },
+      "rdfs:range": {
+        "@id": "vf:ResourceSpecification"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The primary resource specification or definition of an existing or potential economic resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:stage",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "stage",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:StageDomain"
+      },
+      "rdfs:range": {
+        "@id": "vf:ProcessSpecification"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "The required stage of the desired input economic resource. References the ProcessSpecification of the last process the economic resource went through.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:state",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "state",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:StateDomain"
+      },
+      "rdfs:range": {
+        "@id": "xsd:string"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The required state of the desired input economic resource, after coming out of a test or review process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:clauseOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "clause of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Commitment"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agreement"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "This commitment is a primary part of the agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:reciprocalClauseOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "reciprocal clause of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Commitment"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agreement"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "This commitment is a reciprocal part of the agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:stipulates",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:clauseOf"
+      },
+      "rdfs:label": {
+        "@value": "stipulates",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Agreement"
+      },
+      "rdfs:range": {
+        "@id": "vf:Commitment"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the primary commitments that constitute the agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:stipulatesReciprocal",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:reciprocalClauseOf"
+      },
+      "rdfs:label": {
+        "@value": "stipulates reciprocal",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Agreement"
+      },
+      "rdfs:range": {
+        "@id": "vf:Commitment"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the reciprocal commitments that constitute the agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:realizationOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "realization of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agreement"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "This non-reciprocal economic event occurs as part of this agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:realizes",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:realizationOf"
+      },
+      "rdfs:label": {
+        "@value": "realizes",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Agreement"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicEvent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the non-reciprocal economic events (with or without commitments) that realize the agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:reciprocalRealizationOf",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "reciprocal realization of",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:EconomicEvent"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agreement"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "This reciprocal economic event occurs as part of this agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:realizesReciprocal",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:reciprocalRealizationOf"
+      },
+      "rdfs:label": {
+        "@value": "realizes reciprocal",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Agreement"
+      },
+      "rdfs:range": {
+        "@id": "vf:EconomicEvent"
+      },
+      "vs:term_status": "stable",
+      "rdfs:comment": {
+        "@value": "All the reciprocal economic events (with or without commitments) that realize the agreement.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:bundledIn",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": {
+        "@value": "bundled in",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:Agreement"
+      },
+      "rdfs:range": {
+        "@id": "vf:AgreementBundle"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "This agreement is bundled with other agreements, for example in an order.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:bundles",
+      "@type": "owl:ObjectProperty",
+      "owl:inverseOf": {
+        "@id": "vf:bundledIn"
+      },
+      "rdfs:label": {
+        "@value": "bundles",
+        "@language": "en"
+      },
+      "rdfs:domain": {
+        "@id": "vf:AgreementBundle"
+      },
+      "rdfs:range": {
+        "@id": "vf:Agreement"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "All the agreements included in this agreement bundle.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:InputOutput",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Input/Output",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action is an input or output of a process, or not applicable to a process.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:CreateResource",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Create Resource",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action can create an economic resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:EventQuantity",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Event Quantity",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action involves the event resource quantity, event quantity, or both.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:AccountingEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Accounting Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource accounting quantity.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:OnhandEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Onhand Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource onhand quantity.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:LocationEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Location Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource current location.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:ContainedEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Contained Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource contained in resource.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:AccountableEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Accountable Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource primary accountable agent.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:StageEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Stage Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource stage.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:StateEffect",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "State Effect",
+        "@language": "en"
+      },
+      "vf:layer": {
+        "@id": "vf:knowledge"
+      },
+      "vs:term_status": "unstable",
+      "rdfs:comment": {
+        "@value": "The action has this effect on an inventoried resource state.",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:inputOutput",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:InputOutput"
+      },
+      "rdfs:comment": {
+        "@value": "Denotes if a process input or output, or not applicable to a process.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "input/output",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:pairsWith",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:Action"
+      },
+      "rdfs:comment": {
+        "@value": "The action that usually affects the same resource as a complement in the same flow.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "pairs with",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:createResource",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:CreateResource"
+      },
+      "rdfs:comment": {
+        "@value": "The action can create an economic resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "can create resource",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:eventQuantity",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:EventQuantity"
+      },
+      "rdfs:comment": {
+        "@value": "The event quantity applicable is resource quantity, effort quantity, or both.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "event quantity",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:accountingEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:AccountingEffect"
+      },
+      "rdfs:comment": {
+        "@value": "The increment and/or decrement effect the action will have on the accounting quantity of an inventoried resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "accounting effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:onhandEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:OnhandEffect"
+      },
+      "rdfs:comment": {
+        "@value": "The increment and/or decrement effect the action will have on the onhand quantity of an inventoried resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "onhand effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:locationEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:LocationEffect"
+      },
+      "rdfs:comment": {
+        "@value": "This action can update the current location of an inventoried resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "location effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:containedEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:ContainedEffect"
+      },
+      "rdfs:comment": {
+        "@value": "The contained in resource should be updated or removed.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "contained effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:accountableEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:AccountableEffect"
+      },
+      "rdfs:comment": {
+        "@value": "The primaryAccountable should be updated to the event receiver, or not.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "accountable effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:stageEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:StageEffect"
+      },
+      "rdfs:comment": {
+        "@value": "The stage of the inventoried resource should be updated, or not.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "stage effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:stateEffect",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {
+        "@id": "vf:Action"
+      },
+      "rdfs:range": {
+        "@id": "vf:StateEffect"
+      },
+      "rdfs:comment": {
+        "@value": "The state of the from or to inventoried resource should be updated, or not.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "state effect",
+        "@language": "en"
+      },
+      "owl:maxCardinality": 1,
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:accept",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:modify"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:update"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "In processes like repair or a new stage or testing, the same identified resource will appear in the output.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "accept",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:combine",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:update"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "A resource is combined with other resources into a container resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "combine",
+        "@language": "en"
+      },
+      "vs:term_status": "unstable"
+    },
+    {
+      "@id": "vf:consume",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "The consumed ingredient goes into the process, after the process the ingredient is gone.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "consume",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:cite",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "For example a design file, neither used nor consumed, the file remains available at all times.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "cite",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:copy",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optionalTo"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:incrementTo"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:incrementTo"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:new"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:new"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:updateTo"
+      },
+      "rdfs:comment": {
+        "@value": "Create a new version of the resource, without any change to the original.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "copy",
+        "@language": "en"
+      },
+      "vs:term_status": "unstable"
+    },
+    {
+      "@id": "vf:deliverService",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:outputInput"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "rdfs:comment": {
+        "@value": "New service produced and delivered (a service implies that an agent actively receives the service).",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "deliver service",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:dropoff",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:inputOutput": {
+        "@id": "vf:output"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:pickup"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:update"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:update"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "Transported resource or person leaves the process; the same resource or person appeared in the input.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "dropoff",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:lower",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optional"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:new"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "Adjusts a quantity down based on a beginning balance or inventory count.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "lower",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:modify",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:inputOutput": {
+        "@id": "vf:output"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:accept"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:update"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:update"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "In processes like repair or a new stage or testing, the same identified resource will appear in the input.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "modify",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:move",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optionalTo"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:decrementIncrement"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrementIncrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:updateTo"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:updateTo"
+      },
+      "rdfs:comment": {
+        "@value": "Change location and possibly identifier, if location is part of the identification, of a resource with no change of agent rights or possession.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "move",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:pickup",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:dropoff"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:update"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "Transported resource or person enters the process; the same resource will appear in the output.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "pickup",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:produce",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:output"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optional"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:new"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:new"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:update"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "New resource was created in that process or an existing stock resource was added to.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "produce",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:raise",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optional"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:new"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "Adjusts a quantity up based on a beginning balance or inventory count.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "raise",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:separate",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:output"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:increment"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:remove"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:update"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "A resource is removed from a container resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "unpack",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:transferAllRights",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optionalTo"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:decrementIncrement"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:updateTo"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:updateTo"
+      },
+      "rdfs:comment": {
+        "@value": "Give full (in the human realm) rights and responsibilities to another agent, without transferring physical custody.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "transfer all rights",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:transfer",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optionalTo"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:decrementIncrement"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrementIncrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:updateTo"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:updateTo"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:updateTo"
+      },
+      "rdfs:comment": {
+        "@value": "Give full rights and responsibilities plus physical custody.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "transfer",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:transferCustody",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:optionalTo"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:resource"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:decrementIncrement"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:updateTo"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:updateTo"
+      },
+      "rdfs:comment": {
+        "@value": "Give physical custody and control of a resource, without full accounting or ownership rights.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "transfer custody",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:use",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:both"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:update"
+      },
+      "rdfs:comment": {
+        "@value": "For example a tool used in process; after the process, the tool still exists.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "use",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:work",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:Action"
+      ],
+      "vf:inputOutput": {
+        "@id": "vf:input"
+      },
+      "vf:pairsWith": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:createResource": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:eventQuantity": {
+        "@id": "vf:effort"
+      },
+      "vf:accountingEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:onhandEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:locationEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:containedEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:accountableEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stageEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "vf:stateEffect": {
+        "@id": "vf:notApplicable"
+      },
+      "rdfs:comment": {
+        "@value": "Labor applied to a process.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "work",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:decrement",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:AccountingEffect",
+        "vf:OnhandEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to subtract from the inventoried resource accounting and/or onhand quantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "decrement",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:decrementIncrement",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:AccountingEffect",
+        "vf:OnhandEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to subtract from the 'from' inventoried resource, and add to the 'to' inventoried resource, accounting and/or onhand quantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "decrement/increment",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:increment",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:AccountingEffect",
+        "vf:OnhandEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to add to the inventoried resource accounting and/or onhand quantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "increment",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:incrementTo",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:AccountingEffect",
+        "vf:OnhandEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to add to the to (receiver) inventoried resource accounting and/or onhand quantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "increment to",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:update",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:ContainedEffect",
+        "vf:StageEffect",
+        "vf:StateEffect",
+        "vf:LocationEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to update the resource in the specified property.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "update",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:updateTo",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:ContainedEffect",
+        "vf:StateEffect",
+        "vf:AccountableEffect",
+        "vf:LocationEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to update the to resource in the specified property.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "update",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:remove",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:ContainedEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect is to remove or nullify the specified property from the resource.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "remove",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:new",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:AccountableEffect",
+        "vf:LocationEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "The effect applies for a new resource created by the event.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "new",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:input",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:InputOutput"
+      ],
+      "rdfs:comment": {
+        "@value": "This kind of flow can be an input to a process.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "input",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:output",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:InputOutput"
+      ],
+      "rdfs:comment": {
+        "@value": "This kind of flow can be an output from a process.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "output",
+        "@language": "en"
+      },
+      "vs:term_status": "stable"
+    },
+    {
+      "@id": "vf:outputInput",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:InputOutput"
+      ],
+      "rdfs:comment": {
+        "@value": "This kind of flow can be an output from a process, and at the same time an input to another process.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "output input",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:resource",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:EventQuantity"
+      ],
+      "rdfs:comment": {
+        "@value": "This event uses resourceQuantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "resource",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:effort",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:EventQuantity"
+      ],
+      "rdfs:comment": {
+        "@value": "This event uses effortQuantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "effort",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:both",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:EventQuantity"
+      ],
+      "rdfs:comment": {
+        "@value": "This event can use resourceQuantity and effortQuantity.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "both",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:optional",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:CreateResource"
+      ],
+      "rdfs:comment": {
+        "@value": "This kind of flow gives the user the option to create a new resource using resourceInventoriedAs.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "optional",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:optionalTo",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:CreateResource"
+      ],
+      "rdfs:comment": {
+        "@value": "This kind of flow gives the user the option to create a new resource using toResourceInventoriedAs.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "optional to",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:notApplicable",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:InputOutput",
+        "vf:PairsWith",
+        "vf:LocationEffect",
+        "vf:CreateResource",
+        "vf:ContainedEffect"
+      ],
+      "rdfs:comment": {
+        "@value": "This property is not applicable to this kind of flow.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "not applicable",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:ProposalPurpose",
+      "@type": "owl:Class",
+      "rdfs:label": {
+        "@value": "Proposal Purpose",
+        "@language": "en"
+      },
+      "vs:term_status": "testing",
+      "rdfs:comment": {
+        "@value": "The type of proposal: offer or request (other types may be added).",
+        "@language": "en"
+      }
+    },
+    {
+      "@id": "vf:offer",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:ProposalPurpose"
+      ],
+      "rdfs:comment": {
+        "@value": "The proposal is an offer.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "offer",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    },
+    {
+      "@id": "vf:request",
+      "@type": [
+        "owl:NamedIndividual",
+        "vf:ProposalPurpose"
+      ],
+      "rdfs:comment": {
+        "@value": "The proposal is a published request, need, want.",
+        "@language": "en"
+      },
+      "rdfs:label": {
+        "@value": "request",
+        "@language": "en"
+      },
+      "vs:term_status": "testing"
+    }
+  ]
+}

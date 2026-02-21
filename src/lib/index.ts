@@ -1,10 +1,10 @@
 // Re-export everything from core modules for convenient $lib imports
 
 // Types and schemas (primary definitions)
-export * from './core/types'
-export * from './core/plan/time'
-export * from './core/plan/desire'
-export * from './core/plan/process'
+export * from './core/ai/types'
+export * from './core/commons/primitives/time'
+export * from './core/commons/matching/desire'
+export * from './core/commons/matching/slot'
 
 // Enrichment (exclude Constraints which conflicts with types.ts)
 export {
@@ -21,23 +21,23 @@ export {
   type CategoryStats,
   extractCategoryNames,
   collectCategoryStats,
-} from './core/enrichment'
-export * from './core/enrichment-ops'
+} from './core/ai/enrichment'
+export * from './core/ai/enrichment-ops'
 
 // Embeddings
-export * from './core/embeddings'
-export * from './core/embedding-ops'
-export * from './core/semantic-colors'
+export * from './core/ai/embeddings'
+export * from './core/ai/embedding-ops'
+export * from './core/ai/semantic-colors'
 
 // Category/Taxonomy
-export * from './core/category-matcher'
-export * from './core/taxonomy-tree'
-export * from './core/taxonomy-merge'
-export * from './core/taxonomy-store'
-export * from './core/canonical-roots'
+export * from './core/ai/category-matcher'
+export * from './core/ai/taxonomy-tree'
+export * from './core/ai/taxonomy-merge'
+export * from './core/ai/taxonomy-store'
+export * from './core/ai/canonical-roots'
 
 // Matching (primary matcher - exclude duplicates from eligibility)
-export * from './core/matcher'
+export * from './core/ai/matcher'
 export {
   slotsCompatible,
   skillsCompatible,
@@ -56,26 +56,26 @@ export {
   getSpaceTimeSignature,
   groupSlotsBySpaceTime,
 } from './core/matching'
-export * from './core/match-data'
-export * from './core/plan/feasibility'
+export * from './core/ai/match-data'
+export * from './core/commons/matching/feasibility'
 // Eligibility - exclude types that conflict with types.ts
 export {
   EligibilityFilters,
   evaluateEligibilityFilter,
-} from './core/eligibility'
+} from './core/ai/eligibility'
 
 // Spatial
-export * from './core/plan/space'
+export * from './core/commons/primitives/space'
 
 // Search
-export * from './core/search'
+export * from './core/ai/search'
 
 // Skills
-export * from './core/plan/skills'
+export * from './core/commons/skills'
 
 // AI
-export * from './core/ai-pipe'
+export * from './core/ai/ai-pipe'
 
 // Utilities
-export * from './core/example-converter'
-export * from './core/repulsion'
+export * from './core/ai/example-converter'
+export * from './core/ai/repulsion'

@@ -12,8 +12,8 @@ import {
     computeContinuityScore,
     type FeasibilityContext,
 } from '$lib/core/plan/feasibility';
-import type { Resource } from '$lib/core/plan/process';
-import type { Contact } from '$lib/core/types';
+import type { Resource } from '$lib/core/commons/planning/process';
+import type { Contact } from '$lib/core/ai/types';
 import type { AvailabilityWindow } from '$lib/core/plan/time';
 
 // =============================================================================

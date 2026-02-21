@@ -2,7 +2,7 @@
  * Diagnostic script to analyze specificity values in match data
  */
 
-import { generateMatchData } from '$lib/core/match-data'
+import { generateMatchData } from '$lib/core/ai/match-data'
 
 const data = generateMatchData()
 

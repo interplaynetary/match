@@ -1,7 +1,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import { slotsCompatible, skillsCompatible, timeRangesOverlap, locationsCompatible, checkFlowConstraints } from '$lib/core/matching';
-import type { Resource, Contact } from '$lib/core/plan/process';
+import type { Resource, Contact } from '$lib/core/commons/planning/process';
 import type { AvailabilityWindow } from '$lib/core/plan/time';
 
 describe('Slot Matching Logic', () => {

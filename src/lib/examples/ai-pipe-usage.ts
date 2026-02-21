@@ -9,7 +9,7 @@ import {
   AnthropicProvider,
   createOpenAIPipe,
   generateWithOpenAI,
-} from '../core/ai-pipe'
+} from '../core/ai/ai-pipe'
 
 // =============================================================================
 // EXAMPLE 1: Category enrichment (like enrich-categories.ts)
@@ -163,7 +163,7 @@ async function useCustomProvider() {
 // EXAMPLE 5: Using with existing schemas (like Resource from process.ts)
 // =============================================================================
 
-import { Resource } from '../core/plan/process'
+import { Resource } from '../core/commons/matching/slot'
 
 async function generateResourceFromNL() {
   const pipe = createOpenAIPipe()

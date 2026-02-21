@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { search } from '$lib/core/search';
-import { OpenAIEmbeddingProvider } from '$lib/core/embeddings';
+import { search } from '$lib/core/ai/search';
+import { OpenAIEmbeddingProvider } from '$lib/core/ai/embeddings';
 import { getEnrichedData, getEmbeddings } from '$lib/server/state';
 
 let embeddingProvider: OpenAIEmbeddingProvider | null = null;

@@ -1,9 +1,9 @@
 
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
-import { Resource } from '../src/lib/core/plan/process';
-import { buildResourceIndex, queryResourcesByType, queryResourcesByLocation, queryResourcesByTypeAndLocation } from '../src/lib/core/plan/resource';
-import { Need, buildNeedIndex, queryNeedsByType, queryNeedsByLocation, queryNeedsByTypeAndLocation } from '../src/lib/core/plan/need';
+import { Resource } from '../src/lib/core/commons/planning/process';
+import { buildResourceIndex, queryResourcesByType, queryResourcesByLocation, queryResourcesByTypeAndLocation } from '../src/lib/core/commons/resource';
+import { Need, buildNeedIndex, queryNeedsByType, queryNeedsByLocation, queryNeedsByTypeAndLocation } from '../src/lib/core/commons/need';
 
 describe('Resource Indexing', () => {
     // Mock Resources

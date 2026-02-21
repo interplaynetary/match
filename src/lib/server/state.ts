@@ -3,10 +3,10 @@
  * Loads data on startup, rebuilds when entries are added.
  */
 
-import { generateMatchData, type MatchData } from '$lib/core/match-data';
-import { buildTaxonomyTree, type TaxonomyNode } from '$lib/core/taxonomy-tree';
-import type { EmbeddingsStore } from '$lib/core/example-converter';
-import type { PCATransform } from '$lib/core/semantic-colors';
+import { generateMatchData, type MatchData } from '$lib/core/ai/match-data';
+import { buildTaxonomyTree, type TaxonomyNode } from '$lib/core/ai/taxonomy-tree';
+import type { EmbeddingsStore } from '$lib/core/ai/example-converter';
+import type { PCATransform } from '$lib/core/ai/semantic-colors';
 import initialExamplesData from '$lib/data/enriched-full.json';
 import initialEmbeddingsData from '$lib/data/embeddings.json';
 

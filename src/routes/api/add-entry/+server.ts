@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createOpenAIPipe } from '$lib/core/ai-pipe';
-import { OpenAIEmbeddingProvider } from '$lib/core/embeddings';
-import { enrichSingleItem } from '$lib/core/enrichment-ops';
-import { embedSingleItem, embedSingleItemCategories } from '$lib/core/embedding-ops';
-import { loadTaxonomy, saveTaxonomy } from '$lib/core/taxonomy-store';
+import { createOpenAIPipe } from '$lib/core/ai/ai-pipe';
+import { OpenAIEmbeddingProvider } from '$lib/core/ai/embeddings';
+import { enrichSingleItem } from '$lib/core/ai/enrichment-ops';
+import { embedSingleItem, embedSingleItemCategories } from '$lib/core/ai/embedding-ops';
+import { loadTaxonomy, saveTaxonomy } from '$lib/core/ai/taxonomy-store';
 import { getEnrichedData, getEmbeddings, addEntry } from '$lib/server/state';
-import type { UserInputType } from '$lib/core/enrichment';
+import type { UserInputType } from '$lib/core/ai/enrichment';
 
 let addEntryLock = false;
 const MAX_INPUT_LENGTH = 1000;

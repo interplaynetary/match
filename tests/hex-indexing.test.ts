@@ -1,7 +1,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import * as h3 from 'h3-js';
-import { createHexIndex, addItemToHexIndex, queryHexIndex, getItemsInCell } from '../src/lib/core/plan/space-time-index';
+import { createHexIndex, addItemToHexIndex, queryHexIndex, getItemsInCell } from '../src/lib/core/commons/space-time-index';
 
 describe('Hierarchical Hex Indexing', () => {
     
