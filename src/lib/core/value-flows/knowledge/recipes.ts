@@ -22,9 +22,9 @@ import type {
     RecipeProcess,
     RecipeFlow,
     RecipeExchange,
+    RecipeGroup,
     ResourceSpecification,
     ProcessSpecification,
-    VfAction,
 } from '../schemas';
 import { ACTION_DEFINITIONS } from '../schemas';
 
@@ -34,6 +34,7 @@ import { ACTION_DEFINITIONS } from '../schemas';
 
 export class RecipeStore {
     private recipes = new Map<string, Recipe>();
+    private recipeGroups = new Map<string, RecipeGroup>();
     private recipeProcesses = new Map<string, RecipeProcess>();
     private recipeFlows = new Map<string, RecipeFlow>();
     private recipeExchanges = new Map<string, RecipeExchange>();
@@ -130,6 +131,39 @@ export class RecipeStore {
 
     allRecipes(): Recipe[] {
         return Array.from(this.recipes.values());
+    }
+
+    // =========================================================================
+    // RECIPE GROUPS — Multiple-output recipe bundles (GAP-D)
+    // =========================================================================
+
+    /**
+     * Add a RecipeGroup — groups several Recipes into one plan-generation unit.
+     * VF spec: model-text.md §vf:RecipeGroup, recipes.md §Recipe and Recipe Group.
+     */
+    addRecipeGroup(rg: Omit<RecipeGroup, 'id'> & { id?: string }): RecipeGroup {
+        const group: RecipeGroup = { id: rg.id ?? this.generateId(), ...rg };
+        this.recipeGroups.set(group.id, group);
+        return group;
+    }
+
+    getRecipeGroup(id: string): RecipeGroup | undefined {
+        return this.recipeGroups.get(id);
+    }
+
+    allRecipeGroups(): RecipeGroup[] {
+        return Array.from(this.recipeGroups.values());
+    }
+
+    /**
+     * Get all recipes that belong to a RecipeGroup.
+     */
+    recipesForGroup(groupId: string): Recipe[] {
+        const group = this.recipeGroups.get(groupId);
+        if (!group) return [];
+        return group.recipes
+            .map(id => this.recipes.get(id))
+            .filter((r): r is Recipe => r !== undefined);
     }
 
     // =========================================================================

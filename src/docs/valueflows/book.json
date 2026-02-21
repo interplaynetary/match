@@ -1,0 +1,15 @@
+{
+  "root": "./docs",
+  "plugins": [
+    "-highlight",
+    "include-codeblock",
+    "prism"
+  ],
+  "pluginsConfig": {
+    "prism": {
+      "css": [
+        "prismjs/themes/prism-twilight.css"
+      ]
+    }
+  }
+}

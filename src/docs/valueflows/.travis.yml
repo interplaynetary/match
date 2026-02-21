@@ -1,0 +1,11 @@
+language: node_js
+
+node_js:
+  - '10'
+
+script: bash .scripts/deploy.sh
+
+env:
+  global:
+  - ENCRYPTION_LABEL: "8bce9d1605a0"
+  - COMMIT_AUTHOR_EMAIL: "djodjo@djodjo.org"

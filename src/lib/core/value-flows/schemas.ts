@@ -138,6 +138,14 @@ export interface ActionDefinition {
     stageEffect: PropertyEffect;
     /** Effect on state. */
     stateEffect: PropertyEffect;
+    /**
+     * Implied transfer behavior when provider ≠ receiver (GAP-F).
+     * VF spec: transfers.md §Explicit and implied transfers, actions.md §Implied Transfers.
+     * - 'allRights': applies transferAllRights behavior additionally (consume, produce)
+     * - 'custody': applies transferCustody behavior additionally (pickup, dropoff, accept, modify)
+     * - null: no implied transfer
+     */
+    impliesTransfer: 'allRights' | 'custody' | null;
 }
 
 /**
@@ -156,6 +164,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'new',
         stageEffect: 'update',
         stateEffect: 'update',
+        impliesTransfer: 'allRights',
     },
     consume: {
         eventQuantity: 'resourceQuantity',
@@ -168,6 +177,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: 'allRights',
     },
     use: {
         eventQuantity: 'both',
@@ -180,6 +190,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     work: {
         eventQuantity: 'both',
@@ -192,6 +203,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     cite: {
         eventQuantity: 'resourceQuantity',
@@ -204,6 +216,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     deliverService: {
         eventQuantity: 'resourceQuantity',
@@ -216,6 +229,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: 'allRights',
     },
     pickup: {
         eventQuantity: 'resourceQuantity',
@@ -229,6 +243,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: 'custody',
     },
     dropoff: {
         eventQuantity: 'resourceQuantity',
@@ -242,6 +257,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: 'custody',
     },
     accept: {
         eventQuantity: 'resourceQuantity',
@@ -255,6 +271,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: 'custody',
     },
     modify: {
         eventQuantity: 'resourceQuantity',
@@ -268,6 +285,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'update',
         stateEffect: 'update',
+        impliesTransfer: 'custody',
     },
     combine: {
         eventQuantity: 'resourceQuantity',
@@ -281,6 +299,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     separate: {
         eventQuantity: 'resourceQuantity',
@@ -294,6 +313,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     transferAllRights: {
         eventQuantity: 'resourceQuantity',
@@ -306,6 +326,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'updateTo',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     transferCustody: {
         eventQuantity: 'resourceQuantity',
@@ -318,6 +339,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     transfer: {
         eventQuantity: 'resourceQuantity',
@@ -330,6 +352,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'updateTo',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     move: {
         eventQuantity: 'resourceQuantity',
@@ -342,6 +365,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     copy: {
         eventQuantity: 'resourceQuantity',
@@ -354,6 +378,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'updateTo',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     raise: {
         eventQuantity: 'resourceQuantity',
@@ -366,6 +391,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
     lower: {
         eventQuantity: 'resourceQuantity',
@@ -378,6 +404,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
+        impliesTransfer: null,
     },
 };
 
@@ -385,8 +412,14 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
 // AGENTS
 // =============================================================================
 
+/** Agent type discriminator — VF defines Person, Organization, EcologicalAgent subtypes. */
+export const AgentTypeEnum = z.enum(['Person', 'Organization', 'EcologicalAgent']);
+export type AgentType = z.infer<typeof AgentTypeEnum>;
+
 export const AgentSchema = z.object({
     id: z.string(),
+    /** Subtype: Person | Organization | EcologicalAgent (GAP-A/C) */
+    type: AgentTypeEnum.default('Person'),
     name: z.string().optional(),
     note: z.string().optional(),
     image: z.string().optional(),
@@ -394,6 +427,36 @@ export const AgentSchema = z.object({
     classifiedAs: z.array(z.string()).optional(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
+
+/**
+ * AgentRelationshipRole — defines a named role that an agent plays in relation
+ * to another agent (e.g. "member", "steward", "grower").
+ * VF spec: model-text.md §AgentRelationshipRole, agents.md §Agent Relationships.
+ */
+export const AgentRelationshipRoleSchema = z.object({
+    id: z.string(),
+    label: z.string(),
+    inverseLabel: z.string().optional(),   // e.g. "has member" is inverse of "member of"
+    note: z.string().optional(),
+    classifiedAs: z.array(z.string()).optional(),
+});
+export type AgentRelationshipRole = z.infer<typeof AgentRelationshipRoleSchema>;
+
+/**
+ * AgentRelationship — a directed relationship between two agents.
+ * subject plays `relationship` (role) toward object.
+ * Can be scoped to a context agent.
+ * VF spec: model-text.md §AgentRelationship, agents.md §Agent Relationships.
+ */
+export const AgentRelationshipSchema = z.object({
+    id: z.string(),
+    subject: z.string(),                   // Agent ID ("Michael is a member...")  
+    object: z.string(),                    // Agent ID ("...of Enspiral")
+    relationship: z.string(),              // AgentRelationshipRole ID
+    inScopeOf: z.string().optional(),      // Agent ID — scope context
+    note: z.string().optional(),
+});
+export type AgentRelationship = z.infer<typeof AgentRelationshipSchema>;
 
 // =============================================================================
 // KNOWLEDGE LAYER — Specifications
@@ -491,6 +554,19 @@ export const RecipeSchema = z.object({
 });
 export type Recipe = z.infer<typeof RecipeSchema>;
 
+/**
+ * RecipeGroup — groups multiple Recipes that together produce more than one output.
+ * Used when a plan regularly produces several different outputs from different recipes.
+ * VF spec: model-text.md §vf:RecipeGroup, recipes.md §Recipe and Recipe Group.
+ */
+export const RecipeGroupSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    note: z.string().optional(),
+    recipes: z.array(z.string()),                          // Recipe IDs
+});
+export type RecipeGroup = z.infer<typeof RecipeGroupSchema>;
+
 // =============================================================================
 // OBSERVATION LAYER — Resources
 // =============================================================================
@@ -522,8 +598,7 @@ export const EconomicResourceSchema = z.object({
 
     // Location & custody
     currentLocation: z.string().optional(),                // SpatialThing ID
-    currentVirtualLocation: z.string().url().optional(),   // URI for digital resources
-    currentCurrencyLocation: z.string().optional(),        // crypto wallet, bank account
+    currentVirtualLocation: z.string().url().optional(),   // URI for digital/non-physical resources
     primaryAccountable: z.string().optional(),             // Agent ID (rights holder)
 
     // Stage/state (set by processes)
@@ -586,8 +661,9 @@ export const EconomicEventSchema = z.object({
     hasPointInTime: z.string().datetime().optional(),
     created: z.string().datetime().optional(),             // computer-generated timestamp
 
-    // Location
-    toLocation: z.string().optional(),                     // SpatialThing ID (for move/transfer)
+    // Location (GAP-G)
+    atLocation: z.string().optional(),                     // SpatialThing ID (where event occurred)
+    toLocation: z.string().optional(),                     // SpatialThing ID (for move/transfer destination)
 
     // State
     state: z.string().optional(),
@@ -599,9 +675,8 @@ export const EconomicEventSchema = z.object({
     realizationOf: z.string().optional(),                  // Agreement ID
     settles: z.string().optional(),                        // Claim ID
 
-    // Metadata
+    // Metadata — NOTE: image intentionally omitted (non-economic data belongs on EconomicResource)
     note: z.string().optional(),
-    image: z.string().optional(),
     inScopeOf: z.array(z.string()).optional(),             // Agent IDs (scope)
 
     // Track/trace breadcrumb (set by Observer)
@@ -625,6 +700,7 @@ export const ProcessSchema = z.object({
     basedOn: z.string().optional(),                        // ProcessSpecification ID
     classifiedAs: z.array(z.string()).optional(),
     plannedWithin: z.string().optional(),                  // Plan ID
+    nestedIn: z.string().optional(),                       // Scenario ID
     inScopeOf: z.array(z.string()).optional(),             // Agent IDs
     hasBeginning: z.string().datetime().optional(),
     hasEnd: z.string().datetime().optional(),
@@ -670,6 +746,9 @@ export const IntentSchema = z.object({
     hasPointInTime: z.string().datetime().optional(),
     due: z.string().datetime().optional(),
 
+    // Location (GAP-G)
+    atLocation: z.string().optional(),                     // SpatialThing ID
+
     // Stage/state filtering
     stage: z.string().optional(),
     state: z.string().optional(),
@@ -701,9 +780,10 @@ export const CommitmentSchema = z.object({
     resourceQuantity: MeasureSchema.optional(),
     effortQuantity: MeasureSchema.optional(),
 
-    // Agents
-    provider: z.string(),
-    receiver: z.string(),
+    // Agents (GAP-I: optional — can be temporarily unassigned during planning)
+    // VF spec: "can be planned temporarily without both provider and receiver"
+    provider: z.string().optional(),
+    receiver: z.string().optional(),
 
     // Time
     hasBeginning: z.string().datetime().optional(),
@@ -711,6 +791,12 @@ export const CommitmentSchema = z.object({
     hasPointInTime: z.string().datetime().optional(),
     due: z.string().datetime().optional(),
     created: z.string().datetime().optional(),
+
+    // Location (GAP-G)
+    atLocation: z.string().optional(),                     // SpatialThing ID
+
+    // Scope
+    inScopeOf: z.array(z.string()).optional(),             // Agent IDs
 
     // Stage/state filtering
     stage: z.string().optional(),
@@ -760,8 +846,46 @@ export const PlanSchema = z.object({
     due: z.string().datetime().optional(),
     created: z.string().datetime().optional(),
     hasIndependentDemand: z.array(z.string()).optional(),  // Commitment/Intent IDs (deliverables)
+    refinementOf: z.string().optional(),                   // Scenario ID (this plan refines a scenario)
 });
 export type Plan = z.infer<typeof PlanSchema>;
+
+// =============================================================================
+// ESTIMATION / ANALYSIS LAYER — Scenarios
+// =============================================================================
+
+/**
+ * ScenarioDefinition — a named category or template for a kind of scenario.
+ * E.g. "Yearly Budget", "Risk Analysis", "Network Flow Analysis".
+ * VF spec: model-text.md §vf:ScenarioDefinition, estimates.md.
+ */
+export const ScenarioDefinitionSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    note: z.string().optional(),
+    hasDuration: DurationSchema.optional(),                // typical duration of scenarios of this type
+    inScopeOf: z.string().optional(),                     // Agent ID — who defines this type
+});
+export type ScenarioDefinition = z.infer<typeof ScenarioDefinitionSchema>;
+
+/**
+ * Scenario — a higher-level grouping of processes, intents, plans, and/or
+ * aggregated events for analysis, budgeting, or pre-planning.
+ * Scenarios can be nested (refinementOf) to support zooming in/out.
+ * VF spec: model-text.md §vf:Scenario, estimates.md.
+ */
+export const ScenarioSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    note: z.string().optional(),
+    definedAs: z.string().optional(),                      // ScenarioDefinition ID
+    refinementOf: z.string().optional(),                   // Scenario ID (nesting — more detailed)
+    hasBeginning: z.string().datetime().optional(),
+    hasEnd: z.string().datetime().optional(),
+    inScopeOf: z.string().optional(),                      // Agent ID — scope (community, org…)
+    // Plans, processes, intents, events are associated via back-references (query, not embedding)
+});
+export type Scenario = z.infer<typeof ScenarioSchema>;
 
 // =============================================================================
 // AGREEMENTS & EXCHANGES
@@ -800,6 +924,7 @@ export const ProposalSchema = z.object({
     created: z.string().datetime().optional(),
     purpose: z.enum(['offer', 'request']).optional(),     // spec: Proposal.purpose
     eligibleLocation: z.string().optional(),               // SpatialThing ID
+    inScopeOf: z.array(z.string()).optional(),             // Agent IDs
     publishes: z.array(z.string()).optional(),             // Intent IDs
     reciprocal: z.array(z.string()).optional(),            // Intent IDs
     proposedTo: z.array(z.string()).optional(),            // Agent IDs

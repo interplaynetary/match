@@ -35,8 +35,12 @@ import type {
     RecipeFlow,
     RecipeProcess,
     Agreement,
+    AgreementBundle,
     Proposal,
+    ProposalList,
     RecipeExchange,
+    Scenario,
+    ScenarioDefinition,
 } from '../schemas';
 import { RecipeStore } from '../knowledge/recipes';
 import { ProcessRegistry } from '../process-registry';
@@ -51,7 +55,11 @@ export class PlanStore {
     private commitments = new Map<string, Commitment>();
     private intents = new Map<string, Intent>();
     private agreements = new Map<string, Agreement>();
+    private agreementBundles = new Map<string, AgreementBundle>();
     private proposals = new Map<string, Proposal>();
+    private proposalLists = new Map<string, ProposalList>();
+    private scenarios = new Map<string, Scenario>();
+    private scenarioDefinitions = new Map<string, ScenarioDefinition>();
 
     constructor(
         readonly processes: ProcessRegistry,
@@ -113,6 +121,8 @@ export class PlanStore {
     }
 
     getIntent(id: string): Intent | undefined { return this.intents.get(id); }
+
+    allIntents(): Intent[] { return Array.from(this.intents.values()); }
 
     intentsForPlan(planId: string): Intent[] {
         return Array.from(this.intents.values())
@@ -204,6 +214,33 @@ export class PlanStore {
     allAgreements(): Agreement[] { return Array.from(this.agreements.values()); }
 
     // =========================================================================
+    // CRUD — AgreementBundles (GAP-J)
+    // =========================================================================
+
+    /**
+     * Add an AgreementBundle — groups multiple agreements for a single transaction
+     * (e.g. all line items in an order).
+     * VF spec: exchanges.md, model-text.md §vf:AgreementBundle.
+     */
+    addAgreementBundle(bundle: Omit<AgreementBundle, 'id'> & { id?: string }): AgreementBundle {
+        const b: AgreementBundle = { id: bundle.id ?? this.generateId(), ...bundle };
+        this.agreementBundles.set(b.id, b);
+        return b;
+    }
+
+    getAgreementBundle(id: string): AgreementBundle | undefined { return this.agreementBundles.get(id); }
+    allAgreementBundles(): AgreementBundle[] { return Array.from(this.agreementBundles.values()); }
+
+    /** Get all agreements that belong to a bundle. */
+    agreementsInBundle(bundleId: string): Agreement[] {
+        const bundle = this.agreementBundles.get(bundleId);
+        if (!bundle) return [];
+        return (bundle.bundles ?? [])
+            .map(id => this.agreements.get(id))
+            .filter((a): a is Agreement => a !== undefined);
+    }
+
+    // =========================================================================
     // CRUD — Proposals (publish Intents)
     // =========================================================================
 
@@ -223,6 +260,80 @@ export class PlanStore {
     getProposal(id: string): Proposal | undefined { return this.proposals.get(id); }
 
     allProposals(): Proposal[] { return Array.from(this.proposals.values()); }
+
+    // =========================================================================
+    // CRUD — ProposalLists (GAP-K)
+    // =========================================================================
+
+    /**
+     * Add a ProposalList — groups proposals into a user-defined set
+     * (e.g. a price list, or all proposals for a given event/fair).
+     * VF spec: proposals.md, model-text.md §vf:ProposalList.
+     */
+    addProposalList(list: Omit<ProposalList, 'id'> & { id?: string }): ProposalList {
+        const pl: ProposalList = { id: list.id ?? this.generateId(), ...list };
+        this.proposalLists.set(pl.id, pl);
+        return pl;
+    }
+
+    getProposalList(id: string): ProposalList | undefined { return this.proposalLists.get(id); }
+    allProposalLists(): ProposalList[] { return Array.from(this.proposalLists.values()); }
+
+    /** Get all proposals that belong to a list. */
+    proposalsInList(listId: string): Proposal[] {
+        const list = this.proposalLists.get(listId);
+        if (!list) return [];
+        return (list.lists ?? [])
+            .map(id => this.proposals.get(id))
+            .filter((p): p is Proposal => p !== undefined);
+    }
+
+    // =========================================================================
+    // CRUD — Scenarios (GAP-E)
+    // =========================================================================
+
+    /**
+     * Add a ScenarioDefinition — a named type/template for a category of scenarios.
+     * VF spec: model-text.md §vf:ScenarioDefinition, estimates.md.
+     */
+    addScenarioDefinition(def: Omit<ScenarioDefinition, 'id'> & { id?: string }): ScenarioDefinition {
+        const sd: ScenarioDefinition = { id: def.id ?? this.generateId(), ...def };
+        this.scenarioDefinitions.set(sd.id, sd);
+        return sd;
+    }
+
+    getScenarioDefinition(id: string): ScenarioDefinition | undefined { return this.scenarioDefinitions.get(id); }
+    allScenarioDefinitions(): ScenarioDefinition[] { return Array.from(this.scenarioDefinitions.values()); }
+
+    /** Get all scenarios defined by a ScenarioDefinition. */
+    scenariosForDefinition(definitionId: string): Scenario[] {
+        return Array.from(this.scenarios.values()).filter(s => s.definedAs === definitionId);
+    }
+
+    /**
+     * Add a Scenario — high-level grouping for analysis, budgeting, or pre-planning.
+     * Plans, processes, and intents associate themselves via back-references
+     * (Plan.refinementOf, Process.nestedIn, Intent.plannedWithin).
+     * VF spec: model-text.md §vf:Scenario, estimates.md.
+     */
+    addScenario(scenario: Omit<Scenario, 'id'> & { id?: string }): Scenario {
+        const s: Scenario = { id: scenario.id ?? this.generateId(), ...scenario };
+        this.scenarios.set(s.id, s);
+        return s;
+    }
+
+    getScenario(id: string): Scenario | undefined { return this.scenarios.get(id); }
+    allScenarios(): Scenario[] { return Array.from(this.scenarios.values()); }
+
+    /** Get all scenarios that are refinements (sub-scenarios) of the given scenario. */
+    scenarioRefinements(scenarioId: string): Scenario[] {
+        return Array.from(this.scenarios.values()).filter(s => s.refinementOf === scenarioId);
+    }
+
+    /** Get all plans that refine (are operational implementations of) a given scenario. */
+    plansForScenario(scenarioId: string): Plan[] {
+        return Array.from(this.plans.values()).filter(p => p.refinementOf === scenarioId);
+    }
 
     /**
      * Convenience: create an offer proposal.
@@ -672,8 +783,8 @@ export class PlanStore {
             effortQuantity: this.scaleQuantity(flow.effortQuantity, scaleFactor),
             stage: flow.stage,
             state: flow.state,
-            provider: agents?.provider ?? 'unassigned',
-            receiver: agents?.receiver ?? 'unassigned',
+            provider: agents?.provider,
+            receiver: agents?.receiver,
             due: dueDate.toISOString(),
             created: new Date().toISOString(),
             plannedWithin: planId,

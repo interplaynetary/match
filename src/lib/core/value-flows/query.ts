@@ -14,20 +14,38 @@ import type {
     Commitment,
     Intent,
     Agreement,
+    AgreementBundle,
     Proposal,
+    ProposalList,
     Plan,
     ResourceSpecification,
     ProcessSpecification,
     RecipeFlow,
     RecipeProcess,
+    RecipeGroup,
+    AgentRelationship,
+    AgentRelationshipRole,
+    Scenario,
+    ScenarioDefinition,
     VfAction,
 } from './schemas';
 import type { Observer } from './observation/observer';
 import type { PlanStore } from './planning/planning';
 import type { RecipeStore } from './knowledge/recipes';
 import type { ProcessRegistry } from './process-registry';
+import type { AgentStore } from './agents';
 import { trace, track } from './algorithms/track-trace';
 import type { FlowNode } from './algorithms/track-trace';
+import { criticalPath as cpAlgo } from './algorithms/critical-path';
+import type { CriticalPathResult } from './algorithms/critical-path';
+import { rollupStandardCost as rollupStd, rollupActualCost as rollupActual } from './algorithms/rollup';
+import type { RollupResult, UnitConverter } from './algorithms/rollup';
+import { distributeIncome as distIncome } from './algorithms/value-equations';
+import type { ValueEquation, ValueEquationResult } from './algorithms/value-equations';
+import { cashFlowReport } from './algorithms/cash-flows';
+import type { CashFlowReport, PeriodGranularity } from './algorithms/cash-flows';
+import { dependentDemand as depDemand } from './algorithms/dependent-demand';
+import type { DependentDemandResult } from './algorithms/dependent-demand';
 
 // =============================================================================
 // VF QUERIES — Unified query interface
@@ -39,6 +57,7 @@ export class VfQueries {
         private readonly planStore: PlanStore,
         private readonly recipes: RecipeStore,
         private readonly processes: ProcessRegistry,
+        private readonly agents?: AgentStore,
     ) {}
 
     // =========================================================================
@@ -73,6 +92,13 @@ export class VfQueries {
         );
     }
 
+    /** Commitments where agent appears in inScopeOf (inverses.md §Agent commitmentsInScope) */
+    commitmentsInScope(agentId: string): Commitment[] {
+        return Array.from(this.planStore.allCommitments()).filter(c =>
+            c.inScopeOf?.includes(agentId),
+        );
+    }
+
     /** Events where agent is provider */
     economicEventsAsProvider(agentId: string): EconomicEvent[] {
         return this.observer.allEvents().filter(e => e.provider === agentId);
@@ -81,6 +107,13 @@ export class VfQueries {
     /** Events where agent is receiver */
     economicEventsAsReceiver(agentId: string): EconomicEvent[] {
         return this.observer.allEvents().filter(e => e.receiver === agentId);
+    }
+
+    /** Events where agent is in inScopeOf (inverses.md §Agent economicEventsInScope) */
+    economicEventsInScope(agentId: string): EconomicEvent[] {
+        return this.observer.allEvents().filter(e =>
+            e.inScopeOf?.includes(agentId),
+        );
     }
 
     /** Intents where agent is provider */
@@ -97,6 +130,13 @@ export class VfQueries {
         );
     }
 
+    /** Intents where agent appears in inScopeOf (inverses.md §Agent intentsInScope) */
+    intentsInScope(agentId: string): Intent[] {
+        return Array.from(this.planStore.allIntents()).filter(i =>
+            i.inScopeOf?.includes(agentId),
+        );
+    }
+
     /** All plans where agent has processes in scope */
     agentPlans(agentId: string): Plan[] {
         const planIds = new Set(
@@ -105,6 +145,58 @@ export class VfQueries {
                 .filter(Boolean) as string[],
         );
         return this.planStore.allPlans().filter(p => planIds.has(p.id));
+    }
+
+    /** Proposals that are inScopeOf a given agent (inverses.md §Agent proposalsInScope) */
+    proposalsInScope(agentId: string): Proposal[] {
+        return this.planStore.allProposals().filter(p =>
+            p.inScopeOf?.includes(agentId),
+        );
+    }
+
+    /**
+     * Proposals proposed TO a given agent (inverses.md §Agent proposalsTo).
+     * A proposal is "to" an agent when Proposal.proposedTo contains the agentId.
+     */
+    proposalsTo(agentId: string): Proposal[] {
+        return this.planStore.allProposals().filter(p =>
+            p.proposedTo?.includes(agentId),
+        );
+    }
+
+    /** Scenarios where agent is inScopeOf (inverses.md §Agent scenariosInScope) */
+    scenariosInScope(agentId: string): Scenario[] {
+        return this.planStore.allScenarios().filter(s =>
+            s.inScopeOf === agentId,
+        );
+    }
+
+    /**
+     * AgentRelationships where agent is the subject (inverses.md §Agent relationshipsAsSubject).
+     */
+    relationshipsAsSubject(agentId: string): AgentRelationship[] {
+        if (!this.agents) return [];
+        return this.agents.allRelationships().filter(r => r.subject === agentId);
+    }
+
+    /**
+     * AgentRelationships where agent is the object (inverses.md §Agent relationshipsAsObject).
+     */
+    relationshipsAsObject(agentId: string): AgentRelationship[] {
+        if (!this.agents) return [];
+        return this.agents.allRelationships().filter(r => r.object === agentId);
+    }
+
+    /**
+     * All economic events where agent is provider, receiver, or inScopeOf.
+     * (inverses.md §Agent economicEvents)
+     */
+    agentEconomicEvents(agentId: string): EconomicEvent[] {
+        return this.observer.allEvents().filter(e =>
+            e.provider === agentId ||
+            e.receiver === agentId ||
+            e.inScopeOf?.includes(agentId),
+        );
     }
 
     // =========================================================================
@@ -175,6 +267,58 @@ export class VfQueries {
         )];
     }
 
+    /**
+     * Next processes from a given process.
+     * A "next" process is one that consumes resources produced by this process.
+     * (inverses.md §Process nextProcesses)
+     */
+    nextProcesses(processId: string): Process[] {
+        // Get resourceInventoriedAs for all output events of this process
+        const outputResourceIds = new Set(
+            this.observer.eventsForProcess(processId)
+                .filter(e => e.outputOf === processId && e.resourceInventoriedAs)
+                .map(e => e.resourceInventoriedAs as string),
+        );
+        if (outputResourceIds.size === 0) return [];
+
+        // Find processes with input events referencing those resources
+        const result = new Set<string>();
+        for (const e of this.observer.allEvents()) {
+            if (e.inputOf && e.resourceInventoriedAs && outputResourceIds.has(e.resourceInventoriedAs)) {
+                result.add(e.inputOf);
+            }
+        }
+        return [...result]
+            .map(id => this.processes.get(id))
+            .filter((p): p is Process => p !== undefined);
+    }
+
+    /**
+     * Previous processes of a given process.
+     * A "previous" process is one that produces resources consumed by this process.
+     * (inverses.md §Process previousProcesses)
+     */
+    previousProcesses(processId: string): Process[] {
+        // Get resourceInventoriedAs for all input events of this process
+        const inputResourceIds = new Set(
+            this.observer.eventsForProcess(processId)
+                .filter(e => e.inputOf === processId && e.resourceInventoriedAs)
+                .map(e => e.resourceInventoriedAs as string),
+        );
+        if (inputResourceIds.size === 0) return [];
+
+        // Find processes with output events that produced those resources
+        const result = new Set<string>();
+        for (const e of this.observer.allEvents()) {
+            if (e.outputOf && e.resourceInventoriedAs && inputResourceIds.has(e.resourceInventoriedAs)) {
+                result.add(e.outputOf);
+            }
+        }
+        return [...result]
+            .map(id => this.processes.get(id))
+            .filter((p): p is Process => p !== undefined);
+    }
+
     // =========================================================================
     // ECONOMIC EVENT QUERIES (inverses.md §EconomicEvent)
     // =========================================================================
@@ -205,6 +349,11 @@ export class VfQueries {
     // ECONOMIC RESOURCE QUERIES (inverses.md §EconomicResource)
     // =========================================================================
 
+    /** Resources contained in this resource (EconomicResource.containedIn inverse) */
+    contains(resourceId: string): EconomicResource[] {
+        return this.observer.allResources().filter(r => r.containedIn === resourceId);
+    }
+
     /** Intents referencing this resource */
     resourceIntents(resourceId: string): Intent[] {
         return Array.from(this.planStore.allIntents()).filter(i =>
@@ -219,16 +368,34 @@ export class VfQueries {
         );
     }
 
-    /** Events from this resource (resourceInventoriedAs) */
+    /**
+     * All economic events where this resource is the "from" resource.
+     * Includes process events, raise/lower, provider-side of transfers.
+     * (inverses.md §EconomicResource economicEventsInOutFrom)
+     */
     economicEventsFrom(resourceId: string): EconomicEvent[] {
         return this.observer.allEvents().filter(e =>
             e.resourceInventoriedAs === resourceId,
         );
     }
 
-    /** Events to this resource (toResourceInventoriedAs) */
+    /**
+     * All events where this resource is the "to" resource (receiver side of transfer/move).
+     * (inverses.md §EconomicResource economicEventsTo)
+     */
     economicEventsTo(resourceId: string): EconomicEvent[] {
         return this.observer.allEvents().filter(e =>
+            e.toResourceInventoriedAs === resourceId,
+        );
+    }
+
+    /**
+     * All events relating to this resource (from or to).
+     * (inverses.md §EconomicResource economicEvents)
+     */
+    resourceEconomicEvents(resourceId: string): EconomicEvent[] {
+        return this.observer.allEvents().filter(e =>
+            e.resourceInventoriedAs === resourceId ||
             e.toResourceInventoriedAs === resourceId,
         );
     }
@@ -249,12 +416,30 @@ export class VfQueries {
 
     /** Check if a proposal is an offer */
     isOffer(proposalId: string): boolean {
-        return this.planStore.getProposal(proposalId)?.purpose === 'offer';
+        const p = this.planStore.getProposal(proposalId);
+        if (p?.purpose === 'offer') return true;
+        // Also true if any publishes Intent has a provider (VF spec alternative check)
+        if (p?.publishes?.length) {
+            return p.publishes.some(intentId => {
+                const intent = this.planStore.getIntent(intentId);
+                return intent?.provider != null;
+            });
+        }
+        return false;
     }
 
     /** Check if a proposal is a request */
     isRequest(proposalId: string): boolean {
-        return this.planStore.getProposal(proposalId)?.purpose === 'request';
+        const p = this.planStore.getProposal(proposalId);
+        if (p?.purpose === 'request') return true;
+        // Also true if any reciprocal Intent has a receiver
+        if (p?.reciprocal?.length) {
+            return p.reciprocal.some(intentId => {
+                const intent = this.planStore.getIntent(intentId);
+                return intent?.receiver != null;
+            });
+        }
+        return false;
     }
 
     // =========================================================================
@@ -340,7 +525,7 @@ export class VfQueries {
     commitmentInvolvedAgents(commitmentId: string): string[] {
         const c = this.planStore.getCommitment(commitmentId);
         if (!c) return [];
-        return [c.provider, c.receiver].filter(Boolean) as string[];
+        return [c.provider, c.receiver].filter((a): a is string => Boolean(a));
     }
 
     // =========================================================================
@@ -380,13 +565,49 @@ export class VfQueries {
         return procs.length > 0 && procs.every(p => p.finished);
     }
 
-    /** All inScopeOf agents across the plan's processes */
+    /** All inScopeOf agents across the plan's processes (inverses.md §Plan inScopeOf) */
     planInScopeOf(planId: string): string[] {
         const agents = new Set<string>();
         for (const p of this.processes.forPlan(planId)) {
             if (p.inScopeOf) p.inScopeOf.forEach(a => agents.add(a));
         }
         return [...agents];
+    }
+
+    // =========================================================================
+    // SCENARIO QUERIES (inverses.md §Scenario)
+    // =========================================================================
+
+    /**
+     * Plans that refine a given scenario (Plan.refinementOf).
+     * (inverses.md §Scenario plans)
+     */
+    scenarioPlans(scenarioId: string): Plan[] {
+        return this.planStore.plansForScenario(scenarioId);
+    }
+
+    /**
+     * Scenarios nested under a given scenario (Scenario.refinementOf).
+     * (inverses.md §Scenario refinements)
+     */
+    scenarioRefinements(scenarioId: string): Scenario[] {
+        return this.planStore.scenarioRefinements(scenarioId);
+    }
+
+    /**
+     * Processes nested in a scenario (Process.nestedIn).
+     * (inverses.md §Scenario processes)
+     */
+    scenarioProcesses(scenarioId: string): Process[] {
+        return this.processes.all().filter(p => p.nestedIn === scenarioId);
+    }
+
+    /**
+     * All scenarios associated with a ScenarioDefinition.
+     * (inverses.md §ScenarioDefinition scenarios)
+     */
+    definitionScenarios(definitionId: string): Scenario[] {
+        return this.planStore.scenariosForDefinition(definitionId);
     }
 
     // =========================================================================
@@ -476,6 +697,168 @@ export class VfQueries {
                     f.stage === stageSpecId,
                 );
             });
+        });
+    }
+
+    // =========================================================================
+    // AGREEMENT BUNDLE QUERIES (GAP-J)
+    // =========================================================================
+
+    /** All agreements in a bundle */
+    bundleAgreements(bundleId: string): Agreement[] {
+        return this.planStore.agreementsInBundle(bundleId);
+    }
+
+    // =========================================================================
+    // PROPOSAL LIST QUERIES (GAP-K)
+    // =========================================================================
+
+    /** All proposals in a ProposalList */
+    listProposals(listId: string): Proposal[] {
+        return this.planStore.proposalsInList(listId);
+    }
+
+    // =========================================================================
+    // AGENT RELATIONSHIP QUERIES (GAP-B, inverses.md §AgentRelationshipRole)
+    // =========================================================================
+
+    /**
+     * All AgentRelationships for a given role.
+     * (inverses.md §AgentRelationshipRole agentRelationships)
+     */
+    relationshipsForRole(roleId: string): AgentRelationship[] {
+        if (!this.agents) return [];
+        return this.agents.allRelationships().filter(r => r.relationship === roleId);
+    }
+
+    /**
+     * All relationships where a scope agent is specified.
+     */
+    relationshipsInScope(scopeAgentId: string): AgentRelationship[] {
+        if (!this.agents) return [];
+        return this.agents.allRelationships().filter(r => r.inScopeOf === scopeAgentId);
+    }
+
+    // =========================================================================
+    // RECIPE GROUP QUERIES (GAP-D)
+    // =========================================================================
+
+    /** Get all recipes in a RecipeGroup */
+    recipeGroupRecipes(groupId: string): import('./schemas').Recipe[] {
+        return this.recipes.recipesForGroup(groupId);
+    }
+
+    // =========================================================================
+    // ALGORITHMS — Critical Path, Rollup, Value Equations, Cash Flows, Demand
+    // =========================================================================
+
+    /**
+     * Compute the critical path for a plan's processes.
+     *
+     * Returns process nodes with earliestStart/Finish, latestStart/Finish,
+     * float, and whether each is on the critical path (float = 0).
+     *
+     * @see algorithms/critical-path.md
+     */
+    criticalPath(planId: string, defaultDurationMs?: number): CriticalPathResult {
+        return cpAlgo(planId, this.planStore, this.processes, defaultDurationMs);
+    }
+
+    /**
+     * Standard cost rollup — traverse a recipe and sum all input values.
+     *
+     * @param recipeId - The recipe to roll up
+     * @param converter - Maps (quantity, unit) → value in common unit
+     * @param commonUnit - Label for the result unit (e.g. 'USD', 'hours')
+     * @param scaleFactor - Recipe output multiplier (default 1)
+     * @see algorithms/rollup.md
+     */
+    rollupStandardCost(
+        recipeId: string,
+        converter: UnitConverter,
+        commonUnit?: string,
+        scaleFactor?: number,
+    ): RollupResult {
+        return rollupStd(recipeId, this.recipes, converter, commonUnit, scaleFactor);
+    }
+
+    /**
+     * Actual cost rollup — trace backwards from a resource/event, sum all input events.
+     *
+     * @param startId - Resource ID or EconomicEvent ID to trace from
+     * @param converter - Maps (quantity, unit) → value in common unit
+     * @param commonUnit - Label for the result unit
+     * @see algorithms/rollup.md
+     */
+    rollupActualCost(
+        startId: string,
+        converter: UnitConverter,
+        commonUnit?: string,
+    ): RollupResult {
+        return rollupActual(startId, this.observer, this.processes, converter, commonUnit);
+    }
+
+    /**
+     * Distribute income from an event to contributors using a value equation.
+     *
+     * Traces backwards from the income event, scores each contributing event
+     * by the equation formula, and returns per-agent income shares.
+     *
+     * @param incomeEventId - Event that brought in income (transfer, deliverService…)
+     * @param equation - How to score contributions (use built-in or define custom)
+     * @see algorithms/equations.md
+     */
+    distributeIncome(
+        incomeEventId: string,
+        equation: ValueEquation,
+    ): ValueEquationResult {
+        return distIncome(incomeEventId, this.observer, this.processes, equation);
+    }
+
+    /**
+     * Generate a cash flow report for an agent over a date range.
+     *
+     * Combines actual flows (from events) and forecasted flows
+     * (from commitments/intents) on a period timeline.
+     *
+     * @see algorithms/cashflows.md
+     */
+    cashFlow(params: {
+        agentId: string;
+        reportStart: Date;
+        reportEnd: Date;
+        granularity?: PeriodGranularity;
+        resourceSpecId?: string;
+    }): CashFlowReport {
+        return cashFlowReport({
+            ...params,
+            observer: this.observer,
+            planStore: this.planStore,
+        });
+    }
+
+    /**
+     * Perform a full recursive dependent demand explosion into an existing plan.
+     *
+     * Checks inventory, nets against available stock, finds recipes for each
+     * unsatisfied input, back-schedules sub-processes, and recurses down the
+     * BOM tree until all demands are either satisfied or marked as purchase intents.
+     *
+     * @see algorithms/dependent-demand.md
+     */
+    dependentDemand(params: {
+        planId: string;
+        demandSpecId: string;
+        demandQuantity: number;
+        dueDate: Date;
+        agents?: { provider?: string; receiver?: string };
+    }): DependentDemandResult {
+        return depDemand({
+            ...params,
+            recipeStore: this.recipes,
+            planStore: this.planStore,
+            processes: this.processes,
+            observer: this.observer,
         });
     }
 }

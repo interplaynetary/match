@@ -1,0 +1,94 @@
+site_name: Valueflows
+
+theme:
+  name: material
+  logo: assets/icon-0.svg
+  favicon: assets/favicon.ico
+  features:
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.tracking
+  palette:
+    primary: white
+    accent: cyan
+
+nav:
+    - Home: index.md
+    - Introduction:
+        - What is Valueflows: introduction/introduction.md
+        - Core Concepts: introduction/core.md
+        - Principles: introduction/principles.md
+        - Contributors: introduction/contributors.md
+        - Release and Status: introduction/status.md
+    - Specification:
+        - Specification Overview: specification/spec-overview.md
+        - RDF-based Specification: specification/all_vf.html
+        - UML Diagram: specification/uml.md
+        - Diagram Explanations: specification/model-text.md
+        - Use of Other Vocabularies: specification/external-terms.md
+        - Query Naming: specification/inverses.md
+    - Concepts:
+        - Concepts Overview: concepts/concepts-overview.md
+        - Agents: concepts/agents.md
+        - Economic Resources: concepts/resources.md
+        - Flows: concepts/flows.md
+        - Actions: concepts/actions.md
+        - Processes: concepts/processes.md
+        - Transfers: concepts/transfers.md
+        - Exchanges: concepts/exchanges.md
+        - Offers and Requests: concepts/proposals.md
+        - Operational Planning: concepts/plan.md
+        - Estimates and Analysis: concepts/estimates.md
+        - Recipes: concepts/recipes.md
+        - Classification: concepts/classification.md
+        - Scoping: concepts/scoping.md
+        - Location: concepts/location.md
+        - Accounting: concepts/accounting.md
+        - Ecological Accounting: concepts/ecology.md
+    - Examples:
+        - Examples Overview: examples/ex-overview.md
+        - Agents: examples/ex-agent.md
+        - Resources: examples/ex-resource.md
+        - Production: examples/ex-production.md
+        - Exchanges and Transfers: examples/ex-exchange.md
+        - Planning: examples/ex-planning.md
+        - Plan-Produce-Exchange: examples/ex-complex.md
+        - Offers/Requests: examples/ex-proposals.md
+        - Estimates and Analysis: examples/ex-scenario.md
+    - Algorithms:
+        - Algorithms Overview: algorithms/overview.md
+        - Dependent Demand: algorithms/dependent-demand.md
+        - Critical Path: algorithms/critical-path.md
+        - Value Rollup: algorithms/rollup.md
+        - Value Equations: algorithms/equations.md
+        - Track and Trace: algorithms/track.md
+        - Provenance: algorithms/provenance.md
+        - Cash Flows: algorithms/cashflows.md
+        - Network Flows: algorithms/netflows.md
+    - Appendices:
+        - Implementations: appendix/usedfor.md
+        - REA & Other References: appendix/rea.md
+        - Available Documentation: appendix/presentations.md
+    - FAQ:
+        - Frequently Asked Questions: introduction/faq.md
+
+markdown_extensions:
+  - pymdownx.snippets
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - attr_list
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/gitlab
+      link: https://lab.allmende.io/valueflows
+      name: Find us on gitlab
+    - icon: material/matrix
+      link: https://matrix.to/#/#valueflows:matrix.org
+      name: Chat with us on matrix

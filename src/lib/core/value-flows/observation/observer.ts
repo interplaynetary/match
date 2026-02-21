@@ -181,6 +181,13 @@ export class Observer {
             this.trackSatisfaction(event);
         }
 
+        // Auto-finish a process when its last expected output is produced.
+        // A process is finished when every output-type event has been recorded.
+        const processId = event.outputOf;
+        if (processId) {
+            this.checkProcessCompletion(processId);
+        }
+
         return affected;
     }
 
@@ -232,6 +239,14 @@ export class Observer {
     private applyEffects(event: EconomicEvent): EconomicResource[] {
         const def = ACTION_DEFINITIONS[event.action];
         const affected: EconomicResource[] = [];
+        const affectedIds = new Set<string>();
+
+        const addAffected = (r: EconomicResource) => {
+            if (!affectedIds.has(r.id)) {
+                affectedIds.add(r.id);
+                affected.push(r);
+            }
+        };
 
         // --- "from" resource (resourceInventoriedAs) ---
         if (event.resourceInventoriedAs) {
@@ -252,7 +267,7 @@ export class Observer {
                 if (changes.length > 0) {
                     this.emit({ type: 'resource_updated', resource, event, changes });
                 }
-                affected.push(resource);
+                addAffected(resource);
             }
         }
 
@@ -270,7 +285,42 @@ export class Observer {
                 if (changes.length > 0) {
                     this.emit({ type: 'resource_updated', resource: toResource, event, changes });
                 }
-                affected.push(toResource);
+                addAffected(toResource);
+            }
+        }
+
+        // --- Implied Transfer (GAP-F) ---
+        // VF spec: transfers.md §Implied Transfers
+        // When provider ≠ receiver and the action implies a transfer,
+        // apply additional transfer-of-rights or transfer-of-custody effects.
+        if (def.impliesTransfer && event.provider !== event.receiver && event.resourceInventoriedAs) {
+            const impliedDef = def.impliesTransfer === 'allRights'
+                ? ACTION_DEFINITIONS['transferAllRights']
+                : ACTION_DEFINITIONS['transferCustody'];
+
+            const fromResource = this.resources.get(event.resourceInventoriedAs);
+            if (fromResource) {
+                // Decrement from the "from" resource
+                const fromChanges = this.applyResourceEffects(fromResource, event, impliedDef, 'from');
+                if (fromChanges.length > 0) {
+                    this.emit({ type: 'resource_updated', resource: fromResource, event, changes: fromChanges.map(c => `implied:${c}`) });
+                }
+                addAffected(fromResource);
+
+                // If there is a toResource, increment it; otherwise update accountable on fromResource
+                if (event.toResourceInventoriedAs) {
+                    const toResource = this.resources.get(event.toResourceInventoriedAs);
+                    if (toResource) {
+                        const toChanges = this.applyResourceEffects(toResource, event, impliedDef, 'to');
+                        if (toChanges.length > 0) {
+                            this.emit({ type: 'resource_updated', resource: toResource, event, changes: toChanges.map(c => `implied:${c}`) });
+                        }
+                        addAffected(toResource);
+                    }
+                } else if (def.impliesTransfer === 'allRights') {
+                    // Update accountable on the from resource itself (rights transferred "inline")
+                    fromResource.primaryAccountable = event.receiver;
+                }
             }
         }
 
@@ -593,6 +643,27 @@ export class Observer {
 
     getProcess(id: string): Process | undefined {
         return this.processes.get(id);
+    }
+
+    /**
+     * Mark a process as finished if all its registered output Commitments are fulfilled.
+     *
+     * Called automatically after every output event is recorded.
+     * A process is considered complete when every commitment that is outputOf it
+     * has been fully fulfilled (totalFulfilled >= totalCommitted).
+     */
+    private checkProcessCompletion(processId: string): void {
+        const process = this.processes.get(processId);
+        if (!process || process.finished) return;
+
+        // All fulfillment states whose fulfilling events are outputs of this process
+        const trackedOutputFulfillments = Array.from(this.fulfillments.values()).filter(f =>
+            f.fulfillingEvents.some(evId => this.eventsById.get(evId)?.outputOf === processId)
+        );
+
+        if (trackedOutputFulfillments.length > 0 && trackedOutputFulfillments.every(f => f.finished)) {
+            this.processes.markFinished(processId);
+        }
     }
 
     // =========================================================================
