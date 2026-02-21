@@ -29,6 +29,7 @@ import {
     stateKey,
 } from './effect';
 import { derive } from './derivation.ts';
+import { createHexIndex, addItemToHexIndex, type HexIndex } from './space-time-index';
 
 // =============================================================================
 // STREAM EVENT — What the stream emits
@@ -101,6 +102,9 @@ export class EffectStream {
     private byPhase = new Map<AssertionPhase, Set<string>>(); // phase → origin_ids
     private stateWatchers = new Map<string, Set<string>>();    // "entity:attr" → watching effect origin_ids
     private predicateSatisfaction = new Map<string, boolean>(); // "effectId:entity:attr" → currently satisfied?
+    
+    // Space-Time Index
+    public hexIndex: HexIndex<Effect> = createHexIndex<Effect>();
 
     // Pluggable processors
     private processors = new Map<string, PhaseProcessor>();
@@ -438,6 +442,23 @@ export class EffectStream {
             set.add(effect.origin_id);
             this.stateWatchers.set(key, set);
         }
+
+        // Spatial-Temporal index
+        // Extract basic availability and location to properly index
+        if (effect.envelope.spatial || effect.envelope.temporal) {
+            addItemToHexIndex(
+                this.hexIndex,
+                effect,
+                effect.origin_id,
+                {
+                    lat: effect.envelope.spatial?.latitude,
+                    lon: effect.envelope.spatial?.longitude,
+                    h3_index: effect.envelope.spatial?.h3_index,
+                },
+                {},
+                effect.envelope.temporal?.availability_window,
+            );
+        }
     }
 
     private reindex(effect: Effect): void {
@@ -476,6 +497,7 @@ export class EffectStream {
         this.byPhase.clear();
         this.stateWatchers.clear();
         this.predicateSatisfaction.clear();
+        this.hexIndex = createHexIndex<Effect>();
     }
 }
 

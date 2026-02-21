@@ -65,7 +65,7 @@ export {
 } from './core/eligibility'
 
 // Spatial
-export * from './core/plan/spatial'
+export * from './core/plan/space'
 
 // Search
 export * from './core/search'

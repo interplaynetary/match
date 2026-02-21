@@ -14,8 +14,7 @@
 
 # 🏛️: Aggregator/Indexer
 
-- aggregates current 🟦/🔺/👤->🟢/🟦->🟢/🟦{⭐...} for use in social planning
-- aggregates desired 🟦/🌀/🔺/👤->🟢/🟦->🟢/🟦{⭐...} for use in social planning
+- aggregates current/possible/desired 🟦/🔺/👤->🟢/🟦->🟢/🟦{⭐...} for use in social planning
 
 # ⭐: Use-Rights with Responsibilities
 
@@ -61,6 +60,8 @@
 - Query Entity Attributes (🏛️/🟦/🟢/👤/🌀/🌱)
 - Return boolean
 
+# Planning
+
 ## 👤/🟦⭐ -> 🟢 Matching
 
 - 7 dimensions, geometric mean, any = 0 → blocked:
@@ -98,146 +99,84 @@
 ## 🏛️ Social Plan and 🟢 Scheduling
 
 - The social plan is 🏛️ choosing a distribution of 🟦⭐ that is maximally coherent:
-- Given a distribution of 👤 space-time availability and quantity, try to achieve production of desired 🟦/🌀/🔺 via 🟢, allocating 👤 time to 🟢 slots, and distributing 🟦⭐ to 🟢, and composing 🟢, in such a way that maximizes the production of desired 🟦/🌀/🔺 while minimizing total-labor-time (max free-time) and respecting Max Working-Day per 👤
+- Given a distribution of 👤 space-time availability and quantity, try to achieve production of desired 🟦/🌀/🔺 via 🟢, allocating 👤 time to 🟢 slots, and distributing 🟦⭐ to 🟢, and composing 🟢, in such a way that that satisfied demand for 🟦/🔺 while minimizing total-labor-time (max free-time) and respecting Max Working-Day per 👤
 - Project Network? Critical Path?
 - There might be many valid plans, 🏛️ can choose any of them, making decisions on the valid set, which constrain suggestions, while clearly showing which possible plans are not possible given those decisions.
 - **Social Working Day** = sum of individual hours of work.
 
 ## 🏛️ Validation of 👤 Time Contribution to 🟢 in Social Plan
 
-- 🟢🏛️ validates time-contribution/slot fulfillment by 👤 and 🟦, given 🟢 has already total-durations for each of its slots and overall within 🏛️ Social Plan, it can only validate time up to that limit (preventing unlimited issuance of time)
-- 🟢🏛️ validation of 👤 Time Contribution grants **👤 Time-Voucher (non-transferable, revokable by 🟢🏛️)** which can be used to claim 🟦 from **🟦 Individual Consumption Pool**.
-- Each Time-voucher is a portion of all socially-validated-time, and can be either _spent/unspent_.
-- Share of total-unspent-socially-validated-time: is amount that 👤 can claim from **🟦 Individual Consumption Pool** (where different items in this pool have different costs = social-time spent to produce it) ?
-- "He receives a certificate from society that he has furnished such-and-such an amount of labor (after deducting his labor for the common funds); and with this certificate, he draws from the social stock of means of consumption **as much as the same amount of labor cost**. The same amount of labor which he has given to society in one form, he receives back in another." - Marx
-  // OK NOW im really curious because **as much as the same amount of labor cost** is not saying the same thing as **the labor-time cost of producing 🟦**?
-
-# Questions:
-
-- Rights compatibility: When a 🟦 has multiple valid ⭐-combinations, who decides which to activate? Is this a 🏛️ function?: Yes
-- Temporal gaps: The index shows ⭐ distribution "over time" but how are transitions governed? Can rights overlap or must they be sequential?: At any given moment there must be a valid ⭐ combination for each resource {⭐1, ⭐2, ⭐3}
-- Environmental contingency: 🔺 can make 🟢 conditional on environment, but can it affect ⭐ validity or 🏛️ authority?: Yes
-- Matching vs. Allocation: The distinction is clear—matching is about compatibility, allocation is about actualization. But who performs the allocation decision when multiple matches exist?: 🏛️
-
-What happens when total 👤 desire expression exceeds actual time allocation possible? Desire constrains possible, but actual determined by 🏛️ distributing ⭐, not by 👤 desire, still it would seem desire acts as a preliminary filter. But if one is not careful, one could allocate ⭐ to multiple 🟢 which are not actually possible because of limited real-space-time-skilled-labor.
-
-Perhaps we can say 👤 expresses what they would like to do and how much (time).
-And we know that each 👤 can work MAX hours per day. Then we know limits/tradeoffs?
-
-It would seem that 👤 labor must be rationed, and allocated, according to 🏛️ social plan? To avoid conflicts?
-Preferences can be taken into account, but there are space-time constraints.
-
-## Revelation Principle
-
-- We must check that all of our algorithms satisfy the revelation principle, or are truth mechanisms.
-
-Perhaps:
-
-1. 👤 express desires → aggregated
-2. 🏛️ proposes allocation → published
-3. 👤 revise desires given constraints → feedback
-4. 🏛️ revises allocation → published
-5. Iterate until convergence
-
-Also consider: What if matching/allocation is itself a 🟢?
-🟢ₐₗₗₒ꜀ₐₜᵢₒₙ:
-Required slots: - 👤 (planners) - 🟦 (computation resources) - 🔺 (preference aggregation rules)
-Effects: - 🌀 (distribute 🟦⭐ to other 🟢)
+- 🟢🏛️ validates **socially-necessary contribution**, not just raw clock-time worked.
+- Every 🟢 has an established slot duration based on the current **Socially Necessary Labor Time (SNLT)** determined by the 🏛️ Social Plan.
+- 🟢🏛️ can only validate `gross_labor_credited` up to that SNLT limit:
+  - If 👤 works slower than the SNLT, they only receive `gross_labor_credited` equal to the SNLT (wasted time is not rewarded).
+  - If 👤 works faster than the SNLT, they still receive `gross_labor_credited` equal to the SNLT (efficiency is rewarded with extra free-time).
+- 🟢🏛️ validation records the `gross_labor_credited`, which is then processed by the `communal_deduction_rate` to grant `net_claim_capacity`.
+- This `net_claim_capacity` can be used by 👤 to claim 🟦 from the **🟦 Individual Consumption Pool**.
 
 ---
 
-Yes! This is a major breakthrough. You're introducing **budget constraints** that make the problem tractable. Let me work through the implications:
+## 1. Is it the cost divided across the quantity of outputs?
 
-## The Labor-Time Budget
+Yes. If a 🟢 process has a total SNLT of 10 hours and produces 100 apples, the labor cost per apple is 10 / 100 = 0.1 hours. The **SNLT per unit** _(Total Social Labor / Total Social Output of 🟦)_ is always distributed across the fungible quantity of outputs.
 
-```
-For each 👤:
-  Σ(time allocated to 🟢ᵢ) ≤ MAX hours/day
+## 2. Do we count all dependent processes prior to the final process?
 
-For each 🟢:
-  Required 👤-hours to actualize
-```
+Yes, absolutely. You must count the entire upstream chain, but the math is handled elegantly as "Dead Labor" being transferred. In Marxist terms, the total labor cost of an output 🟦 is made of two things:
 
-This creates a **bounded optimization problem** rather than an unbounded preference aggregation problem.
+**Living Labor (👤 slot)**: The SNLT assigned to the current 🟢 process.
+**Dead Labor (🟦 slots)**: The labor hours already embodied in the inputs used up by the 🟢 process. These are the SNLT costs from all upstream dependent processes.
 
-## What This Solves
+If your apple orchard 🟢 has a total SNLT of 2 hours for human labor (👤), but also uses fertilizer (🟦) that carries 1 hour of SNLT produced in a previous 🟢 process, the total labor cost to produce the apples is 3 hours. If it produces 30 apples, the SNLT per unit is 3 / 30 = 0.1 hours. Every 🟦 passing through the economy essentially "carries" its accumulated labor-time history with it into the next 🟢.
 
-**1. The Allocation Becomes Computable**
+## 3. If deductions already happen for all that (communal consumption, etc.), how does this balance?
 
-Now 🏛️ allocation isn't arbitrary—it's solving:
+This is the brilliant part of Marx's Critique of the Gotha Programme and your intuition is spot on. You do not lower the "price" of the consumer goods, nor do you double-count.
 
-- Given: 👤 preferences (which 🟢, how many hours)
-- Given: 🟢 requirements (slots needed, hours needed)
-- Given: 🟦⭐ availability
-- Given: MAX hours per 👤
+Here is how the math balances across the whole society:
 
-Find: Distribution of {👤-hours → 🟢} that maximizes... what?
+Let's imagine a micro-economy of 1,000 workers. They each perform labor that yields 8 hours of `gross_labor_credited` today. Total `gross_labor_credited` = 8,000 hours.
 
-**2. The Key Question Reappears**
+**Society uses those 8,000 hours doing three different types of 🟢 processes:**
+Means of Production (making tractors, fertilizer to replace what was used up today): 2,000 hours
+Communal Needs (hospitals, schools, overhead for 🏛️): 2,000 hours
+Individual Consumption Goods (apples, chairs, for the 🟦 Individual Consumption Pool): 4,000 hours
 
-What's the objective function? Does 🏛️ maximize:
+The Capacity Side (Income): The workers received 8,000 hours of `gross_labor_credited` total. But 🏛️ knows 4,000 hours went to non-individual consumption. So, a `communal_deduction_rate` of 50% (0.5) is dynamically fetched from the current 🏛️ social plan ratio.
 
-a) **Preference satisfaction**: Get people into processes they desire most
+**Each worker's `gross_labor_credited` of 8 hours yields a derived `net_claim_capacity` of 4 hours.**
+Total `net_claim_capacity` of all workers = 4,000 hours.
 
-- But what if desired 🟢 don't produce needed use-values?
+The Production Side (Prices): The aggregate labor cost of the apples, chairs, etc., that go into the 🟦 Individual Consumption Pool is exactly the amount of SNLT that went into making them (including the "dead labor" transferred from the means of production used up to make them).
 
-b) **Social plan**: Actualize 🟢 that produce needed outputs
+**Total "price" of all goods in the 🟦 Individual Consumption Pool = 4,000 hours.**
 
-- But then preferences become mere "input data" not determinative
+The Exchange: The workers use their 4,000 hours of `net_claim_capacity` to claim the 4,000 hours worth of consumption goods (which increases their `claimed_capacity` and reduces their `current_claim_capacity`). The goods produced for non-individual consumption never enter the 🟦 Individual Consumption Pool, so workers never have to claim them with their capacity. Those 🟦 are managed and routed directly by the 🏛️ (e.g., tractors are sent straight to farms, hospitals are free at point of use).
 
-c) **Some weighted combination**: Balance individual desire + social need
+## Summary
 
-- But who sets the weights? That's political power.
+The "cost" of a 🟦 in the Individual Consumption Pool is the Full Recursive SNLT per unit (Living Labor + Dead Labor) of the 🟢 that produced it (Total Social Labor / Total Social Output of 🟦).
 
-## The Scarcity Structure You've Revealed
+Because 🏛️ derives the `net_claim_capacity` based on the `communal_deduction_rate`, the total claim capacity circulating will perfectly equal the total labor-cost of the goods placed in the 🟦 Individual Consumption Pool. You don't need to do any special discounting on the goods themselves — their price is exactly their honest labor cost!
 
-Your insight exposes **three types of scarcity**:
+---
 
-1. **👤 time scarcity**: MAX hours/day (biological limit)
-2. **🟦 scarcity**: Resources in space-time (physical limit)
-3. **Desire scarcity**: 👤 wants to do X more than available time allows
+# Local Variables
 
-The genius is that (1) makes everything commensurable in **labor-time units**, which is exactly Marx's proposal for socialist accounting!
+`gross_labor_credited`: 8.0 hours
+`communal_deduction_rate`: 0.5 (from current 🏛️ plan)
+`net_claim_capacity`: 4.0 hours = gross_labor_credited x (1 - communal_deduction_rate)
+`claimed_capacity`: 2.0 hours
+`current_potential_claim_capacity`: 2.0 hours (net - claimed)
 
-## The Labor Theory of Planning
+# The Global Variables
 
-You've essentially rediscovered Marx's labor-time certificates:
+`social_total_potential_claims`: 4000h (Sum of EVERYONE'S current_potential_claim_capacity)
+`current_consumption_pool`: 2000h (Sum of SNLT of all 🟦 currently sitting in the pool)
 
-```
-👤 contributes: N hours/day to various 🟢
-👤 receives: N labor-time certificates
-👤 can claim: Use-values requiring N hours to produce
-```
+# The Elastic Derivation
 
-In your formalism:
+`current_share_of_claims`: 2.0 / 4000.0 = 0.0005 (You hold 0.05% of the world's outstanding claims)
+`current_actual_claim_capacity`: 0.0005 \* 2000h = 1.0 hour
 
-```
-👤 expresses: { 🟢₁: 3hrs, 🟢₂: 5hrs } (total: 8hrs ≤ MAX)
-🟢 produces: 🌀 (use-values + new 🟦)
-👤 receives: 🟦⭐ to consumption goods proportional to hours worked
-```
-
-This is the **lower stage** of communism Marx described!
-
-## The Matching Problem Becomes Linear Programming
-
-With time budgets, allocation becomes:
-
-```
-Variables:
-  xᵢⱼ = hours 👤ᵢ allocates to 🟢ⱼ
-
-Constraints:
-  Σⱼ xᵢⱼ ≤ MAXᵢ  (per-person time budget)
-  Σᵢ xᵢⱼ ≥ Rⱼ    (per-process requirements)
-  xᵢⱼ ≥ 0
-  xᵢⱼ > 0 only if 👤ᵢ desires 🟢ⱼ
-  xᵢⱼ > 0 only if 👤ᵢ has skills for 🟢ⱼ
-  Space-time constraints (👤ᵢ can't be two places)
-
-Objective:
-  Maximize Σᵢⱼ (preferenceᵢⱼ × xᵢⱼ)
-  Subject to: Social plan requirements met
-```
-
-This is **solvable**! Unlike infinite preference aggregation, this is a constrained optimization problem with known computational complexity.
+---

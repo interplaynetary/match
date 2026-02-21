@@ -30,6 +30,7 @@ import type {
 import {
     buildLaborIndex,
     queryLaborBySkill,
+    queryLaborBySkillAndLocation,
     getTotalHours,
     type LaborIndex,
     type PersonCapacity,
@@ -102,6 +103,13 @@ export interface Strategy {
     labor: Array<{ skill_id: string; hours: number }>;
     /** Nominal total social time */
     totalTime: number;
+    /** Optional spatial location for execution (discovery bounding box) */
+    location?: {
+        h3_index?: string;
+        latitude?: number;
+        longitude?: number;
+        radius_km?: number;
+    };
     /** Source operations — each is one execution of this strategy */
     operations: Operation[];
     /** Statistical distribution per output product (computed from operations) */
@@ -503,9 +511,9 @@ function toActivationPath(s: Strategy): ActivationPath {
 
 /**
  * Compute max executions by labor using LaborIndex.
- * Queries person-level capacity for each required skill.
+ * Queries person-level capacity for each required skill, optionally filtered by location.
  */
-function computeMaxByLabor(strategy: Strategy, laborIndex: LaborIndex): number {
+function computeMaxByLabor(strategy: Strategy, laborIndex: LaborIndex, location?: Strategy['location']): number {
     if (strategy.labor.length === 0) {
         return Infinity;
     }
@@ -513,8 +521,11 @@ function computeMaxByLabor(strategy: Strategy, laborIndex: LaborIndex): number {
     let maxExecutions = Infinity;
 
     for (const labor of strategy.labor) {
-        // Query persons with this skill
-        const capacities = queryLaborBySkill(laborIndex, labor.skill_id);
+        // Query persons with this skill, utilizing HexIndex if location is present
+        const capacities = location
+            ? queryLaborBySkillAndLocation(laborIndex, labor.skill_id, location)
+            : queryLaborBySkill(laborIndex, labor.skill_id);
+            
         const totalHours = getTotalHours(capacities);
 
         if (labor.hours > 0) {
@@ -597,7 +608,7 @@ export function buildFeasibleSet(
         }
 
         // Max executions by labor (use LaborIndex)
-        const maxByLabor = computeMaxByLabor(strategy, laborIndex);
+        const maxByLabor = computeMaxByLabor(strategy, laborIndex, strategy.location);
 
         const effectiveMax = Math.min(maxByMaterial, maxByLabor);
 

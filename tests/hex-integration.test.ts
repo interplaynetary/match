@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import * as h3 from 'h3-js';
-import { Person, PersonWithAvailability } from '../src/lib/core/person';
+import { Person } from '../src/lib/core/plan/person';
 import { buildLaborIndex, queryLaborByHex } from '../src/lib/core/plan/labor';
 import { Resource } from '../src/lib/core/plan/process';
 import { buildResourceIndex, queryResourcesByHex } from '../src/lib/core/plan/resource';
@@ -18,13 +18,13 @@ describe('Hex Index Integration', () => {
     const parentCell = h3.cellToParent(leafCell, 7);
 
     it('should integrate with LaborIndex', () => {
-        const person: PersonWithAvailability = {
+        const personCode = {
             id: 'p1',
             location: { latitude: lat, longitude: lon, city: 'Berlin', country: 'Germany' },
             skills: [{ id: 's1', level: 1 }],
-            availability: { hours_per_week: 40 }, // Using simplified availability for test
-            // @ts-ignore - Mocking simplified person structure
+            max_hours_per_week: 40,
         };
+        const person = personCode as unknown as Person;
         
         // Mock computeAvailableHours behavior or assume default 40
         const index = buildLaborIndex([person]);
@@ -35,15 +35,9 @@ describe('Hex Index Integration', () => {
         expect(leafNode?.stats.sum_hours).toBe(40);
         
         // Check Temporal Binning
-        if (leafNode?.by_time) {
-             // Since we didn't specify availability window, it should default to a signature
-             // logic in matching.ts. 
-             // Let's just check that *some* bin exists and has the stats
-             expect(leafNode.by_time.size).toBeGreaterThan(0);
-             const bins = Array.from(leafNode.by_time.values());
-             // Expect total hours to match
-             const totalBinHours = bins.reduce((sum, b) => sum + b.stats.sum_hours, 0);
-             expect(totalBinHours).toBe(40);
+        if (leafNode?.temporal) {
+             // We fallback to full_time bin for no-window person
+             expect(leafNode.temporal.recurring.full_time.stats.sum_hours).toBe(40);
         }
 
         // Query at parent (Res 7)

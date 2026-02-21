@@ -17,6 +17,7 @@
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { NanoId } from './ids';
+import { createHexIndex, addItemToHexIndex, queryHexIndexRadius, type HexIndex } from './space-time-index';
 
 // =============================================================================
 // COMMITMENT — Allocation state: a claim on capacity for a slot
@@ -36,6 +37,12 @@ export const Commitment = z.object({
 
     committed_at: z.date(),
     cancelled_at: z.date().optional(),
+
+    // Spatial (for discovery/reporting)
+    h3_index: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+    radius_km: z.number().optional(),
 
     notes: z.string().optional(),
 });
@@ -103,6 +110,9 @@ export class Allocations {
     private commitmentsByOccurrence = new Map<OccurrenceKey, Set<NanoId>>();
     private commitmentsByContributor = new Map<string, Set<NanoId>>();
     private commitmentsByCapacity = new Map<NanoId, Set<NanoId>>();
+    
+    // Spatial Index
+    private spatialIndex: HexIndex<Commitment> = createHexIndex<Commitment>(9, 4);
 
     // =========================================================================
     // COMMITMENTS
@@ -116,6 +126,10 @@ export class Allocations {
         unit?: string;
         occurrence?: string;
         capacity_id?: NanoId;
+        h3_index?: string;
+        latitude?: number;
+        longitude?: number;
+        radius_km?: number;
         notes?: string;
     }): Commitment {
         const commitment: Commitment = {
@@ -128,6 +142,10 @@ export class Allocations {
             quantity: data.quantity,
             unit: data.unit,
             committed_at: new Date(),
+            h3_index: data.h3_index,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            radius_km: data.radius_km,
             notes: data.notes,
         };
 
@@ -143,6 +161,9 @@ export class Allocations {
 
         const cancelled: Commitment = { ...c, cancelled_at: new Date() };
         this.commitments.set(id, cancelled);
+        
+        // Remove from spatial index (we don't have a deleteFromHexIndex yet, so we'll just leave it or rebuild. For now, it remains but isActiveCommitment filters it out).
+        
         return cancelled;
     }
 
@@ -171,6 +192,13 @@ export class Allocations {
 
     commitmentsForCapacity(capacity_id: NanoId): Commitment[] {
         return this.getFromIndex(this.commitmentsByCapacity, capacity_id);
+    }
+    
+    commitmentsByLocation(location: { h3_index?: string; latitude?: number; longitude?: number; radius_km?: number }): Commitment[] {
+         const matchingIds = queryHexIndexRadius(this.spatialIndex, location);
+         return Array.from(matchingIds)
+              .map(id => this.commitments.get(id as NanoId))
+              .filter((c): c is Commitment => c !== undefined && isActiveCommitment(c)); // Only active ones
     }
 
     // =========================================================================
@@ -307,6 +335,7 @@ export class Allocations {
         this.commitmentsByOccurrence.clear();
         this.commitmentsByContributor.clear();
         this.commitmentsByCapacity.clear();
+        this.spatialIndex = createHexIndex<Commitment>(9, 4);
     }
 
     allCommitments(): Commitment[] {
@@ -324,6 +353,13 @@ export class Allocations {
         if (c.capacity_id) {
             this.addToIndex(this.commitmentsByCapacity, c.capacity_id, c.id);
         }
+        
+        // Add to Spatial Index
+        addItemToHexIndex(this.spatialIndex, c, c.id, {
+             h3_index: c.h3_index,
+             lat: c.latitude,
+             lon: c.longitude,
+        }, { quantity: c.quantity });
     }
 
     private addToIndex<K>(index: Map<K, Set<NanoId>>, key: K, id: NanoId) {

@@ -10,7 +10,6 @@
 
 import * as h3 from 'h3-js';
 import type { AvailabilityWindow, DayOfWeek } from './time';
-import { flattenWindowToUTCDaySchedules } from './matching';
 
 // =============================================================================
 // TYPES
@@ -306,12 +305,9 @@ export function addItemToHexIndex<T>(
         // 3. Update Temporal Index
         if (availability) {
             indexItemTemporally(node.temporal, availability, itemId, quantity, hours);
-        } else if (timeSignature) {
-            // Fallback for simple signature-based (e.g. one-time without full window)
-            // We can treat it as a "Full Time" or specific bin if possible, 
-            // but for now let's just dump it into 'full_time' or a specific date if we parse it?
-            // Actually, simpler to just ignore or put in 'full_time' if no window provided.
-            // Let's assume if no window, it's 'always available' or 'unknown' -> full_time
+        } else {
+            // Fallback: If no window provided, we assume it's "always available" or "unknown" 
+            // and add it to the 'full_time' bin.
             addToBin(node.temporal.recurring.full_time, quantity, hours, itemId);
         }
 
@@ -351,6 +347,66 @@ export function getItemsInCell<T>(
         if (item) results.push(item);
     }
     return results;
+}
+
+/**
+ * Query the index around a specific coordinate within a radius.
+ * Returns a Set of item IDs that fall within the covering H3 cells.
+ */
+export function queryHexIndexRadius<T>(
+    index: HexIndex<T>,
+    query: {
+        h3_index?: string;
+        latitude?: number;
+        longitude?: number;
+        radius_km?: number;
+    }
+): Set<string> {
+    const matchingIds = new Set<string>();
+    let searchCells: string[] = [];
+    
+    // Determine the cells to search based on the query parameters
+    if (query.h3_index) {
+        if (query.radius_km && query.radius_km > 0) {
+           // Get k-ring if a radius is provided for an existing h3 index.
+           const res = h3.getResolution(query.h3_index);
+           const edgeLengthKm = h3.getHexagonEdgeLengthAvg(res as number, h3.UNITS.km);
+           const k = Math.max(1, Math.ceil(query.radius_km / (edgeLengthKm * 2)));
+           searchCells = h3.gridDisk(query.h3_index, k);
+        } else {
+           searchCells = [query.h3_index];
+        }
+    } else if (query.latitude !== undefined && query.longitude !== undefined) {
+        if (query.radius_km && query.radius_km > 0) {
+            // Find appropriate resolution based on search radius
+            // For a search, it's safer to use a slightly coarser resolution to ensure coverage
+            let res = index.config.leaf_resolution;
+            let edgeLengthKm = h3.getHexagonEdgeLengthAvg(res as number, h3.UNITS.km);
+            while (edgeLengthKm * 2 < query.radius_km && res > index.config.root_resolution) {
+                res--;
+                edgeLengthKm = h3.getHexagonEdgeLengthAvg(res as number, h3.UNITS.km);
+            }
+            const centerCell = h3.latLngToCell(query.latitude, query.longitude, res);
+            const k = Math.max(1, Math.ceil(query.radius_km / (edgeLengthKm * 2)));
+            searchCells = h3.gridDisk(centerCell, k);
+        } else {
+             searchCells = [h3.latLngToCell(query.latitude, query.longitude, index.config.leaf_resolution)];
+        }
+    } else {
+        return matchingIds; 
+    }
+
+    // Collect item IDs from the identified cells (and all their children down to leaf)
+    for (const cell of searchCells) {
+        const node = index.nodes.get(cell);
+        if (node) {
+            for (const itemId of node.items) {
+                matchingIds.add(itemId);
+            }
+        }
+    }
+
+    return matchingIds;
 }
 
 // =============================================================================

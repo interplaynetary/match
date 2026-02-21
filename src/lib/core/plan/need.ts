@@ -7,8 +7,8 @@
 
 import { z } from 'zod';
 import { AvailabilityWindowSchema } from './time';
-import { getSpaceTimeSignature, getTimeSignature } from './matching';
-import { createHexIndex, addItemToHexIndex, queryHexIndex, type HexIndex, type HexNode } from './hex';
+import { getSpaceTimeSignature, getTimeSignature } from './space-time-keys';
+import { createHexIndex, addItemToHexIndex, queryHexIndex, queryHexIndexRadius, type HexIndex, type HexNode } from './space-time-index';
 
 // =============================================================================
 // SCHEMAS
@@ -159,20 +159,33 @@ export function queryNeedsByType(
 
 /**
  * Query needs by location.
+ * Fast path: uses HexIndex when lat/lon or h3_index is provided.
+ * Slow path: falls back to city/country string filter.
  */
 export function queryNeedsByLocation(
     index: NeedIndex,
-    location: { city?: string; country?: string; h3_index?: string }
+    location: { city?: string; country?: string; h3_index?: string; latitude?: number; longitude?: number; radius_km?: number }
 ): Need[] {
+    // Fast path: spatial query via HexIndex
+    if (location.h3_index || (location.latitude !== undefined && location.longitude !== undefined)) {
+        const matchingIds = queryHexIndexRadius(index.spatial_hierarchy, {
+            h3_index: location.h3_index,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius_km: location.radius_km,
+        });
+        return Array.from(matchingIds)
+            .map(id => index.needs.get(id))
+            .filter((n): n is Need => n !== undefined);
+    }
+
+    // Slow path: city/country string filter
     const results: Need[] = [];
-    
     for (const need of index.needs.values()) {
         if (location.city && need.city !== location.city) continue;
         if (location.country && need.country !== location.country) continue;
-        if (location.h3_index && need.h3_index !== location.h3_index) continue;
         results.push(need);
     }
-    
     return results;
 }
 
@@ -188,18 +201,41 @@ export function queryNeedsByHex(
 
 /**
  * Query needs by type AND location.
+ * Uses HexIndex fast path when spatial params are present.
  */
 export function queryNeedsByTypeAndLocation(
     index: NeedIndex,
     typeId: string,
-    location: { city?: string; country?: string; h3_index?: string }
+    location: { city?: string; country?: string; h3_index?: string; latitude?: number; longitude?: number; radius_km?: number }
 ): Need[] {
-    const typeNeeds = queryNeedsByType(index, typeId);
-    
-    return typeNeeds.filter(need => {
-        if (location.city && need.city !== location.city) return false;
-        if (location.country && need.country !== location.country) return false;
-        if (location.h3_index && need.h3_index !== location.h3_index) return false;
-        return true;
-    });
+    const typeIds = index.type_index.get(typeId);
+    if (!typeIds) return [];
+
+    // Fast path: spatial query via HexIndex, then intersect with type set
+    if (location.h3_index || (location.latitude !== undefined && location.longitude !== undefined)) {
+        const spatialIds = queryHexIndexRadius(index.spatial_hierarchy, {
+            h3_index: location.h3_index,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius_km: location.radius_km,
+        });
+        const results: Need[] = [];
+        for (const id of spatialIds) {
+            if (typeIds.has(id)) {
+                const need = index.needs.get(id);
+                if (need) results.push(need);
+            }
+        }
+        return results;
+    }
+
+    // Slow path: type filter then city/country string filter
+    return Array.from(typeIds)
+        .map(id => index.needs.get(id))
+        .filter((n): n is Need => {
+            if (!n) return false;
+            if (location.city && n.city !== location.city) return false;
+            if (location.country && n.country !== location.country) return false;
+            return true;
+        });
 }

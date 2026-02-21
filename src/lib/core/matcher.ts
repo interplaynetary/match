@@ -15,7 +15,7 @@ import {
   computeSpecificity,
   type CategoryInfo,
 } from './category-matcher'
-import { haversineDistance } from './plan/spatial'
+import { haversineDistance } from './plan/space'
 import { availabilityWindowsOverlapWithTimezone } from './plan/matching'
 import type { AvailabilityWindow, DayOfWeek, TimeRange } from './plan/time'
 

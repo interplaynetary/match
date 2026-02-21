@@ -1,0 +1,164 @@
+import * as h3 from 'h3-js';
+import { computeH3Index, REMOTE_H3_INDEX } from './space';
+import type { AvailabilityWindow, TimeRange, DaySchedule, WeekSchedule, MonthSchedule } from './time';
+
+/**
+ * Creates a deterministic, normalized string representation of a TimeRange.
+ */
+function stringifyTimeRange(tr: TimeRange): string {
+    return `${tr.start_time}-${tr.end_time}`;
+}
+
+/**
+ * Creates a deterministic, normalized string representation of a DaySchedule.
+ */
+function stringifyDaySchedule(ds: DaySchedule): string {
+    const days = [...ds.days].sort().join(',');
+    const times = ds.time_ranges.map(stringifyTimeRange).sort().join(',');
+    return `(${days})@(${times})`;
+}
+
+/**
+ * Creates a deterministic, normalized string representation of a WeekSchedule.
+ */
+function stringifyWeekSchedule(ws: WeekSchedule): string {
+    const weeks = [...ws.weeks].sort().join(',');
+    const days = ws.day_schedules.map(stringifyDaySchedule).sort().join(',');
+    return `W(${weeks})->[${days}]`;
+}
+
+/**
+ * Creates a deterministic, normalized string representation of an AvailabilityWindow.
+ * It sorts all arrays to ensure identical windows produce the exact same string bucket.
+ * This preserves the full power and precision of the Schema without loss of information.
+ */
+export function getCanonicalAvailabilityWindow(window: AvailabilityWindow): string {
+    const parts: string[] = [];
+
+    if (window.month_schedules?.length) {
+        const sortedMonths = [...window.month_schedules].sort((a, b) => a.month - b.month);
+        const monthStrs = sortedMonths.map(m => {
+            let mStr = `M${m.month}`;
+            if (m.week_schedules?.length) mStr += `W[${m.week_schedules.map(stringifyWeekSchedule).sort().join('|')}]`;
+            if (m.day_schedules?.length) mStr += `D[${m.day_schedules.map(stringifyDaySchedule).sort().join('|')}]`;
+            if (m.time_ranges?.length) mStr += `T[${m.time_ranges.map(stringifyTimeRange).sort().join('|')}]`;
+            return mStr;
+        });
+        parts.push(`Months:${monthStrs.join(',')}`);
+    }
+
+    if (window.week_schedules?.length) {
+        parts.push(`Weeks:${window.week_schedules.map(stringifyWeekSchedule).sort().join(',')}`);
+    }
+
+    if (window.day_schedules?.length) {
+        parts.push(`Days:${window.day_schedules.map(stringifyDaySchedule).sort().join(',')}`);
+    }
+
+    if (window.time_ranges?.length) {
+        parts.push(`Times:${window.time_ranges.map(stringifyTimeRange).sort().join(',')}`);
+    }
+
+    return parts.length > 0 ? parts.join(';') : 'always';
+}
+
+/**
+ * Generates a purely temporal bucket string with absolute precision.
+ */
+export function getTimeSignature(slot: {
+    availability_window?: AvailabilityWindow;
+    start_date?: string | null;
+    end_date?: string | null;
+    recurrence?: string | null;
+}): string {
+    if (slot.availability_window) {
+        return `recurring|${getCanonicalAvailabilityWindow(slot.availability_window)}`;
+    } else {
+        return [slot.start_date || 'any', slot.end_date || 'any', slot.recurrence || 'onetime'].join('|');
+    }
+}
+
+/**
+ * Interface representing the spatial and temporal context needed to compute a signature
+ */
+export interface SpaceTimeContext {
+    location_type?: string;
+    online_link?: string;
+    h3_index?: string;
+    latitude?: number;
+    longitude?: number;
+    city?: string;
+    country?: string;
+    availability_window?: AvailabilityWindow;
+    start_date?: string | null;
+    end_date?: string | null;
+    recurrence?: string | null;
+}
+
+/**
+ * Generates an accurate space-time bucket string.
+ * Spatial buckets natively use H3 Resolution 7 bounding (~1.2km radius)
+ * by default to cluster local slots intelligently.
+ */
+export function getSpaceTimeSignature(
+    slot: SpaceTimeContext,
+    h3Resolution: number = 7
+): string {
+    const timeKey = getTimeSignature(slot);
+    
+    let locKey = REMOTE_H3_INDEX;
+    
+    // Check if it's explicitly remote
+    if (!slot.location_type?.includes('remote') && !slot.online_link) {
+        // If they provided an H3 hex, truncate/expand it to our bucketing resolution
+        if (slot.h3_index) {
+            const currentRes = h3.getResolution(slot.h3_index);
+            if (currentRes === h3Resolution) {
+                locKey = slot.h3_index;
+            } else if (currentRes > h3Resolution) {
+                locKey = h3.cellToParent(slot.h3_index, h3Resolution); 
+            } else {
+                // If it's coarser than our target, we just use it as is
+                locKey = slot.h3_index;
+            }
+        } 
+        // Compute H3 from lat/lng if available
+        else if (slot.latitude !== undefined && slot.longitude !== undefined) {
+           locKey = computeH3Index(slot as any, h3Resolution);
+        }
+        // Absolute fallback if only strings provided
+        else {
+           locKey = [slot.city || 'any', slot.country || 'any'].join('|');
+        }
+    }
+
+    return `${timeKey}::${locKey}`;
+}
+
+/**
+ * Interface that includes quantity for grouping algorithms
+ */
+export interface QuantifiedSpaceTimeContext extends SpaceTimeContext {
+    quantity: number;
+}
+
+/**
+ * Groups a collection of slots by their exact Space-Time properties
+ */
+export function groupSlotsBySpaceTime<T extends QuantifiedSpaceTimeContext>(
+    slots: T[], 
+    h3Resolution: number = 7
+): Map<string, { quantity: number; slots: T[] }> {
+    const groups = new Map<string, { quantity: number; slots: T[] }>();
+    for (const slot of slots) {
+        const sig = getSpaceTimeSignature(slot, h3Resolution);
+        const ex = groups.get(sig);
+        if (ex) { 
+            ex.quantity += slot.quantity; 
+            ex.slots.push(slot); 
+        } else {
+            groups.set(sig, { quantity: slot.quantity, slots: [slot] });
+        }
+    }
+    return groups;
+}

@@ -12,9 +12,9 @@ import { z } from 'zod';
 import { AvailabilityWindowSchema, type AvailabilityWindow } from './time';
 import { SkillSchema, type Skill } from './skills';
 import type { Contact } from '../types';
-import { getSpaceTimeSignature, getTimeSignature } from './matching';
+import { getSpaceTimeSignature, getTimeSignature } from './space-time-keys';
 import { PersonSchema, type Person } from './person';
-import { createHexIndex, addItemToHexIndex, queryHexIndex, type HexIndex, type HexNode } from './hex';
+import { createHexIndex, addItemToHexIndex, queryHexIndex, queryHexIndexRadius, type HexIndex, type HexNode } from './space-time-index';
 
 // =============================================================================
 // SCHEMAS
@@ -395,14 +395,30 @@ export function queryLaborBySkills(
  */
 export function queryLaborByLocation(
     index: LaborIndex,
-    location: { city?: string; country?: string; h3_index?: string }
+    location: { city?: string; country?: string; latitude?: number; longitude?: number; h3_index?: string; radius_km?: number }
 ): PersonCapacity[] {
     const results: PersonCapacity[] = [];
     
+    // Fast path: use HexIndex if any spatial parameter is provided
+    if (location.h3_index || (location.latitude !== undefined && location.longitude !== undefined)) {
+        const matchingIds = queryHexIndexRadius(index.spatial_hierarchy, {
+            h3_index: location.h3_index,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius_km: location.radius_km
+        });
+        
+        for (const id of matchingIds) {
+            const capacity = index.person_capacities.get(id);
+            if (capacity) results.push(capacity);
+        }
+        return results;
+    }
+
+    // Slow path: full scan for string-based metadata (city/country)
     for (const capacity of index.person_capacities.values()) {
         if (location.city && capacity.location?.city !== location.city) continue;
         if (location.country && capacity.location?.country !== location.country) continue;
-        if (location.h3_index && capacity.location?.h3_index !== location.h3_index) continue;
         results.push(capacity);
     }
     
@@ -415,16 +431,41 @@ export function queryLaborByLocation(
 export function queryLaborBySkillAndLocation(
     index: LaborIndex,
     skillId: string,
-    location: { city?: string; country?: string; h3_index?: string }
+    location: { city?: string; country?: string; latitude?: number; longitude?: number; h3_index?: string; radius_km?: number }
 ): PersonCapacity[] {
-    const skillCapacities = queryLaborBySkill(index, skillId);
+    const skillCapacitiesSet = index.skill_index.get(skillId);
+    if (!skillCapacitiesSet) return [];
     
-    return skillCapacities.filter(capacity => {
-        if (location.city && capacity.location?.city !== location.city) return false;
-        if (location.country && capacity.location?.country !== location.country) return false;
-        if (location.h3_index && capacity.location?.h3_index !== location.h3_index) return false;
-        return true;
-    });
+    // Fast path: use HexIndex first, then filter by skill
+    if (location.h3_index || (location.latitude !== undefined && location.longitude !== undefined)) {
+        const spatialMatchingIds = queryHexIndexRadius(index.spatial_hierarchy, {
+            h3_index: location.h3_index,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius_km: location.radius_km
+        });
+        
+        // Return intersection of spatial match and skill match
+        const results: PersonCapacity[] = [];
+        for (const id of spatialMatchingIds) {
+            if (skillCapacitiesSet.has(id)) {
+                const capacity = index.person_capacities.get(id);
+                if (capacity) results.push(capacity);
+            }
+        }
+        return results;
+    }
+
+    // Slow path: full scan for string-based metadata
+    const results: PersonCapacity[] = [];
+    for (const capacityId of skillCapacitiesSet) {
+        const capacity = index.person_capacities.get(capacityId);
+        if (!capacity) continue;
+        if (location.city && capacity.location?.city !== location.city) continue;
+        if (location.country && capacity.location?.country !== location.country) continue;
+        results.push(capacity);
+    }
+    return results;
 }
 
 /**

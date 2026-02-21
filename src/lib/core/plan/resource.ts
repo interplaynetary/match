@@ -7,8 +7,8 @@
 
 import { z } from 'zod';
 import { Resource } from './process';
-import { getSpaceTimeSignature, getTimeSignature } from './matching';
-import { createHexIndex, addItemToHexIndex, queryHexIndex, type HexIndex, type HexNode } from './hex';
+import { getSpaceTimeSignature, getTimeSignature } from './space-time-keys';
+import { createHexIndex, addItemToHexIndex, queryHexIndex, queryHexIndexRadius, type HexIndex, type HexNode } from './space-time-index';
 
 // =============================================================================
 // SCHEMAS
@@ -116,21 +116,34 @@ export function queryResourcesByType(
 }
 
 /**
- * Query resources by location (simple filter).
+ * Query resources by location.
+ * Fast path: uses HexIndex when lat/lon or h3_index is provided.
+ * Slow path: falls back to city/country string filter.
  */
 export function queryResourcesByLocation(
     index: ResourceIndex,
-    location: { city?: string; country?: string; h3_index?: string }
+    location: { city?: string; country?: string; h3_index?: string; latitude?: number; longitude?: number; radius_km?: number }
 ): z.infer<typeof Resource>[] {
+    // Fast path: spatial query via HexIndex
+    if (location.h3_index || (location.latitude !== undefined && location.longitude !== undefined)) {
+        const matchingIds = queryHexIndexRadius(index.spatial_hierarchy, {
+            h3_index: location.h3_index,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius_km: location.radius_km,
+        });
+        return Array.from(matchingIds)
+            .map(id => index.resources.get(id))
+            .filter((r): r is z.infer<typeof Resource> => r !== undefined);
+    }
+
+    // Slow path: city/country string filter
     const results: z.infer<typeof Resource>[] = [];
-    
     for (const resource of index.resources.values()) {
         if (location.city && resource.city !== location.city) continue;
         if (location.country && resource.country !== location.country) continue;
-        if (location.h3_index && resource.h3_index !== location.h3_index) continue;
         results.push(resource);
     }
-    
     return results;
 }
 
@@ -146,18 +159,41 @@ export function queryResourcesByHex(
 
 /**
  * Query resources by type AND location.
+ * Uses HexIndex fast path when spatial params are present.
  */
 export function queryResourcesByTypeAndLocation(
     index: ResourceIndex,
     typeId: string,
-    location: { city?: string; country?: string; h3_index?: string }
+    location: { city?: string; country?: string; h3_index?: string; latitude?: number; longitude?: number; radius_km?: number }
 ): z.infer<typeof Resource>[] {
-    const typeResources = queryResourcesByType(index, typeId);
-    
-    return typeResources.filter(resource => {
-        if (location.city && resource.city !== location.city) return false;
-        if (location.country && resource.country !== location.country) return false;
-        if (location.h3_index && resource.h3_index !== location.h3_index) return false;
-        return true;
-    });
+    const typeIds = index.type_index.get(typeId);
+    if (!typeIds) return [];
+
+    // Fast path: spatial query via HexIndex, then intersect with type set
+    if (location.h3_index || (location.latitude !== undefined && location.longitude !== undefined)) {
+        const spatialIds = queryHexIndexRadius(index.spatial_hierarchy, {
+            h3_index: location.h3_index,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius_km: location.radius_km,
+        });
+        const results: z.infer<typeof Resource>[] = [];
+        for (const id of spatialIds) {
+            if (typeIds.has(id)) {
+                const resource = index.resources.get(id);
+                if (resource) results.push(resource);
+            }
+        }
+        return results;
+    }
+
+    // Slow path: type filter then city/country string filter
+    return Array.from(typeIds)
+        .map(id => index.resources.get(id))
+        .filter((r): r is z.infer<typeof Resource> => {
+            if (!r) return false;
+            if (location.city && r.city !== location.city) return false;
+            if (location.country && r.country !== location.country) return false;
+            return true;
+        });
 }

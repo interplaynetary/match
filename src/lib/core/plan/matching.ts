@@ -14,7 +14,7 @@
 import jsonLogic from 'json-logic-js';
 import type { Resource, MatchRecord, Score } from './process';
 import type { AvailabilityWindow, TimeRange, DayOfWeek, DaySchedule, WeekSchedule, MonthSchedule } from './time';
-import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, haversineDistance } from './spatial';
+import { cellsCompatible, DEFAULT_SEARCH_RADIUS_KM, haversineDistance } from './space';
 import type { FilterContext, EligibilityFilter, Contact } from '../types';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -775,47 +775,3 @@ export function passesSlotFilters(
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// SPACE-TIME GROUPING
-// ═══════════════════════════════════════════════════════════════════
-
-export function getTimeSignature(slot: {
-    availability_window?: AvailabilityWindow;
-    start_date?: string | null;
-    end_date?: string | null;
-    recurrence?: string | null;
-}): string {
-    if (slot.availability_window) {
-        const w = slot.availability_window;
-        let mk = 'all-months', wk = 'all-weeks', dk = 'all-days';
-
-        if (w.month_schedules?.length) mk = w.month_schedules.map(m => m.month).sort().join(',');
-        if (w.week_schedules?.length) wk = w.week_schedules.flatMap(s => s.weeks).sort().join(',');
-
-        const scheds = flattenWindowToUTCDaySchedules(w);
-        if (scheds.length) dk = [...new Set(scheds.map(s => s.day))].sort().join(',');
-
-        return `${slot.recurrence || 'onetime'}|${mk}|${wk}|${dk}`;
-    } else {
-        return [slot.start_date || 'any', slot.end_date || 'any', slot.recurrence || 'onetime'].join('|');
-    }
-}
-
-export function getSpaceTimeSignature(slot: Resource): string {
-    const timeKey = getTimeSignature(slot);
-    const locKey = (slot.location_type?.includes('remote') || slot.online_link) ? 'remote' :
-        [slot.city || 'any', slot.country || 'any', slot.latitude?.toFixed(2) || 'any'].join('|');
-
-    return `${timeKey}::${locKey}`;
-}
-
-export function groupSlotsBySpaceTime<T extends Resource>(slots: T[]): Map<string, { quantity: number; slots: T[] }> {
-    const groups = new Map<string, { quantity: number; slots: T[] }>();
-    for (const slot of slots) {
-        const sig = getSpaceTimeSignature(slot);
-        const ex = groups.get(sig);
-        if (ex) { ex.quantity += slot.quantity; ex.slots.push(slot); }
-        else groups.set(sig, { quantity: slot.quantity, slots: [slot] });
-    }
-    return groups;
-}

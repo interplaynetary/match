@@ -34,7 +34,8 @@ import {
     cellsCompatible,
     haversineDistance,
     REMOTE_H3_INDEX,
-} from './spatial';
+} from './space';
+import { queryHexIndexRadius } from './space-time-index';
 
 // =============================================================================
 // DERIVED VALUE — Result of folding effects on an attribute
@@ -638,8 +639,23 @@ export function metabolizeWindowed(
     query: MetabolicQuery = {},
     base?: number,
 ): WindowedMetabolicFlow {
-    const effects = collectEffects(stream, entityId, attribute, ['accepted']);
-    const deltas = extractDeltas(effects, entityId, attribute);
+    // Use HexIndex for fast spatial filtering if we have a spatial query
+    let initialEffects = collectEffects(stream, entityId, attribute, ['accepted']);
+
+    if (query.spatial && stream.hexIndex) {
+        // Query the index for spatial overlap
+        const matchingIds = queryHexIndexRadius(stream.hexIndex, {
+             h3_index: query.spatial.h3_index,
+             latitude: query.spatial.latitude,
+             longitude: query.spatial.longitude,
+             radius_km: query.spatial.radius_km
+        });
+        
+        // Filter effects to only those found in the index
+        initialEffects = initialEffects.filter(e => matchingIds.has(e.origin_id));
+    }
+
+    const deltas = extractDeltas(initialEffects, entityId, attribute);
 
     let production = 0;
     let consumption = 0;
@@ -648,7 +664,7 @@ export function metabolizeWindowed(
     const contributions: MetabolicContribution[] = [];
 
     for (const { delta, effect } of deltas) {
-        // Spatial filter
+        // Additional precise spatial filter (HexIndex returns a superset in some cases)
         if (!spatialOverlaps(effect.envelope.spatial, query.spatial)) continue;
 
         // Temporal fraction

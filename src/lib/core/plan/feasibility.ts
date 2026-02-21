@@ -21,7 +21,7 @@ import {
 } from './process.js';
 import { type Contact } from '../types.js';
 import { availabilityWindowsOverlapWithTimezone, calculateAvailabilityIntersection } from './matching.js';
-import { haversineDistance, REMOTE_H3_INDEX, DEFAULT_SEARCH_RADIUS_KM } from './spatial.js';
+import { haversineDistance, REMOTE_H3_INDEX, DEFAULT_SEARCH_RADIUS_KM } from './space.js';
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -282,8 +282,8 @@ function computeAffinityScore(
     providerWeights?: GlobalRecognitionWeights | null,
     seekerWeights?: GlobalRecognitionWeights | null
 ): AffinityScore {
-    const s2p = (capacityOwner && (seekerWeights?.get(capacityOwner) as number | undefined)) ?? 1;
-    const p2s = (needOwner && (providerWeights?.get(needOwner) as number | undefined)) ?? 1;
+    const s2p = (capacityOwner ? getWeight(seekerWeights ?? {}, capacityOwner) : undefined) ?? 1;
+    const p2s = (needOwner ? getWeight(providerWeights ?? {}, needOwner) : undefined) ?? 1;
     const v = Math.min(s2p, p2s);
 
     if (v === 1) return { value: 1, reason: 'Default trust', seeker_to_provider: s2p, provider_to_seeker: p2s };
