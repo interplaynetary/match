@@ -476,6 +476,119 @@ export class PlanStore {
     // =========================================================================
 
     /**
+     * Pure (no persistence) recipe graph builder — the search-phase counterpart
+     * of instantiateRecipe().
+     *
+     * Returns Process and Commitment objects with pre-generated IDs but does NOT
+     * write anything to PlanStore or ProcessRegistry.  `plannedWithin` is left
+     * undefined on all objects; promoteToPlan() sets it via scenarioToPlan().
+     *
+     * If `intentId` is provided, the primary output Commitment (the one outputOf
+     * the last process whose resourceConformsTo matches the primary output spec)
+     * gets `satisfies: intentId` so that scoreScenario() can count it.
+     *
+     * RecipeExchanges are intentionally skipped — they represent bilateral
+     * commercial agreements that are irrelevant during speculative search.
+     * Observer-based inventory allocation is also skipped — the planner's
+     * `remaining` map already accounts for available stock.
+     */
+    buildRecipeGraph(
+        recipeStore: RecipeStore,
+        recipeId: string,
+        quantity: number,
+        dueDate: Date,
+        intentId?: string,
+    ): { processes: Process[]; commitments: Commitment[] } {
+        const recipe = recipeStore.getRecipe(recipeId);
+        if (!recipe) throw new Error(`Recipe ${recipeId} not found`);
+
+        const chain = recipeStore.getProcessChain(recipeId);
+        if (chain.length === 0) throw new Error(`Recipe ${recipeId} has no processes`);
+
+        const scaleFactor = this.computeScaleFactor(recipeStore, chain, recipe.primaryOutput, quantity);
+
+        const processes: Process[] = [];
+        const commitments: Commitment[] = [];
+
+        const orderedChain = [...chain].reverse(); // back-schedule from dueDate
+        let cursor = dueDate;
+
+        for (const rp of orderedChain) {
+            const durationHours = rp.hasDuration
+                ? rp.hasDuration.hasNumericalValue * (rp.hasDuration.hasUnit === 'days' ? 24 : 1)
+                : 1;
+
+            const processEnd   = new Date(cursor);
+            const processBegin = new Date(processEnd.getTime() - durationHours * 3600000);
+            cursor = processBegin;
+
+            // Construct Process in-memory (no processes.register() call)
+            const process: Process = {
+                id: this.generateId(),
+                name: rp.name,
+                note: rp.note,
+                basedOn: rp.processConformsTo,
+                classifiedAs: rp.processClassifiedAs,
+                hasBeginning: processBegin.toISOString(),
+                hasEnd: processEnd.toISOString(),
+                finished: false,
+                // plannedWithin: intentionally omitted — set by scenarioToPlan()
+            };
+            processes.push(process);
+
+            const { inputs, outputs } = recipeStore.flowsForProcess(rp.id);
+
+            for (const flow of inputs) {
+                const commitment: Commitment = {
+                    id: this.generateId(),
+                    action: flow.action,
+                    inputOf: process.id,
+                    resourceConformsTo: flow.resourceConformsTo,
+                    resourceClassifiedAs: flow.resourceClassifiedAs,
+                    resourceQuantity: this.scaleQuantity(flow.resourceQuantity, scaleFactor),
+                    effortQuantity:   this.scaleQuantity(flow.effortQuantity, scaleFactor),
+                    stage: flow.stage,
+                    state: flow.state,
+                    due: processBegin.toISOString(),
+                    finished: false,
+                };
+                commitments.push(commitment);
+            }
+
+            for (const flow of outputs) {
+                const commitment: Commitment = {
+                    id: this.generateId(),
+                    action: flow.action,
+                    outputOf: process.id,
+                    resourceConformsTo: flow.resourceConformsTo,
+                    resourceClassifiedAs: flow.resourceClassifiedAs,
+                    resourceQuantity: this.scaleQuantity(flow.resourceQuantity, scaleFactor),
+                    effortQuantity:   this.scaleQuantity(flow.effortQuantity, scaleFactor),
+                    stage: flow.stage,
+                    state: flow.state,
+                    due: dueDate.toISOString(),
+                    finished: false,
+                };
+                commitments.push(commitment);
+            }
+        }
+
+        // Tag the primary output Commitment with satisfies: intentId so that
+        // scoreScenario() can count this intent as satisfied.
+        if (intentId) {
+            const lastProcess = processes[processes.length - 1];
+            const primarySpec = recipe.primaryOutput;
+            const primaryOut = commitments.find(c =>
+                c.outputOf === lastProcess?.id &&
+                (!primarySpec || c.resourceConformsTo === primarySpec),
+            );
+            if (primaryOut) primaryOut.satisfies = intentId;
+        }
+
+        return { processes, commitments };
+    }
+
+    /**
      * Instantiate a recipe into a Plan with Processes, Commitments,
      * Intents (for unassigned flows), and Agreements (from RecipeExchanges).
      *

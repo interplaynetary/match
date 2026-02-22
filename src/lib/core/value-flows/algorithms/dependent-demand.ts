@@ -9,12 +9,20 @@
  *
  * Algorithm:
  *   1. Start with a demand: (specId, quantity, neededBy)
- *   2. Check on-hand inventory for conforming resources
- *   3. Allocate available inventory to satisfy demand (soft allocation)
- *   4. For remaining unfilled demand, find a Recipe that produces that spec
- *   5. Back-schedule the Recipe Process(es), create Commitments in the plan
+ *   2a. Check on-hand inventory for conforming resources
+ *   2b. Check previously scheduled output Intents not yet allocated
+ *   3. Allocate available inventory / Intents to satisfy demand (soft allocation)
+ *   4. For remaining unfilled demand, find the most SNLT-efficient Recipe
+ *   5. Back-schedule the Recipe Process(es), create Intents/Commitments in the plan
  *   6. For each input of those processes, recurse (step 1)
  *   7. If no recipe and no inventory, create a purchase Intent
+ *
+ * VF spec compliance:
+ *   - Flows without both provider+receiver become Intents (not Commitments)
+ *   - Durable inputs (use/cite — accountingEffect='noEffect') are existence gates only
+ *   - Work inputs are labour commitments tracked via SNLT, not material sub-demands
+ *   - Multiple recipes ranked by SNLT (most labour-efficient chosen first)
+ *   - Previously scheduled output Intents netted against demand before recipe explosion
  *
  * Unlike instantiateRecipe(), this works at the demand level (single spec + qty)
  * and adds to an EXISTING plan rather than creating a new one.
@@ -27,6 +35,7 @@ import type {
     Intent,
     RecipeFlow,
 } from '../schemas';
+import { ACTION_DEFINITIONS } from '../schemas';
 import type { RecipeStore } from '../knowledge/recipes';
 import type { PlanStore } from '../planning/planning';
 import type { Observer } from '../observation/observer';
@@ -45,10 +54,18 @@ export interface DemandAllocation {
 export interface DependentDemandResult {
     plan: Plan;
     processes: Process[];
+    /** Bilateral process flows (both provider and receiver known) */
     commitments: Commitment[];
+    /** Unilateral process flows (one or both agents unknown) */
+    intents: Intent[];
     /** Purchase intents — inputs with no recipe (need to source externally) */
     purchaseIntents: Intent[];
     allocated: DemandAllocation[];
+    /**
+     * IDs of pre-existing scheduled outputs (Intents OR Commitments with outputOf set)
+     * that were soft-allocated to satisfy demand during the explosion.
+     */
+    allocatedScheduledIds: Set<string>;
 }
 
 interface DemandTask {
@@ -59,6 +76,11 @@ interface DemandTask {
     forProcessId?: string;
     /** Unit for quantities */
     unit: string;
+    /**
+     * Durable inputs (use/cite — accountingEffect='noEffect').
+     * Existence gate only: does not deplete inventory, does not recurse.
+     */
+    isDurable?: boolean;
 }
 
 // =============================================================================
@@ -101,12 +123,18 @@ export function dependentDemand(params: {
     const plan = planStore.getPlan(planId);
     if (!plan) throw new Error(`Plan ${planId} not found`);
 
+    // Shared across all processDemand calls to prevent double-counting the same
+    // scheduled output (works for both Intent IDs and Commitment IDs).
+    const allocatedScheduledIds = new Set<string>();
+
     const result: DependentDemandResult = {
         plan,
         processes: [],
         commitments: [],
+        intents: [],
         purchaseIntents: [],
         allocated: [],
+        allocatedScheduledIds,
     };
 
     // Prevent infinite recursion (circular recipes)
@@ -122,7 +150,7 @@ export function dependentDemand(params: {
 
     while (queue.length > 0) {
         const demand = queue.shift()!;
-        processDemand(demand, visited, queue, result, params);
+        processDemand(demand, visited, queue, result, params, allocatedScheduledIds);
     }
 
     return result;
@@ -138,8 +166,34 @@ function processDemand(
     queue: DemandTask[],
     result: DependentDemandResult,
     params: Parameters<typeof dependentDemand>[0],
+    allocatedScheduledIds: Set<string>,
 ): void {
     const { recipeStore, planStore, processes, observer, agents, planId } = params;
+
+    // --- Durable inputs: existence gate only ---
+    // Actions with accountingEffect='noEffect' (use, cite) do not deplete
+    // resources — we only check that a conforming resource exists.
+    if (demand.isDurable) {
+        if (observer) {
+            const exists = observer.conformingResources(demand.specId)
+                .some(r => (r.accountingQuantity?.hasNumericalValue ?? 0) > 0);
+            if (exists) return; // Present and accounted for
+        }
+        // Not available — signal that this durable resource must be sourced
+        const intent = planStore.addIntent({
+            action: 'transfer',
+            receiver: agents?.receiver,
+            resourceConformsTo: demand.specId,
+            resourceQuantity: { hasNumericalValue: demand.quantity, hasUnit: demand.unit },
+            due: demand.neededBy.toISOString(),
+            plannedWithin: planId,
+            inputOf: demand.forProcessId,
+            note: `Durable resource required (must be present): ${demand.quantity} ${demand.unit} of ${demand.specId}`,
+            finished: false,
+        });
+        result.purchaseIntents.push(intent);
+        return;
+    }
 
     // --- Step 1: Net against inventory ---
     let remaining = demand.quantity;
@@ -148,7 +202,6 @@ function processDemand(
         const available = observer.conformingResources(demand.specId)
             .filter(r => (r.accountingQuantity?.hasNumericalValue ?? 0) > 0);
 
-        // Allocate to demand (highest-priority = earliest due date, already processing in order)
         for (const r of available) {
             if (remaining <= 0) break;
             const avail = r.accountingQuantity?.hasNumericalValue ?? 0;
@@ -158,10 +211,55 @@ function processDemand(
         }
     }
 
-    if (remaining <= 0) return; // Fully covered by inventory
+    if (remaining <= 0) return;
 
-    // --- Step 2: Find recipe that produces this spec ---
-    const recipe = recipeStore.recipeForOutput(demand.specId);
+    // --- Step 1b: Net against previously scheduled output Intents/Commitments ---
+    // VF spec: "on-hand inventory OR previously scheduled output Intents not yet allocated"
+    // Extends to Commitments: when agents are known, planned outputs are Commitments,
+    // not Intents — both represent WIP that should count against demand.
+    {
+        // Intents with outputOf set (agent-unknown planned outputs)
+        for (const intent of planStore.allIntents()) {
+            if (remaining <= 0) break;
+            if (
+                intent.resourceConformsTo === demand.specId &&
+                intent.outputOf !== undefined &&
+                !intent.finished &&
+                !allocatedScheduledIds.has(intent.id) &&
+                (intent.resourceQuantity?.hasNumericalValue ?? 0) > 0
+            ) {
+                const take = Math.min(intent.resourceQuantity!.hasNumericalValue, remaining);
+                allocatedScheduledIds.add(intent.id);
+                remaining -= take;
+            }
+        }
+
+        // Commitments with outputOf set (agent-known planned outputs)
+        for (const commitment of planStore.allCommitments()) {
+            if (remaining <= 0) break;
+            if (
+                commitment.resourceConformsTo === demand.specId &&
+                commitment.outputOf !== undefined &&
+                !commitment.finished &&
+                !allocatedScheduledIds.has(commitment.id) &&
+                (commitment.resourceQuantity?.hasNumericalValue ?? 0) > 0
+            ) {
+                const take = Math.min(commitment.resourceQuantity!.hasNumericalValue, remaining);
+                allocatedScheduledIds.add(commitment.id);
+                remaining -= take;
+            }
+        }
+    }
+
+    if (remaining <= 0) return; // Fully covered by scheduled Intents
+
+    // --- Step 2: Find most SNLT-efficient recipe that produces this spec ---
+    const candidates = recipeStore.recipesForOutput(demand.specId);
+    const recipe = candidates.length === 0
+        ? undefined
+        : candidates
+              .map(r => ({ recipe: r, snlt: computeSnlt(recipeStore, r.id, demand.specId) }))
+              .sort((a, b) => a.snlt - b.snlt)[0].recipe;
 
     if (!recipe) {
         // No recipe — create a purchase Intent for external sourcing
@@ -188,16 +286,30 @@ function processDemand(
     const chain = recipeStore.getProcessChain(recipe.id);
     if (chain.length === 0) return;
 
-    // Compute scale factor: how many recipe-runs needed to satisfy demand
     const lastProcess = chain[chain.length - 1];
     const { outputs: lastOutputs } = recipeStore.flowsForProcess(lastProcess.id);
     const primaryOutputFlow = lastOutputs.find(f => f.resourceConformsTo === demand.specId);
     const recipeOutputQty = primaryOutputFlow?.resourceQuantity?.hasNumericalValue ?? 1;
     const scaleFactor = remaining / recipeOutputQty;
 
-    // --- Step 4: Back-schedule processes and create commitments ---
+    // --- Step 4: Back-schedule processes and create flow records ---
+    // Collect specs produced internally by this chain (intermediate outputs).
+    // Sub-demands for these specs are satisfied by other processes in the chain
+    // and must not be enqueued as external demands or purchase intents.
+    const internallyProduced = new Set<string>();
+    for (const rp of chain) {
+        const { outputs } = recipeStore.flowsForProcess(rp.id);
+        for (const outFlow of outputs) {
+            if (outFlow.resourceConformsTo) internallyProduced.add(outFlow.resourceConformsTo);
+        }
+    }
+    internallyProduced.delete(demand.specId);
+
     let cursor = demand.neededBy;
     const orderedChain = [...chain].reverse(); // back-schedule: from due date towards past
+
+    // If both agents are known, flows become Commitments; otherwise Intents.
+    const hasAgents = !!(agents?.provider && agents?.receiver);
 
     for (const rp of orderedChain) {
         const durationMs = rpDurationMs(rp);
@@ -219,27 +331,42 @@ function processDemand(
 
         const { inputs, outputs } = recipeStore.flowsForProcess(rp.id);
 
-        // Create output commitments/intents
         for (const flow of outputs) {
-            const c = createFlowCommitment(flow, process.id, 'output', scaleFactor, processEnd, planId, agents, planStore);
-            result.commitments.push(c);
+            const record = createFlowRecord(flow, process.id, 'output', scaleFactor, processEnd, planId, agents, planStore);
+            if (hasAgents) {
+                result.commitments.push(record as Commitment);
+            } else {
+                result.intents.push(record as Intent);
+            }
         }
 
-        // Create input commitments and enqueue sub-demands
         for (const flow of inputs) {
-            const c = createFlowCommitment(flow, process.id, 'input', scaleFactor, processBegin, planId, agents, planStore);
-            result.commitments.push(c);
+            const record = createFlowRecord(flow, process.id, 'input', scaleFactor, processBegin, planId, agents, planStore);
+            if (hasAgents) {
+                result.commitments.push(record as Commitment);
+            } else {
+                result.intents.push(record as Intent);
+            }
 
-            // Recurse: enqueue a demand for each input spec
-            if (flow.resourceConformsTo) {
+            if (flow.resourceConformsTo && !internallyProduced.has(flow.resourceConformsTo)) {
+                // Work flows are labour commitments tracked via SNLT/capacity;
+                // they are not material sub-demands and must not recurse.
+                if (flow.action === 'work') continue;
+
+                // Durable inputs (use/cite) are existence gates only.
+                const actionDef = ACTION_DEFINITIONS[flow.action];
+                const isDurable = actionDef?.accountingEffect === 'noEffect';
+
                 const inputQty = (flow.resourceQuantity?.hasNumericalValue ?? 0) * scaleFactor;
-                if (inputQty > 0) {
+
+                if (inputQty > 0 || isDurable) {
                     queue.push({
                         specId: flow.resourceConformsTo,
                         quantity: inputQty,
                         neededBy: processBegin,
                         forProcessId: process.id,
                         unit: flow.resourceQuantity?.hasUnit ?? 'each',
+                        isDurable,
                     });
                 }
             }
@@ -250,7 +377,11 @@ function processDemand(
     visited.delete(recipe.id);
 }
 
-function createFlowCommitment(
+/**
+ * Create a Commitment (when both agents known) or Intent (when agents unknown)
+ * from a RecipeFlow.
+ */
+function createFlowRecord(
     flow: RecipeFlow,
     processId: string,
     direction: 'input' | 'output',
@@ -259,7 +390,7 @@ function createFlowCommitment(
     planId: string,
     agents: { provider?: string; receiver?: string } | undefined,
     planStore: PlanStore,
-): Commitment {
+): Commitment | Intent {
     const scaledQty = flow.resourceQuantity
         ? { hasNumericalValue: flow.resourceQuantity.hasNumericalValue * scaleFactor, hasUnit: flow.resourceQuantity.hasUnit }
         : undefined;
@@ -267,7 +398,30 @@ function createFlowCommitment(
         ? { hasNumericalValue: flow.effortQuantity.hasNumericalValue * scaleFactor, hasUnit: flow.effortQuantity.hasUnit }
         : undefined;
 
-    return planStore.addCommitment({
+    const provider = agents?.provider;
+    const receiver = agents?.receiver;
+
+    if (provider && receiver) {
+        return planStore.addCommitment({
+            action: flow.action,
+            inputOf: direction === 'input' ? processId : undefined,
+            outputOf: direction === 'output' ? processId : undefined,
+            resourceConformsTo: flow.resourceConformsTo,
+            resourceClassifiedAs: flow.resourceClassifiedAs,
+            resourceQuantity: scaledQty,
+            effortQuantity: scaledEffort,
+            stage: flow.stage,
+            state: flow.state,
+            provider,
+            receiver,
+            due: dueDate.toISOString(),
+            created: new Date().toISOString(),
+            plannedWithin: planId,
+            finished: false,
+        });
+    }
+
+    return planStore.addIntent({
         action: flow.action,
         inputOf: direction === 'input' ? processId : undefined,
         outputOf: direction === 'output' ? processId : undefined,
@@ -277,13 +431,43 @@ function createFlowCommitment(
         effortQuantity: scaledEffort,
         stage: flow.stage,
         state: flow.state,
-        provider: agents?.provider,
-        receiver: agents?.receiver,
+        provider,
+        receiver,
         due: dueDate.toISOString(),
-        created: new Date().toISOString(),
         plannedWithin: planId,
         finished: false,
     });
+}
+
+/**
+ * Compute SNLT (Socially Necessary Labour Time) for one recipe execution,
+ * expressed as total work-hours per unit of primary output.
+ *
+ * Lower SNLT = more labour-efficient. Recipes with zero work flows have SNLT=0
+ * (pure material transformation, maximally efficient from a labour standpoint).
+ * Returns Infinity for degenerate recipes that produce zero output.
+ */
+function computeSnlt(recipeStore: RecipeStore, recipeId: string, specId: string): number {
+    const chain = recipeStore.getProcessChain(recipeId);
+
+    let totalWorkHours = 0;
+    for (const rp of chain) {
+        const { inputs } = recipeStore.flowsForProcess(rp.id);
+        for (const flow of inputs) {
+            if (flow.action === 'work') {
+                totalWorkHours += flow.effortQuantity?.hasNumericalValue ?? 0;
+            }
+        }
+    }
+
+    const lastProcess = chain[chain.length - 1];
+    if (!lastProcess) return Infinity;
+    const { outputs } = recipeStore.flowsForProcess(lastProcess.id);
+    const primaryFlow = outputs.find(f => f.resourceConformsTo === specId);
+    const outputQty = primaryFlow?.resourceQuantity?.hasNumericalValue ?? 0;
+    if (outputQty <= 0) return Infinity;
+
+    return totalWorkHours / outputQty;
 }
 
 function rpDurationMs(rp: { hasDuration?: { hasNumericalValue: number; hasUnit: string } }): number {

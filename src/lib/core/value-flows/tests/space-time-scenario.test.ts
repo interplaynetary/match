@@ -104,9 +104,7 @@ describe("ScenarioIndex and Scenario Logic", () => {
             name: "processA",
             basedOn: "specA",
             finished: false,
-            // process type might not explicitly define atLocation depending on schema iteration, we'll cast to any for this test since mergeScenarios checks it
-        } as any;
-        pA.atLocation = "locA";
+        };
 
         const sA: Scenario = {
             id: "sA",
@@ -126,8 +124,7 @@ describe("ScenarioIndex and Scenario Logic", () => {
             name: "processB",
             basedOn: "specB",
             finished: false,
-        } as any;
-        pB.atLocation = "locB";
+        };
 
         const sB: Scenario = {
             id: "sB",

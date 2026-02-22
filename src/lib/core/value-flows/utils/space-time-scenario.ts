@@ -124,6 +124,13 @@ export interface Scenario {
      * Increases (coarsens) as Scenarios are merged upward.
      */
     resolution: number;
+
+    /**
+     * D2 expansion signals: specs where local capacity was insufficient to meet demand.
+     * These are candidates for capacity-building investments (new Means of Production).
+     * Undefined when there are no gaps, or for merged Scenarios.
+     */
+    expansionSignals?: Array<{ specId: string; needed: number; feasible: number; gap: number }>;
 }
 
 /**
@@ -321,7 +328,7 @@ function getOrCreateScenarioNode(
  *
  * @param index        The ScenarioIndex to update.
  * @param scenario     The Scenario to add.
- * @param locations    SpatialThing lookup (Process.atLocation → SpatialThing).
+ * @param locations    SpatialThing lookup (reserved for future use — Scenario.origin_cell is currently used).
  */
 export function addScenarioToIndex(
     index: ScenarioIndex,
@@ -331,14 +338,15 @@ export function addScenarioToIndex(
     index.scenarios.set(scenario.id, scenario);
 
     // Each Process in the Scenario contributes to the node hierarchy.
+    // The Process type has no atLocation field; use the Scenario's origin_cell
+    // as the canonical spatial anchor for all processes it contains.
     for (const process of scenario.processes.values()) {
         const processSpec = process.basedOn ?? process.name ?? 'unknown';
-        const st = process.atLocation ? locations.get(process.atLocation) : undefined;
+        const leafCell = scenario.origin_cell;
 
-        if (!st) continue; // No location — skip spatial indexing
+        if (!leafCell) continue; // No location at all — skip
 
         // Bubble up from leaf_resolution to root_resolution
-        const leafCell = spatialThingToH3(st, index.config.leaf_resolution);
         let currentCell = leafCell;
         let currentRes = index.config.leaf_resolution;
 
@@ -471,27 +479,24 @@ export function mergeScenarios(
     locations: Map<string, SpatialThing>,
     generateId: () => string,
 ): Scenario | MergeConflict {
-    // Check both have processes with a common parent at `resolution`
-    const aParents = new Set<string>();
-    for (const p of a.processes.values()) {
-        if (!p.atLocation) continue;
-        // We store origin_cell at leaf res; get parent at merge resolution
-        const leafCell = a.origin_cell;
-        if (h3.getResolution(leafCell) >= resolution) {
-            aParents.add(h3.cellToParent(leafCell, resolution));
-        }
-    }
-    const sharedParent = [...b.processes.values()].some(p => {
-        if (!p.atLocation) return false;
-        const leafCell = b.origin_cell;
-        if (h3.getResolution(leafCell) < resolution) return false;
-        return aParents.has(h3.cellToParent(leafCell, resolution));
-    });
-
-    if (!sharedParent) {
+    // Both scenarios must share a parent H3 cell at `resolution`.
+    // We use origin_cell (the canonical leaf cell) rather than Process.atLocation,
+    // which may be unset. mergeFrontier() already groups by shared parent, so this
+    // guard is a defensive consistency check.
+    const aRes = h3.getResolution(a.origin_cell);
+    const bRes = h3.getResolution(b.origin_cell);
+    if (aRes < resolution || bRes < resolution) {
         return {
             type: 'no_common_parent',
-            detail: `No shared parent cell at resolution ${resolution} between scenarios ${a.id} and ${b.id}`,
+            detail: `Scenario ${a.id} (res ${aRes}) or ${b.id} (res ${bRes}) is below merge resolution ${resolution}`,
+        };
+    }
+    const aParent = h3.cellToParent(a.origin_cell, resolution);
+    const bParent = h3.cellToParent(b.origin_cell, resolution);
+    if (aParent !== bParent) {
+        return {
+            type: 'no_common_parent',
+            detail: `No shared parent at res ${resolution}: ${a.id} → ${aParent}, ${b.id} → ${bParent}`,
         };
     }
 
@@ -513,7 +518,8 @@ export function mergeScenarios(
 
         const qty = Math.min(deficit.remaining_quantity || available, available);
 
-        // Output side: B produces/transfers toward A
+        // Output side: B transfers toward A.
+        // Transfer Commitments in VF are process-free — outputOf/inputOf are intentionally unset.
         const outId = generateId();
         const outCommitment: Commitment = {
             id: outId,
@@ -521,10 +527,9 @@ export function mergeScenarios(
             resourceConformsTo: deficit.spec_id,
             resourceQuantity: { hasNumericalValue: qty, hasUnit: 'unit' },
             finished: false,
-            // outputOf will be set to a process in B when promoted to Plan
         };
 
-        // Input side: A consumes, satisfying the deficit Intent
+        // Input side: A receives, satisfying the deficit Intent.
         const inId = generateId();
         const inCommitment: Commitment = {
             id: inId,
@@ -533,7 +538,6 @@ export function mergeScenarios(
             resourceQuantity: { hasNumericalValue: qty, hasUnit: 'unit' },
             satisfies: deficit.intent_id,
             finished: false,
-            // inputOf will be set to a process in A when promoted to Plan
         };
 
         newCommitments.set(outId, outCommitment);

@@ -230,6 +230,18 @@ export class RecipeStore {
     }
 
     /**
+     * Find ALL recipes that produce a given resource specification as primary output.
+     * Use this when you need SNLT-ranked selection (dependent demand algorithm).
+     */
+    recipesForOutput(specId: string): Recipe[] {
+        const matches: Recipe[] = [];
+        for (const recipe of this.recipes.values()) {
+            if (recipe.primaryOutput === specId) matches.push(recipe);
+        }
+        return matches;
+    }
+
+    /**
      * Get the process chain for a recipe in topological order
      * (dependencies first, final output process last).
      *

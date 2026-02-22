@@ -190,11 +190,11 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',      // applying a tool can transition its state
         impliesTransfer: null,
     },
     work: {
-        eventQuantity: 'both',
+        eventQuantity: 'effortQuantity', // labour is always measured in effort, not resource qty
         inputOutput: 'input',
         createResource: 'noEffect',
         accountingEffect: 'noEffect',
@@ -216,7 +216,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',      // citing can record state transition on the cited resource
         impliesTransfer: null,
     },
     deliverService: {
@@ -374,7 +374,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         createResource: 'optionalTo',
         accountingEffect: 'incrementTo',
         onhandEffect: 'incrementTo',
-        locationEffect: 'new',
+        locationEffect: 'updateTo',  // copy is created at toLocation (to-resource, not from)
         containedEffect: 'noEffect',
         accountableEffect: 'updateTo',
         stageEffect: 'noEffect',

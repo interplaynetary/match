@@ -291,36 +291,34 @@ export class Observer {
 
         // --- Implied Transfer (GAP-F) ---
         // VF spec: transfers.md §Implied Transfers
-        // When provider ≠ receiver and the action implies a transfer,
-        // apply additional transfer-of-rights or transfer-of-custody effects.
+        // When provider ≠ receiver and the action implies a transfer of rights or custody,
+        // update ownership metadata only. Quantity effects are NOT re-applied here — they
+        // are fully captured by the primary action definition above (produce increments,
+        // consume decrements, etc.). Re-applying the transfer action's quantity effects
+        // would cancel or double the primary action's accounting changes.
         if (def.impliesTransfer && event.provider !== event.receiver && event.resourceInventoriedAs) {
-            const impliedDef = def.impliesTransfer === 'allRights'
-                ? ACTION_DEFINITIONS['transferAllRights']
-                : ACTION_DEFINITIONS['transferCustody'];
-
             const fromResource = this.resources.get(event.resourceInventoriedAs);
             if (fromResource) {
-                // Decrement from the "from" resource
-                const fromChanges = this.applyResourceEffects(fromResource, event, impliedDef, 'from');
-                if (fromChanges.length > 0) {
-                    this.emit({ type: 'resource_updated', resource: fromResource, event, changes: fromChanges.map(c => `implied:${c}`) });
-                }
-                addAffected(fromResource);
-
-                // If there is a toResource, increment it; otherwise update accountable on fromResource
-                if (event.toResourceInventoriedAs) {
-                    const toResource = this.resources.get(event.toResourceInventoriedAs);
-                    if (toResource) {
-                        const toChanges = this.applyResourceEffects(toResource, event, impliedDef, 'to');
-                        if (toChanges.length > 0) {
-                            this.emit({ type: 'resource_updated', resource: toResource, event, changes: toChanges.map(c => `implied:${c}`) });
+                if (def.impliesTransfer === 'allRights') {
+                    if (event.toResourceInventoriedAs) {
+                        // Split inventory (two resource records): receiver owns the to-resource.
+                        const toResource = this.resources.get(event.toResourceInventoriedAs);
+                        if (toResource) {
+                            toResource.primaryAccountable = event.receiver;
+                            this.emit({ type: 'resource_updated', resource: toResource, event,
+                                changes: ['implied:primaryAccountable'] });
+                            addAffected(toResource);
                         }
-                        addAffected(toResource);
+                    } else {
+                        // Inline rights transfer: receiver now owns the same resource record.
+                        fromResource.primaryAccountable = event.receiver;
+                        this.emit({ type: 'resource_updated', resource: fromResource, event,
+                            changes: ['implied:primaryAccountable'] });
+                        addAffected(fromResource);
                     }
-                } else if (def.impliesTransfer === 'allRights') {
-                    // Update accountable on the from resource itself (rights transferred "inline")
-                    fromResource.primaryAccountable = event.receiver;
                 }
+                // custody: no additional resource changes needed — physical possession is
+                // already tracked by the primary action's onhandEffect.
             }
         }
 
