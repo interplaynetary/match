@@ -150,16 +150,18 @@ describe('Observer: action effects', () => {
             expect(flour.containedIn).toBe('bowl');
         });
 
-        test('does not change quantity on either resource', () => {
+        test('does not change accounting quantity; decrements onhand of ingredient', () => {
             observer.seedResource({
                 id: 'flour',
                 conformsTo: 'spec:flour',
                 accountingQuantity: { hasNumericalValue: 500, hasUnit: 'g' },
+                onhandQuantity: { hasNumericalValue: 500, hasUnit: 'g' },
             });
             observer.seedResource({
                 id: 'bowl',
                 conformsTo: 'spec:bowl',
                 accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
             });
 
             observer.record({
@@ -170,8 +172,13 @@ describe('Observer: action effects', () => {
                 resourceQuantity: { hasNumericalValue: 500, hasUnit: 'g' },
             });
 
+            // accounting unchanged
             expect(observer.getResource('flour')!.accountingQuantity?.hasNumericalValue).toBe(500);
             expect(observer.getResource('bowl')!.accountingQuantity?.hasNumericalValue).toBe(1);
+            // onhand of ingredient decrements (it physically entered the container)
+            expect(observer.getResource('flour')!.onhandQuantity?.hasNumericalValue).toBe(0);
+            // container onhand unchanged
+            expect(observer.getResource('bowl')!.onhandQuantity?.hasNumericalValue).toBe(1);
         });
     });
 
@@ -223,11 +230,13 @@ describe('Observer: action effects', () => {
                 id: 'sugar',
                 conformsTo: 'spec:sugar',
                 accountingQuantity: { hasNumericalValue: 200, hasUnit: 'g' },
+                onhandQuantity: { hasNumericalValue: 200, hasUnit: 'g' },
             });
             observer.seedResource({
                 id: 'bowl',
                 conformsTo: 'spec:bowl',
                 accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
             });
 
             observer.record({
@@ -238,6 +247,8 @@ describe('Observer: action effects', () => {
                 resourceQuantity: { hasNumericalValue: 200, hasUnit: 'g' },
             });
             expect(observer.getResource('sugar')!.containedIn).toBe('bowl');
+            // onhand decrements on combine
+            expect(observer.getResource('sugar')!.onhandQuantity?.hasNumericalValue).toBe(0);
 
             observer.record({
                 id: 'e-separate',
@@ -246,8 +257,10 @@ describe('Observer: action effects', () => {
                 resourceQuantity: { hasNumericalValue: 200, hasUnit: 'g' },
             });
             expect(observer.getResource('sugar')!.containedIn).toBeUndefined();
+            // onhand increments on separate (back to original)
+            expect(observer.getResource('sugar')!.onhandQuantity?.hasNumericalValue).toBe(200);
 
-            // Qty never moved
+            // Accounting qty never moved
             expect(observer.getResource('sugar')!.accountingQuantity?.hasNumericalValue).toBe(200);
         });
     });
@@ -316,7 +329,7 @@ describe('Observer: action effects', () => {
             expect(observer.getResource('original')!.currentLocation).toBe('loc:london'); // unchanged
         });
 
-        test('copy gets primaryAccountable = receiver via accountableEffect updateTo', () => {
+        test('copy gets primaryAccountable = receiver via accountableEffect new (to-resource)', () => {
             observer.seedResource({
                 id: 'original',
                 conformsTo: 'spec:drawing',
@@ -503,6 +516,593 @@ describe('Observer: action effects', () => {
             const stock = observer.getResource('stock')!;
             expect(stock.accountingQuantity?.hasNumericalValue).toBe(85);
             expect(stock.onhandQuantity?.hasNumericalValue).toBe(85);
+        });
+    });
+
+    // ─── accept ───────────────────────────────────────────────────────────────
+
+    describe('accept', () => {
+        test('decrements onhand when resource enters repair process (accounting unchanged)', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                accountingQuantity: { hasNumericalValue: 5, hasUnit: 'each' },
+                onhandQuantity: { hasNumericalValue: 5, hasUnit: 'each' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'accept',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+            });
+
+            const device = observer.getResource('device')!;
+            expect(device.accountingQuantity?.hasNumericalValue).toBe(5); // unchanged
+            expect(device.onhandQuantity?.hasNumericalValue).toBe(3);     // 5 - 2
+        });
+
+        test('updates currentLocation to event.toLocation', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                currentLocation: 'loc:floor',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'accept',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                toLocation: 'loc:repair-shop',
+            });
+
+            expect(observer.getResource('device')!.currentLocation).toBe('loc:repair-shop');
+        });
+
+        test('updates state when event.state is provided', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                state: 'working',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'accept',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                state: 'in-repair',
+            });
+
+            expect(observer.getResource('device')!.state).toBe('in-repair');
+        });
+    });
+
+    // ─── modify ───────────────────────────────────────────────────────────────
+
+    describe('modify', () => {
+        test('increments onhand when resource exits repair process (accounting unchanged)', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                accountingQuantity: { hasNumericalValue: 5, hasUnit: 'each' },
+                onhandQuantity: { hasNumericalValue: 3, hasUnit: 'each' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'modify',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+            });
+
+            const device = observer.getResource('device')!;
+            expect(device.accountingQuantity?.hasNumericalValue).toBe(5); // unchanged
+            expect(device.onhandQuantity?.hasNumericalValue).toBe(5);     // 3 + 2
+        });
+
+        test('updates currentLocation to event.toLocation', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                currentLocation: 'loc:repair-shop',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'modify',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                toLocation: 'loc:floor',
+            });
+
+            expect(observer.getResource('device')!.currentLocation).toBe('loc:floor');
+        });
+
+        test('updates stage from process.basedOn when event.outputOf is set', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+            });
+            observer.registerProcess({
+                id: 'proc:repair',
+                name: 'Repair Process',
+                basedOn: 'spec:repaired',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'modify',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                outputOf: 'proc:repair',
+            });
+
+            expect(observer.getResource('device')!.stage).toBe('spec:repaired');
+        });
+
+        test('updates state when event.state is provided', () => {
+            observer.seedResource({
+                id: 'device',
+                conformsTo: 'spec:device',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                state: 'in-repair',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'modify',
+                resourceInventoriedAs: 'device',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                state: 'repaired',
+            });
+
+            expect(observer.getResource('device')!.state).toBe('repaired');
+        });
+    });
+
+    // ─── pickup ───────────────────────────────────────────────────────────────
+
+    describe('pickup', () => {
+        test('decrements onhand when transport begins (accounting unchanged)', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                accountingQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+                onhandQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'pickup',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 4, hasUnit: 'unit' },
+            });
+
+            const pallet = observer.getResource('pallet')!;
+            expect(pallet.accountingQuantity?.hasNumericalValue).toBe(10); // unchanged
+            expect(pallet.onhandQuantity?.hasNumericalValue).toBe(6);      // 10 - 4
+        });
+
+        test('updates currentLocation to event.toLocation', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                currentLocation: 'loc:warehouse',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'pickup',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                toLocation: 'loc:truck',
+            });
+
+            expect(observer.getResource('pallet')!.currentLocation).toBe('loc:truck');
+        });
+
+        test('updates state when event.state is provided', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                state: 'at-warehouse',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'pickup',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                state: 'in-transit',
+            });
+
+            expect(observer.getResource('pallet')!.state).toBe('in-transit');
+        });
+    });
+
+    // ─── dropoff ──────────────────────────────────────────────────────────────
+
+    describe('dropoff', () => {
+        test('increments onhand when transport ends (accounting unchanged)', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                accountingQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+                onhandQuantity: { hasNumericalValue: 6, hasUnit: 'unit' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'dropoff',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 4, hasUnit: 'unit' },
+            });
+
+            const pallet = observer.getResource('pallet')!;
+            expect(pallet.accountingQuantity?.hasNumericalValue).toBe(10); // unchanged
+            expect(pallet.onhandQuantity?.hasNumericalValue).toBe(10);     // 6 + 4
+        });
+
+        test('updates currentLocation to event.toLocation', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                currentLocation: 'loc:truck',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'dropoff',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                toLocation: 'loc:store',
+            });
+
+            expect(observer.getResource('pallet')!.currentLocation).toBe('loc:store');
+        });
+
+        test('updates stage from process.basedOn when event.outputOf is set', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+            });
+            observer.registerProcess({
+                id: 'proc:delivery',
+                name: 'Delivery Process',
+                basedOn: 'spec:delivered',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'dropoff',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                outputOf: 'proc:delivery',
+            });
+
+            expect(observer.getResource('pallet')!.stage).toBe('spec:delivered');
+        });
+
+        test('updates state when event.state is provided', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                state: 'in-transit',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'dropoff',
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'unit' },
+                state: 'delivered',
+            });
+
+            expect(observer.getResource('pallet')!.state).toBe('delivered');
+        });
+    });
+
+    // ─── consume (state) ──────────────────────────────────────────────────────
+
+    describe('consume (state effect)', () => {
+        test('updates state on consumed resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'ingredient',
+                conformsTo: 'spec:flour',
+                accountingQuantity: { hasNumericalValue: 500, hasUnit: 'g' },
+                onhandQuantity: { hasNumericalValue: 500, hasUnit: 'g' },
+                state: 'stored',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'consume',
+                resourceInventoriedAs: 'ingredient',
+                resourceQuantity: { hasNumericalValue: 200, hasUnit: 'g' },
+                state: 'used',
+            });
+
+            expect(observer.getResource('ingredient')!.state).toBe('used');
+        });
+    });
+
+    // ─── separate (state & stage) ─────────────────────────────────────────────
+
+    describe('separate (state & stage effects)', () => {
+        test('increments onhand when resource is separated (accounting unchanged)', () => {
+            observer.seedResource({
+                id: 'component',
+                conformsTo: 'spec:part',
+                accountingQuantity: { hasNumericalValue: 10, hasUnit: 'each' },
+                onhandQuantity: { hasNumericalValue: 8, hasUnit: 'each' },
+                containedIn: 'assembly',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'component',
+                resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+            });
+
+            const component = observer.getResource('component')!;
+            expect(component.accountingQuantity?.hasNumericalValue).toBe(10); // unchanged
+            expect(component.onhandQuantity?.hasNumericalValue).toBe(10);     // 8 + 2
+        });
+
+        test('updates stage from process.basedOn when event.outputOf is set', () => {
+            observer.seedResource({
+                id: 'component',
+                conformsTo: 'spec:part',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                containedIn: 'assembly',
+            });
+            observer.registerProcess({
+                id: 'proc:disassembly',
+                name: 'Disassembly',
+                basedOn: 'spec:disassembled',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'component',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                outputOf: 'proc:disassembly',
+            });
+
+            expect(observer.getResource('component')!.stage).toBe('spec:disassembled');
+        });
+
+        test('updates state when event.state is provided', () => {
+            observer.seedResource({
+                id: 'component',
+                conformsTo: 'spec:part',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                containedIn: 'assembly',
+                state: 'assembled',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'component',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                state: 'separated',
+            });
+
+            expect(observer.getResource('component')!.state).toBe('separated');
+        });
+    });
+
+    // ─── transfer (state) ─────────────────────────────────────────────────────
+
+    describe('transfer (state effect)', () => {
+        test('sets state on to-resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'from',
+                conformsTo: 'spec:goods',
+                accountingQuantity: { hasNumericalValue: 50, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 50, hasUnit: 'kg' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'transfer',
+                resourceInventoriedAs: 'from',
+                toResourceInventoriedAs: 'to',
+                resourceQuantity: { hasNumericalValue: 20, hasUnit: 'kg' },
+                receiver: 'agent:bob',
+                state: 'transferred',
+            });
+
+            expect(observer.getResource('to')!.state).toBe('transferred');
+        });
+    });
+
+    // ─── transferAllRights (state) ────────────────────────────────────────────
+
+    describe('transferAllRights (state effect)', () => {
+        test('sets state on to-resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'from',
+                conformsTo: 'spec:wheat',
+                accountingQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'transferAllRights',
+                resourceInventoriedAs: 'from',
+                toResourceInventoriedAs: 'to',
+                resourceQuantity: { hasNumericalValue: 30, hasUnit: 'kg' },
+                receiver: 'agent:buyer',
+                state: 'sold',
+            });
+
+            expect(observer.getResource('to')!.state).toBe('sold');
+        });
+    });
+
+    // ─── transferCustody (state) ──────────────────────────────────────────────
+
+    describe('transferCustody (state effect)', () => {
+        test('sets state on to-resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'from',
+                conformsTo: 'spec:pallet',
+                accountingQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+                onhandQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'transferCustody',
+                resourceInventoriedAs: 'from',
+                toResourceInventoriedAs: 'to',
+                resourceQuantity: { hasNumericalValue: 5, hasUnit: 'unit' },
+                toLocation: 'loc:depot',
+                state: 'in-custody',
+            });
+
+            expect(observer.getResource('to')!.state).toBe('in-custody');
+        });
+    });
+
+    // ─── move (state) ─────────────────────────────────────────────────────────
+
+    describe('move (state effect)', () => {
+        test('sets state on to-resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'from',
+                conformsTo: 'spec:grain',
+                accountingQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'move',
+                resourceInventoriedAs: 'from',
+                toResourceInventoriedAs: 'to',
+                resourceQuantity: { hasNumericalValue: 40, hasUnit: 'kg' },
+                toLocation: 'loc:silo-3',
+                state: 'relocated',
+            });
+
+            expect(observer.getResource('to')!.state).toBe('relocated');
+        });
+    });
+
+    // ─── raise ────────────────────────────────────────────────────────────────
+
+    describe('raise (accountable & state on new resource)', () => {
+        test('sets primaryAccountable = event.receiver on newly created resource', () => {
+            // resource does not exist yet → raise creates it
+            observer.record({
+                id: 'e1',
+                action: 'raise',
+                resourceInventoriedAs: 'stock-new',
+                resourceConformsTo: 'spec:apples',
+                resourceQuantity: { hasNumericalValue: 50, hasUnit: 'kg' },
+                receiver: 'agent:alice',
+            });
+
+            expect(observer.getResource('stock-new')!.primaryAccountable).toBe('agent:alice');
+        });
+
+        test('updates state on the resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'stock',
+                conformsTo: 'spec:apples',
+                accountingQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+                state: 'raw',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'raise',
+                resourceInventoriedAs: 'stock',
+                resourceQuantity: { hasNumericalValue: 10, hasUnit: 'kg' },
+                state: 'counted',
+            });
+
+            expect(observer.getResource('stock')!.state).toBe('counted');
+        });
+    });
+
+    // ─── lower ────────────────────────────────────────────────────────────────
+
+    describe('lower (createResource optional, accountable & state)', () => {
+        test('creates the resource when it does not exist', () => {
+            observer.record({
+                id: 'e1',
+                action: 'lower',
+                resourceInventoriedAs: 'stock-shrinkage',
+                resourceConformsTo: 'spec:apples',
+                resourceQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+                receiver: 'agent:alice',
+            });
+
+            expect(observer.getResource('stock-shrinkage')).toBeDefined();
+        });
+
+        test('sets primaryAccountable = event.receiver on newly created resource', () => {
+            observer.record({
+                id: 'e1',
+                action: 'lower',
+                resourceInventoriedAs: 'stock-shrinkage',
+                resourceConformsTo: 'spec:apples',
+                resourceQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+                receiver: 'agent:alice',
+            });
+
+            expect(observer.getResource('stock-shrinkage')!.primaryAccountable).toBe('agent:alice');
+        });
+
+        test('updates state on the resource when event.state is provided', () => {
+            observer.seedResource({
+                id: 'stock',
+                conformsTo: 'spec:apples',
+                accountingQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 100, hasUnit: 'kg' },
+                state: 'raw',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'lower',
+                resourceInventoriedAs: 'stock',
+                resourceQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+                state: 'written-off',
+            });
+
+            expect(observer.getResource('stock')!.state).toBe('written-off');
         });
     });
 

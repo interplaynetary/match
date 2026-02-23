@@ -31,6 +31,7 @@ import type {
     Process,
     Commitment,
     Intent,
+    Claim,
     Measure,
     RecipeFlow,
     RecipeProcess,
@@ -56,6 +57,7 @@ export class PlanStore {
     private plans = new Map<string, Plan>();
     private commitments = new Map<string, Commitment>();
     private intents = new Map<string, Intent>();
+    private claims = new Map<string, Claim>();
     private agreements = new Map<string, Agreement>();
     private agreementBundles = new Map<string, AgreementBundle>();
     private proposals = new Map<string, Proposal>();
@@ -160,6 +162,36 @@ export class PlanStore {
             .filter(i => i.receiver && !i.provider && !i.finished);
     }
 
+    // =========================================================================
+    // CRUD — Claims
+    // =========================================================================
+
+    /**
+     * Add a Claim — a receiver-initiated obligation triggered by an event.
+     * Typically auto-created after recording the triggering EconomicEvent.
+     * The `triggeredBy` field links back to the event that generated this claim.
+     */
+    addClaim(claim: Omit<Claim, 'id'> & { id?: string }): Claim {
+        const c: Claim = { id: claim.id ?? this.generateId(), ...claim };
+        this.claims.set(c.id, c);
+        return c;
+    }
+
+    getClaim(id: string): Claim | undefined { return this.claims.get(id); }
+
+    allClaims(): Claim[] { return Array.from(this.claims.values()); }
+
+    /** Claims where agentId is provider or receiver. */
+    claimsForAgent(agentId: string): Claim[] {
+        return Array.from(this.claims.values()).filter(c =>
+            c.provider === agentId || c.receiver === agentId,
+        );
+    }
+
+    // =========================================================================
+    // CRUD — Intent promotion
+    // =========================================================================
+
     /**
      * Promote an Intent to a Commitment.
      *
@@ -178,6 +210,30 @@ export class PlanStore {
         const receiver = intent.receiver ?? counterparty.receiver;
         if (!provider || !receiver) {
             throw new Error(`Cannot promote: need both provider and receiver`);
+        }
+
+        // --- minimumQuantity validation ---
+        const committedQty = intent.resourceQuantity ?? intent.effortQuantity;
+        if (intent.minimumQuantity && committedQty) {
+            if (committedQty.hasNumericalValue < intent.minimumQuantity.hasNumericalValue) {
+                throw new Error(
+                    `Quantity ${committedQty.hasNumericalValue} is below minimum ` +
+                    `${intent.minimumQuantity.hasNumericalValue} ${intent.minimumQuantity.hasUnit} ` +
+                    `for Intent ${intentId}`,
+                );
+            }
+        }
+
+        // --- availableQuantity check and decrement ---
+        if (intent.availableQuantity && committedQty) {
+            if (committedQty.hasNumericalValue > intent.availableQuantity.hasNumericalValue) {
+                throw new Error(
+                    `Requested quantity ${committedQty.hasNumericalValue} exceeds available ` +
+                    `${intent.availableQuantity.hasNumericalValue} ${intent.availableQuantity.hasUnit} ` +
+                    `for Intent ${intentId}`,
+                );
+            }
+            intent.availableQuantity.hasNumericalValue -= committedQty.hasNumericalValue;
         }
 
         const commitment = this.addCommitment({
@@ -205,10 +261,12 @@ export class PlanStore {
         });
 
         // Mark intent as satisfied only when it is NOT recurring.
-        // A recurring Intent (availability_window set) stays open — each Commitment
-        // fulfills one occurrence, not the standing offer as a whole.
+        // If availableQuantity is tracked, only finish when it's depleted.
+        // A recurring Intent (availability_window set) always stays open.
         if (!intent.availability_window) {
-            intent.finished = true;
+            const depleted = !intent.availableQuantity ||
+                intent.availableQuantity.hasNumericalValue <= 0;
+            if (depleted) intent.finished = true;
         }
 
         return commitment;
@@ -437,6 +495,112 @@ export class PlanStore {
         });
 
         return { proposal, primaryIntent };
+    }
+
+    // =========================================================================
+    // PROPOSAL ACCEPTANCE — Proposal → Agreement → Commitment lifecycle
+    // =========================================================================
+
+    /**
+     * Accept a Proposal, turning its Intents into Commitments and linking
+     * them under a new Agreement. Closes the proposal→agreement→commitment
+     * lifecycle loop.
+     *
+     * Validations (all throw on failure):
+     *   - Proposal must exist
+     *   - Proposal must not be expired (hasEnd) or not yet open (hasBeginning)
+     *   - If proposedTo is set, options.acceptingAgentId must be in the list
+     *
+     * @param proposalId   - The Proposal being accepted
+     * @param counterparty - Fills provider/receiver gaps on Intents
+     * @param options.due              - Optional due date for all generated Commitments
+     * @param options.acceptingAgentId - Identity of the accepting agent (required when proposedTo is set)
+     * @param options.unitQuantity     - For unitBased proposals: scales all commitment quantities
+     */
+    acceptProposal(
+        proposalId: string,
+        counterparty: { provider?: string; receiver?: string },
+        options?: { due?: string; acceptingAgentId?: string; unitQuantity?: number },
+    ): { agreement: Agreement; commitments: Commitment[] } {
+        const proposal = this.proposals.get(proposalId);
+        if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
+
+        // --- Temporal validation ---
+        const now = new Date().toISOString();
+        if (proposal.hasEnd && now > proposal.hasEnd) {
+            throw new Error(`Proposal ${proposalId} expired on ${proposal.hasEnd}`);
+        }
+        if (proposal.hasBeginning && now < proposal.hasBeginning) {
+            throw new Error(`Proposal ${proposalId} not yet open (opens ${proposal.hasBeginning})`);
+        }
+
+        // --- proposedTo enforcement ---
+        if (proposal.proposedTo?.length) {
+            const acceptingId = options?.acceptingAgentId;
+            if (!acceptingId || !proposal.proposedTo.includes(acceptingId)) {
+                throw new Error(
+                    `Proposal ${proposalId} is restricted to: ${proposal.proposedTo.join(', ')}`,
+                );
+            }
+        }
+
+        // --- unitBased scaling ---
+        const unitScale = proposal.unitBased && options?.unitQuantity != null
+            ? options.unitQuantity
+            : 1;
+
+        const scaleCommitment = (c: Commitment): void => {
+            if (unitScale !== 1) {
+                if (c.resourceQuantity) {
+                    c.resourceQuantity = {
+                        hasNumericalValue: c.resourceQuantity.hasNumericalValue * unitScale,
+                        hasUnit: c.resourceQuantity.hasUnit,
+                    };
+                }
+                if (c.effortQuantity) {
+                    c.effortQuantity = {
+                        hasNumericalValue: c.effortQuantity.hasNumericalValue * unitScale,
+                        hasUnit: c.effortQuantity.hasUnit,
+                    };
+                }
+            }
+            if (options?.due) c.due = options.due;
+        };
+
+        const primaryIds: string[] = [];
+        const reciprocalIds: string[] = [];
+        const allCommitments: Commitment[] = [];
+
+        // Primary Intents → stipulates
+        for (const intentId of proposal.publishes ?? []) {
+            const c = this.promoteToCommitment(intentId, counterparty);
+            scaleCommitment(c);
+            primaryIds.push(c.id);
+            allCommitments.push(c);
+        }
+
+        // Reciprocal Intents → stipulatesReciprocal
+        // Flip counterparty: accepting agent provides the reciprocal flow
+        const flipped = { provider: counterparty.receiver, receiver: counterparty.provider };
+        for (const intentId of proposal.reciprocal ?? []) {
+            const c = this.promoteToCommitment(intentId, flipped);
+            scaleCommitment(c);
+            reciprocalIds.push(c.id);
+            allCommitments.push(c);
+        }
+
+        const agreement = this.addAgreement({
+            name: proposal.name,
+            created: new Date().toISOString(),
+            stipulates: primaryIds.length > 0 ? primaryIds : undefined,
+            stipulatesReciprocal: reciprocalIds.length > 0 ? reciprocalIds : undefined,
+        });
+
+        for (const c of allCommitments) {
+            c.clauseOf = agreement.id;
+        }
+
+        return { agreement, commitments: allCommitments };
     }
 
     // =========================================================================
@@ -802,16 +966,28 @@ export class PlanStore {
                 const primaryIds: string[] = [];
                 const reciprocalIds: string[] = [];
 
-                for (const flow of exchangeFlows) {
+                const hasAnyTag = exchangeFlows.some(f => f.isPrimary !== undefined);
+                const isBilateral = exchangeFlows.length === 2;
+
+                for (let i = 0; i < exchangeFlows.length; i++) {
+                    const flow = exchangeFlows[i];
                     const commitment = this.createCommitmentFromFlow(
                         flow, undefined, undefined, scaleFactor, dueDate, plan.id, agents,
                     );
                     commitments.push(commitment);
-                    // Explicit isPrimary wins; fall back to first-flow heuristic when unset.
-                    if (flow.isPrimary === true || (primaryIds.length === 0 && flow.isPrimary !== false)) {
+
+                    if (flow.isPrimary === true) {
                         primaryIds.push(commitment.id);
-                    } else {
+                    } else if (flow.isPrimary === false) {
                         reciprocalIds.push(commitment.id);
+                    } else if (!hasAnyTag && isBilateral && i === 0) {
+                        primaryIds.push(commitment.id);   // bilateral: first = primary
+                    } else if (!hasAnyTag && isBilateral) {
+                        reciprocalIds.push(commitment.id); // bilateral: second = reciprocal
+                    } else {
+                        // Multilateral (3+ flows) with no tags: all go to stipulates.
+                        // Caller must use isPrimary to specify sides explicitly.
+                        primaryIds.push(commitment.id);
                     }
                 }
 

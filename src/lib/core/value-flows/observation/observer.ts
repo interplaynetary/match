@@ -21,6 +21,7 @@ import {
     type EconomicResource,
     type Commitment,
     type Intent,
+    type Claim,
     type Process,
     type Agreement,
     type Measure,
@@ -42,6 +43,7 @@ export type ObserverEvent =
     | { type: 'batch_created'; batch: BatchLotRecord; resource: EconomicResource; event: EconomicEvent }
     | { type: 'fulfilled'; event: EconomicEvent; commitmentId: string }
     | { type: 'satisfied'; event: EconomicEvent; intentId: string }
+    | { type: 'claim_settled'; event: EconomicEvent; claimId: string }
     | { type: 'error'; eventId: string; error: string };
 
 export type ObserverListener = (event: ObserverEvent) => void | Promise<void>;
@@ -64,6 +66,14 @@ export interface SatisfactionState {
     totalSatisfied: Measure;
     satisfyingEvents: string[];
     satisfyingCommitments: string[];
+    finished: boolean;
+}
+
+export interface ClaimState {
+    claimId: string;
+    totalClaimed: Measure;
+    totalSettled: Measure;
+    settlingEvents: string[];
     finished: boolean;
 }
 
@@ -96,9 +106,10 @@ export class Observer {
     // Shared process registry (same instances as planning layer)
     readonly processes: ProcessRegistry;
 
-    // Fulfillment/Satisfaction tracking
+    // Fulfillment/Satisfaction/Settlement tracking
     private fulfillments = new Map<string, FulfillmentState>();
     private satisfactions = new Map<string, SatisfactionState>();
+    private claimStates = new Map<string, ClaimState>();
 
     // Indexes
     private eventsByResource = new Map<string, string[]>();
@@ -181,6 +192,11 @@ export class Observer {
             this.trackSatisfaction(event);
         }
 
+        // Track claim settlement (independent of fulfills/satisfies)
+        if (event.settles) {
+            this.trackSettlement(event);
+        }
+
         // Auto-finish a process when its last expected output is produced.
         // A process is finished when every output-type event has been recorded.
         const processId = event.outputOf;
@@ -220,6 +236,18 @@ export class Observer {
         });
     }
 
+    registerClaim(claim: Claim): void {
+        const qty = claim.resourceQuantity ?? claim.effortQuantity;
+        if (!qty) return;
+        this.claimStates.set(claim.id, {
+            claimId: claim.id,
+            totalClaimed: { ...qty },
+            totalSettled: { hasNumericalValue: 0, hasUnit: qty.hasUnit },
+            settlingEvents: [],
+            finished: false,
+        });
+    }
+
     registerProcess(process: Omit<Process, 'id'> & { id?: string }): Process {
         return this.processes.register(process);
     }
@@ -251,9 +279,11 @@ export class Observer {
         // --- "from" resource (resourceInventoriedAs) ---
         if (event.resourceInventoriedAs) {
             let resource = this.resources.get(event.resourceInventoriedAs);
+            let fromIsNew = false;
 
             if (!resource && def.createResource === 'optional') {
                 resource = this.createResource(event, event.resourceInventoriedAs);
+                fromIsNew = true;
                 this.emit({ type: 'resource_created', resource, event });
 
                 // Create batch if this is a produce event
@@ -263,7 +293,7 @@ export class Observer {
             }
 
             if (resource) {
-                const changes = this.applyResourceEffects(resource, event, def, 'from');
+                const changes = this.applyResourceEffects(resource, event, def, 'from', fromIsNew);
                 if (changes.length > 0) {
                     this.emit({ type: 'resource_updated', resource, event, changes });
                 }
@@ -274,14 +304,16 @@ export class Observer {
         // --- "to" resource (toResourceInventoriedAs) ---
         if (event.toResourceInventoriedAs) {
             let toResource = this.resources.get(event.toResourceInventoriedAs);
+            let toIsNew = false;
 
             if (!toResource && (def.createResource === 'optionalTo' || def.createResource === 'optional')) {
                 toResource = this.createResource(event, event.toResourceInventoriedAs);
+                toIsNew = true;
                 this.emit({ type: 'resource_created', resource: toResource, event });
             }
 
             if (toResource) {
-                const changes = this.applyResourceEffects(toResource, event, def, 'to');
+                const changes = this.applyResourceEffects(toResource, event, def, 'to', toIsNew);
                 if (changes.length > 0) {
                     this.emit({ type: 'resource_updated', resource: toResource, event, changes });
                 }
@@ -310,11 +342,15 @@ export class Observer {
                             addAffected(toResource);
                         }
                     } else {
-                        // Inline rights transfer: receiver now owns the same resource record.
-                        fromResource.primaryAccountable = event.receiver;
-                        this.emit({ type: 'resource_updated', resource: fromResource, event,
-                            changes: ['implied:primaryAccountable'] });
-                        addAffected(fromResource);
+                        // Inline rights transfer only applies to produce (receiver owns the new output).
+                        // consume depletes the resource — transferring accountable on a depleting resource
+                        // is a no-op and semantically incorrect.
+                        if (event.action === 'produce') {
+                            fromResource.primaryAccountable = event.receiver;
+                            this.emit({ type: 'resource_updated', resource: fromResource, event,
+                                changes: ['implied:primaryAccountable'] });
+                            addAffected(fromResource);
+                        }
                     }
                 }
                 // custody: no additional resource changes needed — physical possession is
@@ -367,6 +403,7 @@ export class Observer {
         event: EconomicEvent,
         def: ActionDefinition,
         direction: 'from' | 'to',
+        isNew: boolean = false,
     ): string[] {
         const changes: string[] = [];
         const qty = event.resourceQuantity?.hasNumericalValue ?? 0;
@@ -411,7 +448,7 @@ export class Observer {
         if (event.toLocation) {
             if ((def.locationEffect === 'update' && direction === 'from') ||
                 (def.locationEffect === 'updateTo' && direction === 'to') ||
-                (def.locationEffect === 'new' && direction === 'from')) {
+                (def.locationEffect === 'new' && isNew)) {
                 resource.currentLocation = event.toLocation;
                 changes.push('currentLocation');
             }
@@ -427,7 +464,7 @@ export class Observer {
         }
 
         // --- Primary accountable ---
-        if ((def.accountableEffect === 'new' && direction === 'from') ||
+        if ((def.accountableEffect === 'new' && isNew) ||
             (def.accountableEffect === 'updateTo' && direction === 'to')) {
             resource.primaryAccountable = event.receiver;
             changes.push('primaryAccountable');
@@ -484,6 +521,20 @@ export class Observer {
         state.satisfyingEvents.push(event.id);
         state.finished = state.totalSatisfied.hasNumericalValue >= state.totalDesired.hasNumericalValue;
         this.emit({ type: 'satisfied', event, intentId });
+    }
+
+    private trackSettlement(event: EconomicEvent): void {
+        if (!event.settles) return;
+        const claimId = event.settles;
+        const state = this.claimStates.get(claimId);
+        if (!state) return;
+        const qty = event.resourceQuantity ?? event.effortQuantity;
+        if (qty) {
+            state.totalSettled.hasNumericalValue += qty.hasNumericalValue;
+        }
+        state.settlingEvents.push(event.id);
+        state.finished = state.totalSettled.hasNumericalValue >= state.totalClaimed.hasNumericalValue;
+        this.emit({ type: 'claim_settled', event, claimId });
     }
 
     // =========================================================================
@@ -607,6 +658,17 @@ export class Observer {
         return this.events.filter(e => e.satisfies === intentId);
     }
 
+    getClaimState(claimId: string): ClaimState | undefined {
+        return this.claimStates.get(claimId);
+    }
+
+    /**
+     * Inverse query: get all events that settle a given Claim.
+     */
+    settledBy(claimId: string): EconomicEvent[] {
+        return this.events.filter(e => e.settles === claimId);
+    }
+
     /**
      * Inverse query: get all resources conforming to a given spec.
      */
@@ -622,21 +684,32 @@ export class Observer {
     }
 
     /**
-     * Record an unplanned exchange — two reciprocal events tied to an Agreement
-     * without any prior Commitments. Uses `realizationOf` on the events.
+     * Record an exchange — two or more reciprocal events tied to an Agreement.
+     * Supports bilateral (2 events) and multilateral (3+ events in a cycle).
      *
-     * This is the VF pattern for point-of-sale / informal exchanges.
+     * Soft validation: emits `error` events (does not throw) for:
+     *   - custody-only actions (pickup/dropoff/accept/modify): "don't make sense" per VF spec
+     *   - provider === receiver on any flow: spec requires distinct agents
+     *
+     * Returns an array of affected-resource arrays, one per input event.
      */
     recordExchange(params: {
         agreement: Agreement;
-        primaryEvent: EconomicEvent;
-        reciprocalEvent: EconomicEvent;
-    }): { primary: EconomicResource[]; reciprocal: EconomicResource[] } {
-        params.primaryEvent.realizationOf = params.agreement.id;
-        params.reciprocalEvent.realizationOf = params.agreement.id;
-        const primary = this.record(params.primaryEvent);
-        const reciprocal = this.record(params.reciprocalEvent);
-        return { primary, reciprocal };
+        events: EconomicEvent[];
+    }): EconomicResource[][] {
+        for (const event of params.events) {
+            const def = ACTION_DEFINITIONS[event.action];
+            if (!def.eligibleForExchange) {
+                this.emit({ type: 'error', eventId: event.id,
+                    error: `action '${event.action}' is custody-only and should not be part of an exchange` });
+            }
+            if (event.provider && event.receiver && event.provider === event.receiver) {
+                this.emit({ type: 'error', eventId: event.id,
+                    error: `exchange flow requires provider !== receiver` });
+            }
+            event.realizationOf = params.agreement.id;
+        }
+        return params.events.map(e => this.record(e));
     }
 
     getProcess(id: string): Process | undefined {
@@ -808,6 +881,7 @@ export class Observer {
         this.resourceBatches.clear();
         this.fulfillments.clear();
         this.satisfactions.clear();
+        this.claimStates.clear();
         this.eventsByResource.clear();
         this.eventsByProcess.clear();
         this.eventsByAgent.clear();

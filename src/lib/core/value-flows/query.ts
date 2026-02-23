@@ -13,6 +13,7 @@ import type {
     Process,
     Commitment,
     Intent,
+    Claim,
     Agreement,
     AgreementBundle,
     Proposal,
@@ -29,7 +30,7 @@ import type {
     ScenarioDefinition,
     VfAction,
 } from './schemas';
-import type { Observer } from './observation/observer';
+import type { Observer, ClaimState } from './observation/observer';
 import type { PlanStore } from './planning/planning';
 import type { RecipeStore } from './knowledge/recipes';
 import type { ProcessRegistry } from './process-registry';
@@ -323,15 +324,13 @@ export class VfQueries {
     // ECONOMIC EVENT QUERIES (inverses.md §EconomicEvent)
     // =========================================================================
 
-    /** Reciprocal events: events on the same Agreement with opposite provider/receiver */
+    /** All other flows belonging to the same Agreement as this event. */
     reciprocalEvents(eventId: string): EconomicEvent[] {
         const event = this.observer.getEvent(eventId);
         if (!event?.realizationOf) return [];
         return this.observer.allEvents().filter(e =>
             e.id !== eventId &&
-            e.realizationOf === event.realizationOf &&
-            e.provider === event.receiver &&
-            e.receiver === event.provider,
+            e.realizationOf === event.realizationOf,
         );
     }
 
@@ -707,6 +706,46 @@ export class VfQueries {
     /** All agreements in a bundle */
     bundleAgreements(bundleId: string): Agreement[] {
         return this.planStore.agreementsInBundle(bundleId);
+    }
+
+    // =========================================================================
+    // CLAIM QUERIES (inverses.md §Claim)
+    // =========================================================================
+
+    /** All Claims where agentId is provider or receiver. */
+    claimsForAgent(agentId: string): Claim[] {
+        return this.planStore.claimsForAgent(agentId);
+    }
+
+    /** Claims where agent is the provider (obligated to settle). */
+    claimsAsProvider(agentId: string): Claim[] {
+        return this.planStore.allClaims().filter(c => c.provider === agentId);
+    }
+
+    /** Claims where agent is the receiver (entitled to settlement). */
+    claimsAsReceiver(agentId: string): Claim[] {
+        return this.planStore.allClaims().filter(c => c.receiver === agentId);
+    }
+
+    /**
+     * Claims triggered by a specific EconomicEvent.
+     * (inverses.md §EconomicEvent claimsTriggeredBy)
+     */
+    claimsTriggeredBy(eventId: string): Claim[] {
+        return this.planStore.allClaims().filter(c => c.triggeredBy === eventId);
+    }
+
+    /**
+     * Events that settle a given Claim.
+     * (inverses.md §Claim settledBy)
+     */
+    settlementEvents(claimId: string): EconomicEvent[] {
+        return this.observer.settledBy(claimId);
+    }
+
+    /** Current settlement state for a Claim (totals, finishing status). */
+    claimState(claimId: string): ClaimState | undefined {
+        return this.observer.getClaimState(claimId);
     }
 
     // =========================================================================

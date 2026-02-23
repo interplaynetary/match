@@ -147,6 +147,12 @@ export interface ActionDefinition {
      * - null: no implied transfer
      */
     impliesTransfer: 'allRights' | 'custody' | null;
+    /**
+     * Whether this action can meaningfully participate in an Exchange / Agreement.
+     * False for custody-only actions (pickup, dropoff, accept, modify) which the
+     * VF spec says "don't make sense to include in an exchange".
+     */
+    eligibleForExchange: boolean;
 }
 
 /**
@@ -166,6 +172,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         stageEffect: 'update',
         stateEffect: 'update',
         impliesTransfer: 'allRights',
+        eligibleForExchange: true,
     },
     consume: {
         eventQuantity: 'resourceQuantity',
@@ -177,8 +184,9 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',
         impliesTransfer: 'allRights',
+        eligibleForExchange: true,
     },
     use: {
         eventQuantity: 'both',
@@ -192,6 +200,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         stageEffect: 'noEffect',
         stateEffect: 'update',      // applying a tool can transition its state
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     work: {
         eventQuantity: 'effortQuantity', // labour is always measured in effort, not resource qty
@@ -205,6 +214,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     cite: {
         eventQuantity: 'resourceQuantity',
@@ -218,6 +228,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         stageEffect: 'noEffect',
         stateEffect: 'update',      // citing can record state transition on the cited resource
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     deliverService: {
         eventQuantity: 'resourceQuantity',
@@ -234,6 +245,7 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         // deliverService is not in that list; services are intangible and
         // cannot be "transferred" in the accounting sense.
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     pickup: {
         eventQuantity: 'resourceQuantity',
@@ -242,12 +254,13 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         createResource: 'noEffect',
         accountingEffect: 'noEffect',
         onhandEffect: 'decrement',
-        locationEffect: 'noEffect',
+        locationEffect: 'update',
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',
         impliesTransfer: 'custody',
+        eligibleForExchange: false,
     },
     dropoff: {
         eventQuantity: 'resourceQuantity',
@@ -259,9 +272,10 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         locationEffect: 'update',
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
-        stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stageEffect: 'update',
+        stateEffect: 'update',
         impliesTransfer: 'custody',
+        eligibleForExchange: false,
     },
     accept: {
         eventQuantity: 'resourceQuantity',
@@ -269,13 +283,14 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         pairsWith: 'modify',
         createResource: 'noEffect',
         accountingEffect: 'noEffect',
-        onhandEffect: 'noEffect',
-        locationEffect: 'noEffect',
+        onhandEffect: 'decrement',
+        locationEffect: 'update',
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',
         impliesTransfer: 'custody',
+        eligibleForExchange: false,
     },
     modify: {
         eventQuantity: 'resourceQuantity',
@@ -283,41 +298,42 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         pairsWith: 'accept',
         createResource: 'noEffect',
         accountingEffect: 'noEffect',
-        onhandEffect: 'noEffect',
-        locationEffect: 'noEffect',
+        onhandEffect: 'increment',
+        locationEffect: 'update',
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'update',
         stateEffect: 'update',
         impliesTransfer: 'custody',
+        eligibleForExchange: false,
     },
     combine: {
         eventQuantity: 'resourceQuantity',
         inputOutput: 'input',
-        pairsWith: 'separate',
         createResource: 'noEffect',
         accountingEffect: 'noEffect',
-        onhandEffect: 'noEffect',
+        onhandEffect: 'decrement',
         locationEffect: 'noEffect',
         containedEffect: 'update',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     separate: {
         eventQuantity: 'resourceQuantity',
         inputOutput: 'output',
-        pairsWith: 'combine',
         createResource: 'noEffect',
         accountingEffect: 'noEffect',
-        onhandEffect: 'noEffect',
+        onhandEffect: 'increment',
         locationEffect: 'noEffect',
         containedEffect: 'remove',
         accountableEffect: 'noEffect',
-        stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stageEffect: 'update',
+        stateEffect: 'update',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     transferAllRights: {
         eventQuantity: 'resourceQuantity',
@@ -329,8 +345,9 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'updateTo',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'updateTo',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     transferCustody: {
         eventQuantity: 'resourceQuantity',
@@ -342,8 +359,9 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'updateTo',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     transfer: {
         eventQuantity: 'resourceQuantity',
@@ -355,8 +373,9 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'updateTo',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'updateTo',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     move: {
         eventQuantity: 'resourceQuantity',
@@ -368,8 +387,9 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         containedEffect: 'noEffect',
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'updateTo',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     copy: {
         eventQuantity: 'resourceQuantity',
@@ -377,12 +397,13 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         createResource: 'optionalTo',
         accountingEffect: 'incrementTo',
         onhandEffect: 'incrementTo',
-        locationEffect: 'updateTo',  // copy is created at toLocation (to-resource, not from)
+        locationEffect: 'new',       // copy's new resource gets its location from toLocation
         containedEffect: 'noEffect',
-        accountableEffect: 'updateTo',
+        accountableEffect: 'new',    // copy's new resource gets its accountable from receiver
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'updateTo',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     raise: {
         eventQuantity: 'resourceQuantity',
@@ -392,23 +413,25 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         onhandEffect: 'increment',
         locationEffect: 'noEffect',
         containedEffect: 'noEffect',
-        accountableEffect: 'noEffect',
+        accountableEffect: 'new',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
     lower: {
         eventQuantity: 'resourceQuantity',
         inputOutput: 'notApplicable',
-        createResource: 'noEffect',
+        createResource: 'optional',
         accountingEffect: 'decrement',
         onhandEffect: 'decrement',
         locationEffect: 'noEffect',
         containedEffect: 'noEffect',
-        accountableEffect: 'noEffect',
+        accountableEffect: 'new',
         stageEffect: 'noEffect',
-        stateEffect: 'noEffect',
+        stateEffect: 'update',
         impliesTransfer: null,
+        eligibleForExchange: true,
     },
 };
 
