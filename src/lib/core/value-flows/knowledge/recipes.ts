@@ -242,6 +242,30 @@ export class RecipeStore {
     }
 
     /**
+     * Find all recipes that consume a given resource specification as input
+     * in any process of their chain.
+     *
+     * Used by dependentSupply() to find recipes that can absorb available supply.
+     */
+    recipesForInput(specId: string): Recipe[] {
+        // Find all recipe-process IDs that have an input flow for this spec
+        const processIds = new Set<string>();
+        for (const flow of this.recipeFlows.values()) {
+            if (flow.recipeInputOf && flow.resourceConformsTo === specId) {
+                processIds.add(flow.recipeInputOf);
+            }
+        }
+        // Find all recipes that include any of those processes
+        const result: Recipe[] = [];
+        for (const recipe of this.recipes.values()) {
+            if (recipe.recipeProcesses?.some(pId => processIds.has(pId))) {
+                result.push(recipe);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Get the process chain for a recipe in topological order
      * (dependencies first, final output process last).
      *
@@ -272,7 +296,12 @@ export class RecipeStore {
                 for (const dstProcess of processes) {
                     if (dstProcess.id === srcProcess.id) continue;
                     const { inputs } = this.flowsForProcess(dstProcess.id);
-                    const needsThis = inputs.some(f => f.resourceConformsTo === outSpec);
+                    // Match on (spec, stage) pair — workflow recipes share a spec but carry
+                    // distinct stages. undefined === undefined covers manufacturing recipes
+                    // where neither output nor input has a stage attribute.
+                    const needsThis = inputs.some(f =>
+                        f.resourceConformsTo === outSpec && f.stage === outFlow.stage
+                    );
                     if (needsThis) {
                         adj.get(srcProcess.id)!.add(dstProcess.id);
                         inDegree.set(dstProcess.id, (inDegree.get(dstProcess.id) ?? 0) + 1);

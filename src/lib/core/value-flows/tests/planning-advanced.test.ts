@@ -421,8 +421,9 @@ describe('PlanStore offers and requests filtering', () => {
         planStore.addIntent({ action: 'produce', provider: 'alice', finished: false });
         // Request: bob wants to consume wheat
         planStore.addIntent({ action: 'consume', receiver: 'bob', finished: false });
-        // Bilateral (both set): should appear in neither
-        planStore.addIntent({ action: 'transfer', provider: 'carol', receiver: 'dave', finished: false });
+        // Bilateral (both provider+receiver): must use addCommitment(), not addIntent()
+        // Commitments appear in neither offers() nor requests() — same intent as before.
+        planStore.addCommitment({ action: 'transfer', provider: 'carol', receiver: 'dave', finished: false });
         // Finished offer: should not appear
         planStore.addIntent({ action: 'produce', provider: 'eve', finished: true });
 

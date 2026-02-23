@@ -1,5 +1,5 @@
 /**
- * Cash Flows — Timeline of resource inflows and outflows.
+ * Resource Flows — Timeline of resource inflows and outflows.
  *
  * From algorithms/cashflows.md:
  *   "Cash inflows and outflows are plotted on a timeline, sometimes weekly,

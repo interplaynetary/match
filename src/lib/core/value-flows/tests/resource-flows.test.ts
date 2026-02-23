@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
-import { cashFlowReport } from '../algorithms/cash-flows';
+import { cashFlowReport } from '../algorithms/resource-flows';
 import { Observer } from '../observation/observer';
 import { PlanStore } from '../planning/planning';
 import { ProcessRegistry } from '../process-registry';

@@ -42,6 +42,7 @@ import type {
     Scenario,
     ScenarioDefinition,
 } from '../schemas';
+import { ACTION_DEFINITIONS } from '../schemas';
 import type { TemporalExpression } from '../utils/time';
 import { RecipeStore } from '../knowledge/recipes';
 import { ProcessRegistry } from '../process-registry';
@@ -116,6 +117,12 @@ export class PlanStore {
      * Receiver means "I need this" (request).
      */
     addIntent(intent: Omit<Intent, 'id'> & { id?: string }): Intent {
+        if (intent.provider && intent.receiver) {
+            throw new Error(
+                `VF constraint violation: Intent cannot have both provider and receiver. ` +
+                `Use addCommitment() for bilateral flows.`
+            );
+        }
         const i: Intent = { id: intent.id ?? this.generateId(), ...intent };
         this.intents.set(i.id, i);
         return i;
@@ -582,7 +589,14 @@ export class PlanStore {
                 c.outputOf === lastProcess?.id &&
                 (!primarySpec || c.resourceConformsTo === primarySpec),
             );
-            if (primaryOut) primaryOut.satisfies = intentId;
+            if (!primaryOut) {
+                throw new Error(
+                    `buildRecipeGraph: intentId '${intentId}' provided but primary output ` +
+                    `'${primarySpec}' not found in recipe '${recipe.name}' outputs. ` +
+                    `Cannot set satisfies link.`
+                );
+            }
+            primaryOut.satisfies = intentId;
         }
 
         return { processes, commitments };
@@ -681,16 +695,53 @@ export class PlanStore {
             const { inputs, outputs } = recipeStore.flowsForProcess(rp.id);
 
             for (const flow of inputs) {
+                // --- Durable inputs: existence gate, not quantity netting ---
+                // Actions with accountingEffect='noEffect' (use, cite) are existence gates:
+                // the resource must be present but is not consumed.
+                {
+                    const actionDef = ACTION_DEFINITIONS[flow.action];
+                    const isDurable = actionDef?.accountingEffect === 'noEffect';
+
+                    if (isDurable && flow.resourceConformsTo) {
+                        if (observer) {
+                            const exists = observer.conformingResources(flow.resourceConformsTo)
+                                .some(r => {
+                                    if ((r.accountingQuantity?.hasNumericalValue ?? 0) <= 0) return false;
+                                    if (flow.stage && r.stage !== flow.stage) return false;
+                                    if (flow.state && r.state !== flow.state) return false;
+                                    return true;
+                                });
+                            if (exists) continue; // Present — no demand created
+                        }
+                        // Not present — signal that this durable resource must be sourced
+                        const durableResult = this.createFlowFromRecipe(
+                            flow, process.id, 'input', scaleFactor, processBegin, plan.id, agents,
+                        );
+                        if ('provider' in durableResult && durableResult.provider
+                            && 'receiver' in durableResult && durableResult.receiver) {
+                            commitments.push(durableResult as Commitment);
+                        } else {
+                            intents.push(durableResult as Intent);
+                        }
+                        continue; // Do NOT fall through to quantity netting
+                    }
+                }
+
                 // --- Inventory-aware demand (VF dependent demand) ---
                 // If observer is provided, check if a resource already exists
                 // that could satisfy this input. If so, allocate it instead
                 // of demanding new production.
                 let adjustedFlow = flow;
                 if (observer && flow.resourceConformsTo) {
+                    // VF spec (resources.md §Stage and state): dependent demand
+                    // "will select only those resources that fit the specified stage and state".
                     const available = observer.conformingResources(flow.resourceConformsTo)
                         .filter(r => {
                             const qty = r.accountingQuantity?.hasNumericalValue ?? 0;
-                            return qty > 0;
+                            if (qty <= 0) return false;
+                            if (flow.stage && r.stage !== flow.stage) return false;
+                            if (flow.state && r.state !== flow.state) return false;
+                            return true;
                         });
 
                     const needed = (flow.resourceQuantity?.hasNumericalValue ?? 0) * scaleFactor;
@@ -756,8 +807,8 @@ export class PlanStore {
                         flow, undefined, undefined, scaleFactor, dueDate, plan.id, agents,
                     );
                     commitments.push(commitment);
-                    // First flow = primary, rest = reciprocal
-                    if (primaryIds.length === 0) {
+                    // Explicit isPrimary wins; fall back to first-flow heuristic when unset.
+                    if (flow.isPrimary === true || (primaryIds.length === 0 && flow.isPrimary !== false)) {
                         primaryIds.push(commitment.id);
                     } else {
                         reciprocalIds.push(commitment.id);
@@ -829,7 +880,11 @@ export class PlanStore {
         if (primaryFlow?.resourceQuantity) {
             return desiredQuantity / primaryFlow.resourceQuantity.hasNumericalValue;
         }
-        return desiredQuantity;
+        throw new Error(
+            `Recipe scale error: primaryOutput '${primaryOutputSpec}' not found in ` +
+            `last process '${lastProcess.name}' outputs. ` +
+            `Check that the recipe's primaryOutput matches a recipeOutputOf flow.`
+        );
     }
 
     /**
@@ -847,6 +902,23 @@ export class PlanStore {
         planId: string,
         agents?: { provider?: string; receiver?: string },
     ): Commitment | Intent {
+        // Validate action direction against VF spec
+        const def = ACTION_DEFINITIONS[flow.action];
+        if (def && def.inputOutput !== 'outputInput' && def.inputOutput !== 'notApplicable') {
+            if (direction === 'input' && def.inputOutput !== 'input') {
+                throw new Error(
+                    `Action '${flow.action}' (inputOutput='${def.inputOutput}') ` +
+                    `cannot be used as a process input.`
+                );
+            }
+            if (direction === 'output' && def.inputOutput !== 'output') {
+                throw new Error(
+                    `Action '${flow.action}' (inputOutput='${def.inputOutput}') ` +
+                    `cannot be used as a process output.`
+                );
+            }
+        }
+
         const scaledResourceQty = this.scaleQuantity(flow.resourceQuantity, scaleFactor);
         const scaledEffortQty = this.scaleQuantity(flow.effortQuantity, scaleFactor);
 

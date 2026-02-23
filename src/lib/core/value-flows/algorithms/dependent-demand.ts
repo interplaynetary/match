@@ -38,6 +38,7 @@ import type {
 import { ACTION_DEFINITIONS } from '../schemas';
 import type { RecipeStore } from '../knowledge/recipes';
 import type { PlanStore } from '../planning/planning';
+import { PlanNetter } from '../planning/netting';
 import type { Observer } from '../observation/observer';
 import type { ProcessRegistry } from '../process-registry';
 
@@ -81,6 +82,14 @@ interface DemandTask {
      * Existence gate only: does not deplete inventory, does not recurse.
      */
     isDurable?: boolean;
+    /**
+     * Required stage (ProcessSpecification ID) of a conforming resource.
+     * VF spec (resources.md §Stage and state): dependent demand selects
+     * only resources that fit the specified stage and state.
+     */
+    stage?: string;
+    /** Required state string of a conforming resource. */
+    state?: string;
 }
 
 // =============================================================================
@@ -110,6 +119,8 @@ export function dependentDemand(params: {
     observer?: Observer;
     agents?: { provider?: string; receiver?: string };
     generateId?: () => string;
+    /** Optional shared netter — pass to share allocated state across algorithm calls (Mode C). */
+    netter?: PlanNetter;
 }): DependentDemandResult {
     const {
         planId,
@@ -123,9 +134,8 @@ export function dependentDemand(params: {
     const plan = planStore.getPlan(planId);
     if (!plan) throw new Error(`Plan ${planId} not found`);
 
-    // Shared across all processDemand calls to prevent double-counting the same
-    // scheduled output (works for both Intent IDs and Commitment IDs).
-    const allocatedScheduledIds = new Set<string>();
+    // Use the provided netter or create a fresh one (backward compatible).
+    const netter = params.netter ?? new PlanNetter(planStore, params.observer);
 
     const result: DependentDemandResult = {
         plan,
@@ -134,7 +144,7 @@ export function dependentDemand(params: {
         intents: [],
         purchaseIntents: [],
         allocated: [],
-        allocatedScheduledIds,
+        allocatedScheduledIds: netter.allocated,
     };
 
     // Prevent infinite recursion (circular recipes)
@@ -150,7 +160,7 @@ export function dependentDemand(params: {
 
     while (queue.length > 0) {
         const demand = queue.shift()!;
-        processDemand(demand, visited, queue, result, params, allocatedScheduledIds);
+        processDemand(demand, visited, queue, result, params, netter);
     }
 
     return result;
@@ -166,7 +176,7 @@ function processDemand(
     queue: DemandTask[],
     result: DependentDemandResult,
     params: Parameters<typeof dependentDemand>[0],
-    allocatedScheduledIds: Set<string>,
+    netter: PlanNetter,
 ): void {
     const { recipeStore, planStore, processes, observer, agents, planId } = params;
 
@@ -176,7 +186,12 @@ function processDemand(
     if (demand.isDurable) {
         if (observer) {
             const exists = observer.conformingResources(demand.specId)
-                .some(r => (r.accountingQuantity?.hasNumericalValue ?? 0) > 0);
+                .some(r => {
+                    if ((r.accountingQuantity?.hasNumericalValue ?? 0) <= 0) return false;
+                    if (demand.stage && r.stage !== demand.stage) return false;
+                    if (demand.state && r.state !== demand.state) return false;
+                    return true;
+                });
             if (exists) return; // Present and accounted for
         }
         // Not available — signal that this durable resource must be sourced
@@ -195,63 +210,22 @@ function processDemand(
         return;
     }
 
-    // --- Step 1: Net against inventory ---
-    let remaining = demand.quantity;
-
-    if (observer) {
-        const available = observer.conformingResources(demand.specId)
-            .filter(r => (r.accountingQuantity?.hasNumericalValue ?? 0) > 0);
-
-        for (const r of available) {
-            if (remaining <= 0) break;
-            const avail = r.accountingQuantity?.hasNumericalValue ?? 0;
-            const take = Math.min(avail, remaining);
-            result.allocated.push({ specId: demand.specId, resourceId: r.id, quantity: take });
-            remaining -= take;
-        }
-    }
-
-    if (remaining <= 0) return;
-
-    // --- Step 1b: Net against previously scheduled output Intents/Commitments ---
+    // --- Net against inventory + scheduled outputs via PlanNetter ---
     // VF spec: "on-hand inventory OR previously scheduled output Intents not yet allocated"
     // Extends to Commitments: when agents are known, planned outputs are Commitments,
     // not Intents — both represent WIP that should count against demand.
-    {
-        // Intents with outputOf set (agent-unknown planned outputs)
-        for (const intent of planStore.allIntents()) {
-            if (remaining <= 0) break;
-            if (
-                intent.resourceConformsTo === demand.specId &&
-                intent.outputOf !== undefined &&
-                !intent.finished &&
-                !allocatedScheduledIds.has(intent.id) &&
-                (intent.resourceQuantity?.hasNumericalValue ?? 0) > 0
-            ) {
-                const take = Math.min(intent.resourceQuantity!.hasNumericalValue, remaining);
-                allocatedScheduledIds.add(intent.id);
-                remaining -= take;
-            }
-        }
-
-        // Commitments with outputOf set (agent-known planned outputs)
-        for (const commitment of planStore.allCommitments()) {
-            if (remaining <= 0) break;
-            if (
-                commitment.resourceConformsTo === demand.specId &&
-                commitment.outputOf !== undefined &&
-                !commitment.finished &&
-                !allocatedScheduledIds.has(commitment.id) &&
-                (commitment.resourceQuantity?.hasNumericalValue ?? 0) > 0
-            ) {
-                const take = Math.min(commitment.resourceQuantity!.hasNumericalValue, remaining);
-                allocatedScheduledIds.add(commitment.id);
-                remaining -= take;
-            }
-        }
+    const { remaining: afterNetting, inventoryAllocated } = netter.netDemand(
+        demand.specId,
+        demand.quantity,
+        { stage: demand.stage, state: demand.state, neededBy: demand.neededBy },
+    );
+    for (const alloc of inventoryAllocated) {
+        result.allocated.push({ specId: demand.specId, resourceId: alloc.resourceId, quantity: alloc.quantity });
     }
 
-    if (remaining <= 0) return; // Fully covered by scheduled Intents
+    let remaining = afterNetting;
+
+    if (remaining <= 0) return; // Fully covered by inventory / scheduled Intents
 
     // --- Step 2: Find most SNLT-efficient recipe that produces this spec ---
     const candidates = recipeStore.recipesForOutput(demand.specId);
@@ -296,14 +270,18 @@ function processDemand(
     // Collect specs produced internally by this chain (intermediate outputs).
     // Sub-demands for these specs are satisfied by other processes in the chain
     // and must not be enqueued as external demands or purchase intents.
+    // Key = "specId|stage" so workflow processes with the same spec but different
+    // stages are not conflated. Manufacturing recipes with no stage use "specId|".
     const internallyProduced = new Set<string>();
     for (const rp of chain) {
         const { outputs } = recipeStore.flowsForProcess(rp.id);
         for (const outFlow of outputs) {
-            if (outFlow.resourceConformsTo) internallyProduced.add(outFlow.resourceConformsTo);
+            if (outFlow.resourceConformsTo) {
+                internallyProduced.add(`${outFlow.resourceConformsTo}|${outFlow.stage ?? ''}`);
+            }
         }
     }
-    internallyProduced.delete(demand.specId);
+    internallyProduced.delete(`${demand.specId}|${demand.stage ?? ''}`);
 
     let cursor = demand.neededBy;
     const orderedChain = [...chain].reverse(); // back-schedule: from due date towards past
@@ -348,7 +326,7 @@ function processDemand(
                 result.intents.push(record as Intent);
             }
 
-            if (flow.resourceConformsTo && !internallyProduced.has(flow.resourceConformsTo)) {
+            if (flow.resourceConformsTo && !internallyProduced.has(`${flow.resourceConformsTo}|${flow.stage ?? ''}`)) {
                 // Work flows are labour commitments tracked via SNLT/capacity;
                 // they are not material sub-demands and must not recurse.
                 if (flow.action === 'work') continue;
@@ -367,6 +345,11 @@ function processDemand(
                         forProcessId: process.id,
                         unit: flow.resourceQuantity?.hasUnit ?? 'each',
                         isDurable,
+                        // Propagate stage/state requirements from the recipe flow so that
+                        // inventory netting selects only correctly-staged resources.
+                        // VF spec: resources.md §Stage and state.
+                        stage: flow.stage,
+                        state: flow.state,
                     });
                 }
             }
@@ -391,6 +374,23 @@ function createFlowRecord(
     agents: { provider?: string; receiver?: string } | undefined,
     planStore: PlanStore,
 ): Commitment | Intent {
+    // Validate action direction against VF spec
+    const def = ACTION_DEFINITIONS[flow.action];
+    if (def && def.inputOutput !== 'outputInput' && def.inputOutput !== 'notApplicable') {
+        if (direction === 'input' && def.inputOutput !== 'input') {
+            throw new Error(
+                `Action '${flow.action}' (inputOutput='${def.inputOutput}') ` +
+                `cannot be used as a process input.`
+            );
+        }
+        if (direction === 'output' && def.inputOutput !== 'output') {
+            throw new Error(
+                `Action '${flow.action}' (inputOutput='${def.inputOutput}') ` +
+                `cannot be used as a process output.`
+            );
+        }
+    }
+
     const scaledQty = flow.resourceQuantity
         ? { hasNumericalValue: flow.resourceQuantity.hasNumericalValue * scaleFactor, hasUnit: flow.resourceQuantity.hasUnit }
         : undefined;

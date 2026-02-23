@@ -42,8 +42,8 @@ import { rollupStandardCost as rollupStd, rollupActualCost as rollupActual } fro
 import type { RollupResult, UnitConverter } from './algorithms/rollup';
 import { distributeIncome as distIncome } from './algorithms/value-equations';
 import type { ValueEquation, ValueEquationResult } from './algorithms/value-equations';
-import { cashFlowReport } from './algorithms/cash-flows';
-import type { CashFlowReport, PeriodGranularity } from './algorithms/cash-flows';
+import { cashFlowReport } from './algorithms/resource-flows';
+import type { CashFlowReport, PeriodGranularity } from './algorithms/resource-flows';
 import { dependentDemand as depDemand } from './algorithms/dependent-demand';
 import type { DependentDemandResult } from './algorithms/dependent-demand';
 

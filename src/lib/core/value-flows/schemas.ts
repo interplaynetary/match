@@ -230,7 +230,10 @@ export const ACTION_DEFINITIONS: Record<VfAction, ActionDefinition> = {
         accountableEffect: 'noEffect',
         stageEffect: 'noEffect',
         stateEffect: 'noEffect',
-        impliesTransfer: 'allRights',
+        // VF spec transfers.md: only consume/produce imply transfer.
+        // deliverService is not in that list; services are intangible and
+        // cannot be "transferred" in the accounting sense.
+        impliesTransfer: null,
     },
     pickup: {
         eventQuantity: 'resourceQuantity',
@@ -514,6 +517,11 @@ export const RecipeFlowSchema = z.object({
     stage: z.string().optional(),                          // ProcessSpecification ID
     state: z.string().optional(),
     note: z.string().optional(),
+    // Marks this flow as the primary side of a RecipeExchange.
+    // When true:  commitment goes into Agreement.stipulates.
+    // When false: commitment goes into Agreement.stipulatesReciprocal.
+    // When absent: falls back to first-flow-is-primary heuristic.
+    isPrimary: z.boolean().optional(),
 });
 export type RecipeFlow = z.infer<typeof RecipeFlowSchema>;
 
@@ -649,8 +657,12 @@ export const EconomicEventSchema = z.object({
     resourceClassifiedAs: z.array(z.string()).optional(),
 
     // Agents
-    provider: z.string(),                                  // Agent ID (who provides)
-    receiver: z.string(),                                  // Agent ID (who receives)
+    // VF spec: internal process flows (same-agent produce/consume) often have
+    // provider === receiver. For cross-agent flows, both are required semantically,
+    // but the schema allows omission so that internal-process events can be recorded
+    // without requiring the caller to always specify 'self' agent IDs.
+    provider: z.string().optional(),                       // Agent ID (who provides)
+    receiver: z.string().optional(),                       // Agent ID (who receives)
 
     // Quantities
     resourceQuantity: MeasureSchema.optional(),

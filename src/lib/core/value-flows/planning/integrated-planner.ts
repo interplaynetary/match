@@ -878,13 +878,34 @@ export function promoteToPlan(
         if (c) Object.assign(c, patch);
     };
 
-    return scenarioToPlan(
+    const plan = scenarioToPlan(
         scenario,
         planStore.addPlan.bind(planStore),
         updateProcess,
         updateCommitment,
         options,
     );
+
+    // Stamp independentDemandOf on commitments that satisfy a demand intent.
+    // Mirrors what instantiateRecipe() does for the direct instantiation path.
+    const independentIds: string[] = [];
+    for (const [id, commitment] of scenario.commitments) {
+        if (commitment.satisfies) {
+            const c = planStore.getCommitment(id);
+            if (c) {
+                c.independentDemandOf = plan.id;
+                independentIds.push(id);
+            }
+        }
+    }
+    if (independentIds.length > 0) {
+        plan.hasIndependentDemand = [
+            ...(plan.hasIndependentDemand ?? []),
+            ...independentIds,
+        ];
+    }
+
+    return plan;
 }
 
 // =============================================================================

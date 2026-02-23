@@ -312,4 +312,143 @@ describe('Dependent Demand (MRP)', () => {
         expect(woodPurchase).toBeDefined();
         expect(woodPurchase!.resourceQuantity?.hasNumericalValue).toBe(1);
     });
+
+    // ── Stage/state netting (VF spec: resources.md §Stage and state) ──────────
+
+    test('inventory netting: wrong-stage resource is NOT allocated', () => {
+        // Recipe requires input flour that has been through 'milling' stage.
+        const recipe = recipes.addRecipe({ name: 'Bread', primaryOutput: 'spec:bread', recipeProcesses: [] });
+        const bakeProc = recipes.addRecipeProcess({ name: 'Bake', hasDuration: { hasNumericalValue: 1, hasUnit: 'hours' } });
+        recipe.recipeProcesses.push(bakeProc.id);
+        recipes.addRecipeFlow({
+            action: 'consume',
+            resourceConformsTo: 'spec:flour',
+            resourceQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+            recipeInputOf: bakeProc.id,
+            stage: 'proc-spec:milled', // requires milled flour
+        });
+        recipes.addRecipeFlow({
+            action: 'produce',
+            resourceConformsTo: 'spec:bread',
+            resourceQuantity: { hasNumericalValue: 1, hasUnit: 'loaf' },
+            recipeOutputOf: bakeProc.id,
+        });
+
+        // Seed: 5 kg flour but in wrong stage ('raw', not 'milled')
+        observer.seedResource({
+            id: 'res-flour-raw',
+            conformsTo: 'spec:flour',
+            accountingQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+            stage: 'proc-spec:raw',
+        });
+
+        const plan = planStore.addPlan({ name: 'Bread plan' });
+        const result = dependentDemand({
+            planId: plan.id,
+            demandSpecId: 'spec:bread',
+            demandQuantity: 1,
+            dueDate: new Date('2026-03-10T12:00:00Z'),
+            recipeStore: recipes,
+            planStore,
+            processes: processReg,
+            observer,
+        });
+
+        // Wrong-stage flour must NOT be allocated
+        expect(result.allocated.length).toBe(0);
+        // Purchase intent for flour should be created (full 5 kg unmet)
+        const flourPurchase = result.purchaseIntents.find(i => i.resourceConformsTo === 'spec:flour');
+        expect(flourPurchase).toBeDefined();
+        expect(flourPurchase!.resourceQuantity?.hasNumericalValue).toBe(5);
+    });
+
+    test('inventory netting: correct-stage resource IS allocated', () => {
+        const recipe = recipes.addRecipe({ name: 'Bread', primaryOutput: 'spec:bread2', recipeProcesses: [] });
+        const bakeProc = recipes.addRecipeProcess({ name: 'Bake', hasDuration: { hasNumericalValue: 1, hasUnit: 'hours' } });
+        recipe.recipeProcesses.push(bakeProc.id);
+        recipes.addRecipeFlow({
+            action: 'consume',
+            resourceConformsTo: 'spec:flour2',
+            resourceQuantity: { hasNumericalValue: 3, hasUnit: 'kg' },
+            recipeInputOf: bakeProc.id,
+            stage: 'proc-spec:milled',
+        });
+        recipes.addRecipeFlow({
+            action: 'produce',
+            resourceConformsTo: 'spec:bread2',
+            resourceQuantity: { hasNumericalValue: 1, hasUnit: 'loaf' },
+            recipeOutputOf: bakeProc.id,
+        });
+
+        // Seed: correctly milled flour
+        observer.seedResource({
+            id: 'res-flour-milled',
+            conformsTo: 'spec:flour2',
+            accountingQuantity: { hasNumericalValue: 3, hasUnit: 'kg' },
+            stage: 'proc-spec:milled',
+        });
+
+        const plan = planStore.addPlan({ name: 'Bread plan 2' });
+        const result = dependentDemand({
+            planId: plan.id,
+            demandSpecId: 'spec:bread2',
+            demandQuantity: 1,
+            dueDate: new Date('2026-03-10T12:00:00Z'),
+            recipeStore: recipes,
+            planStore,
+            processes: processReg,
+            observer,
+        });
+
+        // Correctly-staged flour IS allocated
+        expect(result.allocated.length).toBe(1);
+        expect(result.allocated[0].resourceId).toBe('res-flour-milled');
+        expect(result.allocated[0].quantity).toBe(3);
+        // No purchase intent needed
+        expect(result.purchaseIntents.find(i => i.resourceConformsTo === 'spec:flour2')).toBeUndefined();
+    });
+
+    test('inventory netting: wrong-state resource is NOT allocated', () => {
+        const recipe = recipes.addRecipe({ name: 'Certified Widget', primaryOutput: 'spec:widget', recipeProcesses: [] });
+        const assembleProc = recipes.addRecipeProcess({ name: 'Assemble', hasDuration: { hasNumericalValue: 1, hasUnit: 'hours' } });
+        recipe.recipeProcesses.push(assembleProc.id);
+        recipes.addRecipeFlow({
+            action: 'consume',
+            resourceConformsTo: 'spec:component',
+            resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+            recipeInputOf: assembleProc.id,
+            state: 'pass', // must have passed quality test
+        });
+        recipes.addRecipeFlow({
+            action: 'produce',
+            resourceConformsTo: 'spec:widget',
+            resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+            recipeOutputOf: assembleProc.id,
+        });
+
+        // Seed: components that failed QC
+        observer.seedResource({
+            id: 'res-comp-fail',
+            conformsTo: 'spec:component',
+            accountingQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+            state: 'fail',
+        });
+
+        const plan = planStore.addPlan({ name: 'Widget plan' });
+        const result = dependentDemand({
+            planId: plan.id,
+            demandSpecId: 'spec:widget',
+            demandQuantity: 1,
+            dueDate: new Date('2026-03-10T12:00:00Z'),
+            recipeStore: recipes,
+            planStore,
+            processes: processReg,
+            observer,
+        });
+
+        // Failed components must NOT be allocated
+        expect(result.allocated.length).toBe(0);
+        const compPurchase = result.purchaseIntents.find(i => i.resourceConformsTo === 'spec:component');
+        expect(compPurchase).toBeDefined();
+    });
 });

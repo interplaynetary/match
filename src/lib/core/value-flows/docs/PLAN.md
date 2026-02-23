@@ -28,7 +28,7 @@
 - Governed by 🏛️ (`primaryAccountable`)
 - Exists in Space (`currentLocation` → `SpatialThing`)
 - Can be used by ⭐ holders (the `receiver` of a transfer)
-- Maintains catalog of possible combinations via type `conformsTo` → `ResourceSpecification`
+- Maintains catalog of possible combinations of ⭐ via type `conformsTo` → `ResourceSpecification`
 - Maintains an index of ⭐ distribution over time:
   - Time -> { 🟢⭐1, 👤⭐2, 🟢⭐3 } via event/commitment schedules (`hasBeginning`, `hasEnd`, `due`)
 
@@ -63,7 +63,7 @@
 - 7 dimensions, geometric mean, any = 0 → blocked:
   - ⏰ Time: `availability_window` overlap, min block size
   - 📍 Space: distance decay within search radius (`ScenarioIndex` H3 `resolution`)
-  - 📦 Quantity: need vs capacity (`effortQuantity` / `resourceQuantity`), allocatable = min(need, capacity)
+  - 📦 Quantity: need vs capacity, allocatable = min(need, capacity)
 - (👤 specific) -> 🟢:
   - 🛠️ Skills: bidirectional — does provider meet need's `ResourceSpecification`?
   - 🚗 Travel: can 👤 physically get from prior `Commitment.atLocation` to here in time?
@@ -109,9 +109,12 @@
 - 🟢🏛️ validation records the `gross_labor_credited` (`Account.creditFromEvent`), which is then processed by the `communal_deduction_rate` to grant `net_claim_capacity`.
 - This `net_claim_capacity` can be used by 👤 to claim 🟦 from the **🟦 Individual Consumption Pool** (`Account.claimGoods`).
 
+// We should add note about the loop for updating the SNLT of RecipeFlows
+// Also the quality of goods produced should be tracked. We must record probabilities etc. what quantity conforms to the resource specs we have socially validated as desired in the plan.
+
 ---
 
-## 1. Is it the cost divided across the quantity of outputs?
+## 1. Is SNLT the cost divided across the quantity of outputs?
 
 Yes. If a `RecipeProcess` (🟢) has a total SNLT of 10 hours (`RecipeFlow.effortQuantity` for inputs) and produces 100 apples (`RecipeFlow.resourceQuantity` for outputs), the labor cost per apple is 10 / 100 = 0.1 hours. The **SNLT per unit** _(Total Social Labor / Total Social Output of 🟦)_ is always distributed across the fungible quantity of outputs.
 
@@ -165,14 +168,26 @@ Because 🏛️ derives the `net_claim_capacity` based on the `communal_deductio
 `claimed_capacity`: 2.0 hours
 `current_potential_claim_capacity`: 2.0 hours (net - claimed)
 
-# The Global Variables (mapped to `Commune`)
+# Global Variables (mapped to `Commune`)
 
 `commune.social_total_potential_claims`: 4000h (Sum of EVERYONE'S `current_potential_claim_capacity`)
 `commune.current_consumption_pool`: 2000h (Sum of SNLT of all 🟦 `EconomicResource`s currently sitting in the pool)
 
-# The Elastic Derivation
+# Elastic Derivation
 
 `account.current_share_of_claims`: 2.0 / 4000.0 = 0.0005 (You hold 0.05% of the world's outstanding claims)
 `account.current_actual_claim_capacity`: 0.0005 \* 2000h = 1.0 hour
 
 ---
+
+# Decentralized Planning
+
+# Planning Loop
+
+## Replacement
+
+## Insurance
+
+## Expansion
+
+# Legal Frame
