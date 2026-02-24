@@ -47,11 +47,14 @@ function previousOf(
     node: FlowNode,
     observer: Observer,
     processes: ProcessRegistry,
+    includeStale: boolean,
 ): FlowNode[] {
     switch (node.kind) {
         case 'resource': {
             // All events that created/modified this resource
-            const events = observer.eventsForResource(node.id);
+            const events = includeStale
+                ? observer.eventsForResource(node.id)
+                : observer.activeEventsForResource(node.id);
             return events
                 .filter(e => {
                     const def = ACTION_DEFINITIONS[e.action];
@@ -93,11 +96,15 @@ function previousOf(
     }
 }
 
+
 /**
  * Trace a resource or event backwards to its origins.
  *
  * Returns an ordered list of FlowNodes forming a backwards tree.
  * Each node has a `parent` field pointing to the node that led to it.
+ *
+ * By default, corrected (stale) events are excluded from the traversal.
+ * Pass `{ includeStale: true }` to include them for audit purposes.
  *
  * @param startId - The resource or event ID to trace from
  */
@@ -105,7 +112,10 @@ export function trace(
     startId: string,
     observer: Observer,
     processes: ProcessRegistry,
+    opts?: { includeStale?: boolean },
 ): FlowNode[] {
+    const includeStale = opts?.includeStale ?? false;
+
     // Determine starting node
     const resource = observer.getResource(startId);
     const event = resource ? undefined : observer.getEvent(startId);
@@ -119,7 +129,7 @@ export function trace(
     const visited = new Set<string>([startId]);
 
     function dfs(current: FlowNode): void {
-        const prevNodes = previousOf(current, observer, processes);
+        const prevNodes = previousOf(current, observer, processes, includeStale);
 
         for (const prev of prevNodes) {
             if (!visited.has(prev.id)) {
@@ -150,10 +160,13 @@ function nextOf(
     node: FlowNode,
     observer: Observer,
     processes: ProcessRegistry,
+    includeStale: boolean,
 ): FlowNode[] {
     switch (node.kind) {
         case 'resource': {
-            const events = observer.eventsForResource(node.id);
+            const events = includeStale
+                ? observer.eventsForResource(node.id)
+                : observer.activeEventsForResource(node.id);
             return events.map(e => ({ kind: 'event' as const, id: e.id, data: e }));
         }
         case 'process': {
@@ -194,13 +207,19 @@ function nextOf(
  *
  * Returns an ordered list of FlowNodes forming a forwards tree.
  *
+ * By default, corrected (stale) events are excluded from the traversal.
+ * Pass `{ includeStale: true }` to include them for audit purposes.
+ *
  * @param startId - The resource or event ID to track from
  */
 export function track(
     startId: string,
     observer: Observer,
     processes: ProcessRegistry,
+    opts?: { includeStale?: boolean },
 ): FlowNode[] {
+    const includeStale = opts?.includeStale ?? false;
+
     const resource = observer.getResource(startId);
     const event = resource ? undefined : observer.getEvent(startId);
     if (!resource && !event) return [];
@@ -213,7 +232,7 @@ export function track(
     const visited = new Set<string>([startId]);
 
     function dfs(current: FlowNode): void {
-        const nxtNodes = nextOf(current, observer, processes);
+        const nxtNodes = nextOf(current, observer, processes, includeStale);
 
         for (const nxt of nxtNodes) {
             if (!visited.has(nxt.id)) {
