@@ -55,7 +55,7 @@ export class PlanNetter {
     netDemand(
         specId: string,
         qty: number,
-        opts?: { stage?: string; state?: string; neededBy?: Date },
+        opts?: { stage?: string; state?: string; neededBy?: Date; atLocation?: string },
     ): NetDemandResult {
         let remaining = qty;
         const inventoryAllocated: DemandAllocation[] = [];
@@ -67,6 +67,10 @@ export class PlanNetter {
                     if ((r.accountingQuantity?.hasNumericalValue ?? 0) <= 0) return false;
                     if (opts?.stage && r.stage !== opts.stage) return false;
                     if (opts?.state && r.state !== opts.state) return false;
+                    // Containment guard: contained resources are physically unavailable until separated
+                    if (r.containedIn !== undefined) return false;
+                    // Location guard: only absorb inventory at the demand location
+                    if (opts?.atLocation && r.currentLocation && r.currentLocation !== opts.atLocation) return false;
                     return true;
                 });
 
@@ -92,6 +96,8 @@ export class PlanNetter {
                 ) {
                     // Temporal guard: output must be ready by neededBy
                     if (opts?.neededBy && intent.due && new Date(intent.due) > opts.neededBy) continue;
+                    // Location guard: only absorb output at the demand location
+                    if (opts?.atLocation && intent.atLocation && intent.atLocation !== opts.atLocation) continue;
                     const take = Math.min(intent.resourceQuantity!.hasNumericalValue, remaining);
                     this.allocated.add(intent.id);
                     remaining -= take;
@@ -112,6 +118,8 @@ export class PlanNetter {
                 ) {
                     // Temporal guard: output must be ready by neededBy
                     if (opts?.neededBy && commitment.due && new Date(commitment.due) > opts.neededBy) continue;
+                    // Location guard: only absorb output at the demand location
+                    if (opts?.atLocation && commitment.atLocation && commitment.atLocation !== opts.atLocation) continue;
                     const take = Math.min(commitment.resourceQuantity!.hasNumericalValue, remaining);
                     this.allocated.add(commitment.id);
                     remaining -= take;
@@ -129,7 +137,7 @@ export class PlanNetter {
      * Marks consumption flows as soft-allocated.
      * Used by: dependent-supply (new — enables Mode C)
      */
-    netSupply(specId: string, qty: number, availableFrom?: Date): number {
+    netSupply(specId: string, qty: number, availableFrom?: Date, atLocation?: string): number {
         let remaining = qty;
 
         // --- Scheduled consumption Intents (inputOf set) ---
@@ -144,6 +152,8 @@ export class PlanNetter {
             ) {
                 // Temporal guard: supply must be available before the consumption is due
                 if (availableFrom && intent.due && new Date(intent.due) < availableFrom) continue;
+                // Location guard: only absorb consumptions at the supply location
+                if (atLocation && intent.atLocation && intent.atLocation !== atLocation) continue;
                 const take = Math.min(intent.resourceQuantity!.hasNumericalValue, remaining);
                 this.allocated.add(intent.id);
                 remaining -= take;
@@ -162,6 +172,8 @@ export class PlanNetter {
             ) {
                 // Temporal guard: supply must be available before the consumption is due
                 if (availableFrom && commitment.due && new Date(commitment.due) < availableFrom) continue;
+                // Location guard: only absorb consumptions at the supply location
+                if (atLocation && commitment.atLocation && commitment.atLocation !== atLocation) continue;
                 const take = Math.min(commitment.resourceQuantity!.hasNumericalValue, remaining);
                 this.allocated.add(commitment.id);
                 remaining -= take;
@@ -177,7 +189,7 @@ export class PlanNetter {
      *   - scheduled consumptions (not yet allocated)
      * Does NOT mutate state. Used for capacity ceiling in computeMaxByOtherMaterials.
      */
-    netAvailableQty(specId: string, opts?: { stage?: string; state?: string; asOf?: Date }): number {
+    netAvailableQty(specId: string, opts?: { stage?: string; state?: string; asOf?: Date; atLocation?: string }): number {
         let total = 0;
 
         // Inventory
@@ -186,6 +198,10 @@ export class PlanNetter {
                 if ((r.accountingQuantity?.hasNumericalValue ?? 0) <= 0) continue;
                 if (opts?.stage && r.stage !== opts.stage) continue;
                 if (opts?.state && r.state !== opts.state) continue;
+                // Containment guard: contained resources are physically unavailable until separated
+                if (r.containedIn !== undefined) continue;
+                // Location guard: only count inventory at the queried location
+                if (opts?.atLocation && r.currentLocation && r.currentLocation !== opts.atLocation) continue;
                 total += r.accountingQuantity?.hasNumericalValue ?? 0;
             }
         }
@@ -201,6 +217,8 @@ export class PlanNetter {
             ) {
                 // Temporal guard: only count outputs that are ready by asOf
                 if (opts?.asOf && intent.due && new Date(intent.due) > opts.asOf) continue;
+                // Location guard: only count output at the queried location
+                if (opts?.atLocation && intent.atLocation && intent.atLocation !== opts.atLocation) continue;
                 total += intent.resourceQuantity!.hasNumericalValue;
             }
         }
@@ -214,6 +232,8 @@ export class PlanNetter {
             ) {
                 // Temporal guard: only count outputs that are ready by asOf
                 if (opts?.asOf && commitment.due && new Date(commitment.due) > opts.asOf) continue;
+                // Location guard: only count output at the queried location
+                if (opts?.atLocation && commitment.atLocation && commitment.atLocation !== opts.atLocation) continue;
                 total += commitment.resourceQuantity!.hasNumericalValue;
             }
         }
@@ -229,6 +249,8 @@ export class PlanNetter {
             ) {
                 // Temporal guard: only deduct consumptions due by asOf (future ones haven't consumed yet)
                 if (opts?.asOf && intent.due && new Date(intent.due) > opts.asOf) continue;
+                // Location guard: only deduct consumptions at the queried location
+                if (opts?.atLocation && intent.atLocation && intent.atLocation !== opts.atLocation) continue;
                 total -= intent.resourceQuantity!.hasNumericalValue;
             }
         }
@@ -242,6 +264,8 @@ export class PlanNetter {
             ) {
                 // Temporal guard: only deduct consumptions due by asOf (future ones haven't consumed yet)
                 if (opts?.asOf && commitment.due && new Date(commitment.due) > opts.asOf) continue;
+                // Location guard: only deduct consumptions at the queried location
+                if (opts?.atLocation && commitment.atLocation && commitment.atLocation !== opts.atLocation) continue;
                 total -= commitment.resourceQuantity!.hasNumericalValue;
             }
         }

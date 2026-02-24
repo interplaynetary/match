@@ -346,6 +346,83 @@ describe('Mode C — demand + supply integration', () => {
         }
     });
 
+    // ── Test 7: Multi-location Mode C conflict ────────────────────────────────
+
+    test('Mode C multi-location: supply at FarmA does NOT absorb FactoryB consumption', () => {
+        // Demand side: only weave + sew (at FactoryB)
+        makeWeaveSewRecipes(recipes);
+
+        const plan = planStore.addPlan({ name: 'Mode C Multi-Location Plan' });
+        const netter = new PlanNetter(planStore, observer);
+
+        // Step 1: Demand explosion for 1 garment AT FactoryB
+        // Creates: Sew + Weave at FactoryB, yarn purchase intent at FactoryB
+        const demandResult = dependentDemand({
+            planId: plan.id,
+            demandSpecId: 'spec:garment',
+            demandQuantity: 1,
+            dueDate: deadline,
+            recipeStore: recipes,
+            planStore,
+            processes: processReg,
+            netter,
+            atLocation: 'loc:FactoryB',
+        });
+
+        expect(demandResult.processes).toHaveLength(2); // Sew + Weave
+        expect(demandResult.purchaseIntents).toHaveLength(1);
+        const yarnIntent = demandResult.purchaseIntents[0];
+        expect(yarnIntent.resourceConformsTo).toBe('spec:yarn');
+        // The yarn purchase intent carries FactoryB location (sub-demand location propagated)
+        expect(yarnIntent.atLocation).toBe('loc:FactoryB');
+
+        // All demand-created yarn consume intents are at FactoryB
+        const yarnConsumeIntents = [...planStore.allIntents()].filter(
+            i => i.resourceConformsTo === 'spec:yarn' && i.inputOf !== undefined,
+        );
+        for (const ci of yarnConsumeIntents) {
+            expect(ci.atLocation).toBe('loc:FactoryB');
+        }
+
+        // After demand explosion, netter has no pre-existing allocations
+        // (demand creates new intents, not allocating old ones)
+        const allocatedAfterDemand = netter.allocated.size;
+
+        // Step 2: Register shear recipe; supply 1 kg wool from FarmA
+        addShearRecipe(recipes);
+
+        const supplyResult = dependentSupply({
+            planId: plan.id,
+            supplySpecId: 'spec:wool',
+            supplyQuantity: 1,
+            availableFrom: t0,
+            recipeStore: recipes,
+            planStore,
+            processes: processReg,
+            netter,
+            atLocation: 'loc:FarmA',
+        });
+
+        // Shear runs at FarmA → produces 0.8 kg yarn at FarmA.
+        // netSupply(yarn, 0.8, t0, 'loc:FarmA') checks consumption intents:
+        //   - yarn consume intents all have atLocation='loc:FactoryB' ≠ 'loc:FarmA' → NOT absorbed.
+        // Yarn at FarmA not absorbed → routes into weave+sew recipe chain at FarmA
+        // (independent from the FactoryB demand plan).
+        const shearProcess = supplyResult.processes.find(p => p.name === 'Shear');
+        expect(shearProcess).toBeDefined();
+
+        // The demand-plan Weave process was NOT reused by the supply explosion
+        const weaveFromDemand = demandResult.processes.find(p => p.name === 'Weave');
+        const supplyProcessIds = new Set(supplyResult.processes.map(p => p.id));
+        expect(supplyProcessIds.has(weaveFromDemand!.id)).toBe(false);
+
+        // CRITICAL: netter.allocated did NOT gain any entries during the supply run.
+        // The FactoryB consume intents (atLocation='loc:FactoryB') were blocked by the
+        // location guard in netSupply → no false cross-location claim.
+        const allocatedAfterSupply = netter.allocated.size;
+        expect(allocatedAfterSupply).toBe(allocatedAfterDemand);
+    });
+
     // ── Test 5: dependentSupplyFromResource wrapper ────────────────────────────
 
     test('dependentSupplyFromResource wrapper produces same result as dependentSupply', () => {

@@ -79,6 +79,8 @@ interface SupplyTask {
      * Only original supply (isDerived=false) with no recipe to absorb it is surplus.
      */
     isDerived?: boolean;
+    /** SpatialThing ID — where this supply is available. */
+    atLocation?: string;
 }
 
 // =============================================================================
@@ -112,6 +114,8 @@ export function dependentSupply(params: {
     generateId?: () => string;
     /** Optional shared netter — pass to share allocated state across algorithm calls (Mode C). */
     netter?: PlanNetter;
+    /** SpatialThing ID — where the supply is available. */
+    atLocation?: string;
 }): DependentSupplyResult {
     const { planId, supplySpecId, supplyQuantity, availableFrom, recipeStore, planStore, processes, observer, agents } = params;
 
@@ -135,6 +139,7 @@ export function dependentSupply(params: {
         specId: supplySpecId,
         quantity: supplyQuantity,
         availableFrom,
+        atLocation: params.atLocation,
     }];
 
     const netter = params.netter;
@@ -168,7 +173,7 @@ function processSupply(
     // If demand explosion already scheduled consumption of this spec, deduct
     // those pre-claims from available supply before routing into recipes.
     if (netter) {
-        task = { ...task, quantity: netter.netSupply(task.specId, task.quantity, task.availableFrom) };
+        task = { ...task, quantity: netter.netSupply(task.specId, task.quantity, task.availableFrom, task.atLocation) };
     }
     if (task.quantity <= 0) return; // Fully pre-claimed by demand plan
 
@@ -218,7 +223,7 @@ function processSupply(
         const maxByThisSupply = Math.floor(remaining / supplyInputQtyPerExec);
         if (maxByThisSupply <= 0) continue;
 
-        const maxByOtherMaterials = computeMaxByOtherMaterials(recipeStore, chain, task.specId, observer, netter, task.availableFrom);
+        const maxByOtherMaterials = computeMaxByOtherMaterials(recipeStore, chain, task.specId, observer, netter, task.availableFrom, task.atLocation);
         const executions = Math.min(maxByThisSupply, maxByOtherMaterials);
         if (executions <= 0) continue;
 
@@ -305,7 +310,7 @@ function processSupply(
                 }
 
                 // --- Create the flow record (commitment/intent) ---
-                const record = createFlowRecord(flow, process.id, 'input', executions, processBegin, planId, agents, planStore);
+                const record = createFlowRecord(flow, process.id, 'input', executions, processBegin, planId, agents, planStore, task.atLocation);
                 if (hasAgents) {
                     result.commitments.push(record as Commitment);
                 } else {
@@ -356,7 +361,7 @@ function processSupply(
 
                 const scaledQty = (flow.resourceQuantity?.hasNumericalValue ?? 0) * executions;
 
-                const record = createFlowRecord(flow, process.id, 'output', executions, processEnd, planId, agents, planStore);
+                const record = createFlowRecord(flow, process.id, 'output', executions, processEnd, planId, agents, planStore, task.atLocation);
                 if (hasAgents) {
                     result.commitments.push(record as Commitment);
                 } else {
@@ -372,6 +377,7 @@ function processSupply(
                         quantity: scaledQty,
                         availableFrom: processEnd,
                         isDerived: true,
+                        atLocation: task.atLocation,
                     });
                 }
             }
@@ -439,6 +445,7 @@ function computeMaxByOtherMaterials(
     observer: Observer | undefined,
     netter?: PlanNetter,
     asOf?: Date,
+    atLocation?: string,
 ): number {
     if (!observer && !netter) return Infinity;
 
@@ -459,7 +466,7 @@ function computeMaxByOtherMaterials(
             if (reqQtyPerExec <= 0) continue;
 
             const available = netter
-                ? netter.netAvailableQty(flow.resourceConformsTo, { asOf })
+                ? netter.netAvailableQty(flow.resourceConformsTo, { asOf, atLocation })
                 : observer!.conformingResources(flow.resourceConformsTo)
                     .reduce((sum, r) => sum + (r.accountingQuantity?.hasNumericalValue ?? 0), 0);
 
@@ -484,6 +491,7 @@ function createFlowRecord(
     planId: string,
     agents: { provider?: string; receiver?: string } | undefined,
     planStore: PlanStore,
+    atLocation?: string,
 ): Commitment | Intent {
     const def = ACTION_DEFINITIONS[flow.action];
     if (def && def.inputOutput !== 'outputInput' && def.inputOutput !== 'notApplicable') {
@@ -527,6 +535,7 @@ function createFlowRecord(
             due: dueDate.toISOString(),
             created: new Date().toISOString(),
             plannedWithin: planId,
+            atLocation,
             finished: false,
         });
     }
@@ -545,6 +554,7 @@ function createFlowRecord(
         receiver,
         due: dueDate.toISOString(),
         plannedWithin: planId,
+        atLocation,
         finished: false,
     });
 }
@@ -585,5 +595,6 @@ export function dependentSupplyFromResource(params: {
         ...params,
         supplySpecId: params.resource.conformsTo,
         supplyQuantity: params.resource.accountingQuantity?.hasNumericalValue ?? 1,
+        atLocation: params.resource.currentLocation,
     });
 }

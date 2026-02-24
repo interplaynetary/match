@@ -276,6 +276,31 @@ export class Observer {
             }
         };
 
+        // --- Split-custody detection ---
+        // VF spec (transfers.md §Implied Transfers): a pickup/dropoff with
+        // toResourceInventoriedAs and different provider/receiver means the goods are
+        // tracked in two separate inventory records (e.g. Alice's warehouse stock +
+        // Trucker's bill-of-lading). We need to override the action definition for both
+        // resources so the correct quantity and location effects are applied.
+        const isSplitCustody =
+            (event.action === 'pickup' || event.action === 'dropoff') &&
+            !!event.toResourceInventoriedAs &&
+            event.provider !== undefined &&
+            event.receiver !== undefined &&
+            event.provider !== event.receiver;
+
+        // --- Capture container location before separate removes containedIn ---
+        // separate.locationEffect = 'noEffect', but the separated resource should
+        // inherit the container's physical location (it was just unpacked there).
+        let containerLocationForSeparate: string | undefined;
+        if (event.action === 'separate' && event.resourceInventoriedAs) {
+            const existing = this.resources.get(event.resourceInventoriedAs);
+            if (existing?.containedIn) {
+                const container = this.resources.get(existing.containedIn);
+                containerLocationForSeparate = container?.currentLocation;
+            }
+        }
+
         // --- "from" resource (resourceInventoriedAs) ---
         if (event.resourceInventoriedAs) {
             let resource = this.resources.get(event.resourceInventoriedAs);
@@ -293,7 +318,15 @@ export class Observer {
             }
 
             if (resource) {
-                const changes = this.applyResourceEffects(resource, event, def, 'from', fromIsNew);
+                // Split-custody overrides for from-resource:
+                //   pickup: provider's stock stays at origin — suppress location update
+                //   dropoff: bill-of-lading is released — decrement (not increment) onhand
+                const fromDef = isSplitCustody
+                    ? (event.action === 'pickup'
+                        ? { ...def, locationEffect: 'noEffect' as const }
+                        : { ...def, onhandEffect: 'decrementIncrement' as const })
+                    : def;
+                const changes = this.applyResourceEffects(resource, event, fromDef, 'from', fromIsNew);
                 if (changes.length > 0) {
                     this.emit({ type: 'resource_updated', resource, event, changes });
                 }
@@ -306,14 +339,22 @@ export class Observer {
             let toResource = this.resources.get(event.toResourceInventoriedAs);
             let toIsNew = false;
 
-            if (!toResource && (def.createResource === 'optionalTo' || def.createResource === 'optional')) {
+            // Split-custody also enables auto-creation of the to-resource (bill-of-lading
+            // or receiver's stock), since pickup/dropoff normally have createResource:'noEffect'.
+            if (!toResource && (def.createResource === 'optionalTo' || def.createResource === 'optional' || isSplitCustody)) {
                 toResource = this.createResource(event, event.toResourceInventoriedAs);
                 toIsNew = true;
                 this.emit({ type: 'resource_created', resource: toResource, event });
             }
 
             if (toResource) {
-                const changes = this.applyResourceEffects(toResource, event, def, 'to', toIsNew);
+                // Split-custody overrides for to-resource:
+                //   pickup: bill-of-lading gets onhand increment + location (receiver has custody)
+                //   dropoff: receiver's stock gets onhand increment + location (goods arrive)
+                const toDef = isSplitCustody
+                    ? { ...def, onhandEffect: 'decrementIncrement' as const, locationEffect: 'updateTo' as const }
+                    : def;
+                const changes = this.applyResourceEffects(toResource, event, toDef, 'to', toIsNew);
                 if (changes.length > 0) {
                     this.emit({ type: 'resource_updated', resource: toResource, event, changes });
                 }
@@ -353,8 +394,22 @@ export class Observer {
                         }
                     }
                 }
-                // custody: no additional resource changes needed — physical possession is
-                // already tracked by the primary action's onhandEffect.
+                // custody: split-custody effects (onhand + location) are already handled above
+                // via isSplitCustody overrides. No additional ownership changes needed here.
+            }
+        }
+
+        // --- Separate: apply location from container or explicit toLocation ---
+        // separate.locationEffect = 'noEffect' so applyResourceEffects won't touch location.
+        // Post-effects: set the separated resource's location so it isn't locationless.
+        if (event.action === 'separate' && event.resourceInventoriedAs) {
+            const resource = this.resources.get(event.resourceInventoriedAs);
+            if (resource) {
+                if (event.toLocation) {
+                    resource.currentLocation = event.toLocation;
+                } else if (containerLocationForSeparate !== undefined) {
+                    resource.currentLocation = containerLocationForSeparate;
+                }
             }
         }
 

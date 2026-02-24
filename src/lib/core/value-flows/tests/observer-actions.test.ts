@@ -1188,4 +1188,319 @@ describe('Observer: action effects', () => {
             expect(observer.getResource('to')!.primaryAccountable).toBe('agent:carol');
         });
     });
+
+    // ─── pickup (split-custody — implied custody transfer) ────────────────────
+
+    describe('pickup (split-custody — implied custody transfer)', () => {
+        // Helper: seed Alice's stock and fire a split-custody pickup
+        function setupSplitPickup(obs: Observer) {
+            obs.seedResource({
+                id: 'alice-apples',
+                conformsTo: 'spec:apple',
+                accountingQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                currentLocation: 'loc:warehouse',
+                primaryAccountable: 'agent:alice',
+            });
+            obs.record({
+                id: 'e1',
+                action: 'pickup',
+                provider: 'agent:alice',
+                receiver: 'agent:trucker',
+                resourceInventoriedAs: 'alice-apples',
+                toResourceInventoriedAs: 'bill-of-lading',
+                resourceConformsTo: 'spec:apple',
+                resourceQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                toLocation: 'loc:truck',
+            });
+        }
+
+        test('auto-creates to-resource (bill of lading) when provider ≠ receiver', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('bill-of-lading')).toBeDefined();
+        });
+
+        test('to-resource onhand incremented (trucker has physical custody)', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('bill-of-lading')!.onhandQuantity?.hasNumericalValue).toBe(8);
+        });
+
+        test('from-resource onhand decremented (goods left Alice)', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('alice-apples')!.onhandQuantity?.hasNumericalValue).toBe(0);
+        });
+
+        test('from-resource location NOT updated (stock stays at origin)', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('alice-apples')!.currentLocation).toBe('loc:warehouse');
+        });
+
+        test('to-resource location set to toLocation (goods are on truck)', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('bill-of-lading')!.currentLocation).toBe('loc:truck');
+        });
+
+        test('accounting quantities unchanged for both resources (custody only, no ownership transfer)', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('alice-apples')!.accountingQuantity?.hasNumericalValue).toBe(8);
+            expect(observer.getResource('bill-of-lading')!.accountingQuantity?.hasNumericalValue).toBe(0);
+        });
+
+        test('to-resource primaryAccountable set to receiver (trucker holds the bill of lading)', () => {
+            setupSplitPickup(observer);
+            expect(observer.getResource('bill-of-lading')!.primaryAccountable).toBe('agent:trucker');
+        });
+
+        test('single-resource pickup unchanged — backward compat (same provider/receiver)', () => {
+            observer.seedResource({
+                id: 'pallet',
+                conformsTo: 'spec:pallet',
+                accountingQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+                onhandQuantity: { hasNumericalValue: 10, hasUnit: 'unit' },
+                currentLocation: 'loc:dock',
+            });
+            observer.record({
+                id: 'e1',
+                action: 'pickup',
+                provider: 'agent:alice',
+                receiver: 'agent:alice',  // same — no split
+                resourceInventoriedAs: 'pallet',
+                resourceQuantity: { hasNumericalValue: 4, hasUnit: 'unit' },
+                toLocation: 'loc:truck',
+            });
+            // Normal pickup: onhand decrements, location updates
+            expect(observer.getResource('pallet')!.onhandQuantity?.hasNumericalValue).toBe(6);
+            expect(observer.getResource('pallet')!.currentLocation).toBe('loc:truck');
+        });
+    });
+
+    // ─── dropoff (split-custody — implied custody transfer) ───────────────────
+
+    describe('dropoff (split-custody — implied custody transfer)', () => {
+        function setupSplitDropoff(obs: Observer) {
+            obs.seedResource({
+                id: 'bill-of-lading',
+                conformsTo: 'spec:apple',
+                accountingQuantity: { hasNumericalValue: 0, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                currentLocation: 'loc:truck',
+                primaryAccountable: 'agent:trucker',
+            });
+            obs.record({
+                id: 'e2',
+                action: 'dropoff',
+                provider: 'agent:trucker',
+                receiver: 'agent:bob',
+                resourceInventoriedAs: 'bill-of-lading',
+                toResourceInventoriedAs: 'bob-stock',
+                resourceConformsTo: 'spec:apple',
+                resourceQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                toLocation: 'loc:shop',
+            });
+        }
+
+        test('auto-creates to-resource (receiver stock) when provider ≠ receiver', () => {
+            setupSplitDropoff(observer);
+            expect(observer.getResource('bob-stock')).toBeDefined();
+        });
+
+        test('from-resource (bill of lading) onhand decremented (trucker releases custody)', () => {
+            setupSplitDropoff(observer);
+            expect(observer.getResource('bill-of-lading')!.onhandQuantity?.hasNumericalValue).toBe(0);
+        });
+
+        test('to-resource (receiver stock) onhand incremented (Bob has goods)', () => {
+            setupSplitDropoff(observer);
+            expect(observer.getResource('bob-stock')!.onhandQuantity?.hasNumericalValue).toBe(8);
+        });
+
+        test('to-resource location set to toLocation (goods at delivery point)', () => {
+            setupSplitDropoff(observer);
+            expect(observer.getResource('bob-stock')!.currentLocation).toBe('loc:shop');
+        });
+
+        test('to-resource primaryAccountable set to receiver', () => {
+            setupSplitDropoff(observer);
+            expect(observer.getResource('bob-stock')!.primaryAccountable).toBe('agent:bob');
+        });
+
+        test('accounting quantities unchanged (custody transfer only)', () => {
+            setupSplitDropoff(observer);
+            expect(observer.getResource('bill-of-lading')!.accountingQuantity?.hasNumericalValue).toBe(0);
+            expect(observer.getResource('bob-stock')!.accountingQuantity?.hasNumericalValue).toBe(0);
+        });
+    });
+
+    // ─── separate (location inheritance) ──────────────────────────────────────
+
+    describe('separate (location inheritance from container)', () => {
+        test('separated resource inherits container currentLocation when no explicit toLocation', () => {
+            observer.seedResource({
+                id: 'crate',
+                conformsTo: 'spec:crate',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                currentLocation: 'loc:factory',
+            });
+            observer.seedResource({
+                id: 'part',
+                conformsTo: 'spec:part',
+                onhandQuantity: { hasNumericalValue: 0, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                containedIn: 'crate',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'part',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+            });
+
+            expect(observer.getResource('part')!.currentLocation).toBe('loc:factory');
+        });
+
+        test('explicit toLocation overrides container location', () => {
+            observer.seedResource({
+                id: 'crate',
+                conformsTo: 'spec:crate',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                currentLocation: 'loc:factory',
+            });
+            observer.seedResource({
+                id: 'part',
+                conformsTo: 'spec:part',
+                onhandQuantity: { hasNumericalValue: 0, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                containedIn: 'crate',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'part',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                toLocation: 'loc:shelf',
+            });
+
+            expect(observer.getResource('part')!.currentLocation).toBe('loc:shelf');
+        });
+
+        test('no container location → part location stays undefined', () => {
+            observer.seedResource({
+                id: 'crate',
+                conformsTo: 'spec:crate',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                // no currentLocation
+            });
+            observer.seedResource({
+                id: 'part',
+                conformsTo: 'spec:part',
+                onhandQuantity: { hasNumericalValue: 0, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                containedIn: 'crate',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'part',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+            });
+
+            expect(observer.getResource('part')!.currentLocation).toBeUndefined();
+        });
+
+        test('containedIn cleared after separate', () => {
+            observer.seedResource({
+                id: 'crate',
+                conformsTo: 'spec:crate',
+                onhandQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                currentLocation: 'loc:factory',
+            });
+            observer.seedResource({
+                id: 'part',
+                conformsTo: 'spec:part',
+                onhandQuantity: { hasNumericalValue: 0, hasUnit: 'each' },
+                accountingQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                containedIn: 'crate',
+            });
+
+            observer.record({
+                id: 'e1',
+                action: 'separate',
+                resourceInventoriedAs: 'part',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+            });
+
+            expect(observer.getResource('part')!.containedIn).toBeUndefined();
+        });
+    });
+
+    // ─── Transport end-to-end (Pattern 1 — implied custody transfer) ──────────
+
+    describe('transport end-to-end: pickup → dropoff with split inventory', () => {
+        test('three-party transport correctly tracks onhand across all resources', () => {
+            // Alice has 8 kg apples at warehouse
+            observer.seedResource({
+                id: 'alice-apples',
+                conformsTo: 'spec:apple',
+                accountingQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                onhandQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                currentLocation: 'loc:warehouse',
+                primaryAccountable: 'agent:alice',
+            });
+
+            // Step 1 — Trucker picks up 8 kg (split-custody: provider=Alice, receiver=Trucker)
+            observer.record({
+                id: 'e1',
+                action: 'pickup',
+                provider: 'agent:alice',
+                receiver: 'agent:trucker',
+                resourceInventoriedAs: 'alice-apples',
+                toResourceInventoriedAs: 'bill-of-lading',
+                resourceConformsTo: 'spec:apple',
+                resourceQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                toLocation: 'loc:truck',
+            });
+
+            // Alice's stock: onhand gone, location unchanged, accounting intact (she still owns them)
+            expect(observer.getResource('alice-apples')!.onhandQuantity?.hasNumericalValue).toBe(0);
+            expect(observer.getResource('alice-apples')!.accountingQuantity?.hasNumericalValue).toBe(8);
+            expect(observer.getResource('alice-apples')!.currentLocation).toBe('loc:warehouse');
+
+            // Bill of lading: Trucker has custody (onhand=8, at truck)
+            expect(observer.getResource('bill-of-lading')!.onhandQuantity?.hasNumericalValue).toBe(8);
+            expect(observer.getResource('bill-of-lading')!.currentLocation).toBe('loc:truck');
+            expect(observer.getResource('bill-of-lading')!.primaryAccountable).toBe('agent:trucker');
+
+            // Step 2 — Trucker drops off at Bob's shop (split-custody: provider=Trucker, receiver=Bob)
+            observer.record({
+                id: 'e2',
+                action: 'dropoff',
+                provider: 'agent:trucker',
+                receiver: 'agent:bob',
+                resourceInventoriedAs: 'bill-of-lading',
+                toResourceInventoriedAs: 'bob-stock',
+                resourceConformsTo: 'spec:apple',
+                resourceQuantity: { hasNumericalValue: 8, hasUnit: 'kg' },
+                toLocation: 'loc:shop',
+            });
+
+            // Bill of lading: trucker released custody (onhand=0)
+            expect(observer.getResource('bill-of-lading')!.onhandQuantity?.hasNumericalValue).toBe(0);
+
+            // Bob's stock: goods arrived (onhand=8, at shop)
+            expect(observer.getResource('bob-stock')!.onhandQuantity?.hasNumericalValue).toBe(8);
+            expect(observer.getResource('bob-stock')!.currentLocation).toBe('loc:shop');
+            expect(observer.getResource('bob-stock')!.primaryAccountable).toBe('agent:bob');
+
+            // Alice's stock: still accountable (ownership unchanged by transport)
+            expect(observer.getResource('alice-apples')!.accountingQuantity?.hasNumericalValue).toBe(8);
+            expect(observer.getResource('alice-apples')!.onhandQuantity?.hasNumericalValue).toBe(0);
+        });
+    });
 });

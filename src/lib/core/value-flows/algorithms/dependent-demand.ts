@@ -90,6 +90,8 @@ interface DemandTask {
     stage?: string;
     /** Required state string of a conforming resource. */
     state?: string;
+    /** SpatialThing ID — where this input is needed. */
+    atLocation?: string;
 }
 
 // =============================================================================
@@ -121,6 +123,8 @@ export function dependentDemand(params: {
     generateId?: () => string;
     /** Optional shared netter — pass to share allocated state across algorithm calls (Mode C). */
     netter?: PlanNetter;
+    /** SpatialThing ID — where the final output is needed. */
+    atLocation?: string;
 }): DependentDemandResult {
     const {
         planId,
@@ -156,6 +160,7 @@ export function dependentDemand(params: {
         quantity: demandQuantity,
         neededBy: dueDate,
         unit: recipeStore.getResourceSpec(demandSpecId)?.defaultUnitOfResource ?? 'each',
+        atLocation: params.atLocation,
     }];
 
     while (queue.length > 0) {
@@ -203,6 +208,7 @@ function processDemand(
             due: demand.neededBy.toISOString(),
             plannedWithin: planId,
             inputOf: demand.forProcessId,
+            atLocation: demand.atLocation,
             note: `Durable resource required (must be present): ${demand.quantity} ${demand.unit} of ${demand.specId}`,
             finished: false,
         });
@@ -217,7 +223,7 @@ function processDemand(
     const { remaining: afterNetting, inventoryAllocated } = netter.netDemand(
         demand.specId,
         demand.quantity,
-        { stage: demand.stage, state: demand.state, neededBy: demand.neededBy },
+        { stage: demand.stage, state: demand.state, neededBy: demand.neededBy, atLocation: demand.atLocation },
     );
     for (const alloc of inventoryAllocated) {
         result.allocated.push({ specId: demand.specId, resourceId: alloc.resourceId, quantity: alloc.quantity });
@@ -245,6 +251,7 @@ function processDemand(
             due: demand.neededBy.toISOString(),
             plannedWithin: planId,
             inputOf: demand.forProcessId,
+            atLocation: demand.atLocation,
             note: `External purchase required: ${remaining} ${demand.unit} of ${demand.specId}`,
             finished: false,
         });
@@ -310,7 +317,7 @@ function processDemand(
         const { inputs, outputs } = recipeStore.flowsForProcess(rp.id);
 
         for (const flow of outputs) {
-            const record = createFlowRecord(flow, process.id, 'output', scaleFactor, processEnd, planId, agents, planStore);
+            const record = createFlowRecord(flow, process.id, 'output', scaleFactor, processEnd, planId, agents, planStore, demand.atLocation);
             if (hasAgents) {
                 result.commitments.push(record as Commitment);
             } else {
@@ -319,7 +326,7 @@ function processDemand(
         }
 
         for (const flow of inputs) {
-            const record = createFlowRecord(flow, process.id, 'input', scaleFactor, processBegin, planId, agents, planStore);
+            const record = createFlowRecord(flow, process.id, 'input', scaleFactor, processBegin, planId, agents, planStore, demand.atLocation);
             if (hasAgents) {
                 result.commitments.push(record as Commitment);
             } else {
@@ -350,6 +357,9 @@ function processDemand(
                         // VF spec: resources.md §Stage and state.
                         stage: flow.stage,
                         state: flow.state,
+                        // Propagate location: sub-processes in the same recipe chain
+                        // run at the same location as the parent demand.
+                        atLocation: demand.atLocation,
                     });
                 }
             }
@@ -373,6 +383,7 @@ function createFlowRecord(
     planId: string,
     agents: { provider?: string; receiver?: string } | undefined,
     planStore: PlanStore,
+    atLocation?: string,
 ): Commitment | Intent {
     // Validate action direction against VF spec
     const def = ACTION_DEFINITIONS[flow.action];
@@ -417,6 +428,7 @@ function createFlowRecord(
             due: dueDate.toISOString(),
             created: new Date().toISOString(),
             plannedWithin: planId,
+            atLocation,
             finished: false,
         });
     }
@@ -435,6 +447,7 @@ function createFlowRecord(
         receiver,
         due: dueDate.toISOString(),
         plannedWithin: planId,
+        atLocation,
         finished: false,
     });
 }

@@ -395,6 +395,212 @@ describe('PlanNetter', () => {
         });
     });
 
+    // ── Location guards ────────────────────────────────────────────────────
+
+    describe('location guards', () => {
+        // 1. netDemand: inventory at wrong location → NOT absorbed
+        test('netDemand: inventory resource at wrong location is NOT absorbed', () => {
+            const resource = makeResource({ conformsTo: 'spec:wood', quantity: 5, currentLocation: 'loc:FarmA' });
+            observer.seedResource(resource);
+
+            const netter = new PlanNetter(planStore, observer);
+            const result = netter.netDemand('spec:wood', 5, { atLocation: 'loc:FactoryB' });
+
+            expect(result.remaining).toBe(5);
+            expect(result.inventoryAllocated).toHaveLength(0);
+        });
+
+        // 2. netDemand: inventory at correct location → absorbed
+        test('netDemand: inventory resource at correct location IS absorbed', () => {
+            const resource = makeResource({ conformsTo: 'spec:wood', quantity: 5, currentLocation: 'loc:FactoryB' });
+            observer.seedResource(resource);
+
+            const netter = new PlanNetter(planStore, observer);
+            const result = netter.netDemand('spec:wood', 5, { atLocation: 'loc:FactoryB' });
+
+            expect(result.remaining).toBe(0);
+            expect(result.inventoryAllocated).toHaveLength(1);
+        });
+
+        // 3. netDemand: output intent at wrong location → NOT absorbed; intent with no atLocation → absorbed
+        test('netDemand: output intent at wrong location NOT absorbed; no atLocation → absorbed', () => {
+            // Intent with explicit wrong location
+            planStore.addIntent({
+                action: 'produce',
+                outputOf: processId,
+                resourceConformsTo: 'spec:yarn',
+                resourceQuantity: { hasNumericalValue: 3, hasUnit: 'each' },
+                atLocation: 'loc:FarmA',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+            // Intent with no atLocation (conservative: matches any location)
+            planStore.addIntent({
+                action: 'produce',
+                outputOf: processId,
+                resourceConformsTo: 'spec:yarn',
+                resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+                plannedWithin: plan.id,
+                finished: false,
+            });
+
+            const netter = new PlanNetter(planStore);
+            const result = netter.netDemand('spec:yarn', 5, { atLocation: 'loc:FactoryB' });
+
+            // Only the unlocated intent (2 units) is absorbed; the FarmA one is not
+            expect(result.remaining).toBe(3);
+        });
+
+        // 4. netDemand: no atLocation in opts → absorbs all intents (backward compat)
+        test('netDemand: no atLocation in opts absorbs all intents regardless of their location', () => {
+            planStore.addIntent({
+                action: 'produce',
+                outputOf: processId,
+                resourceConformsTo: 'spec:yarn',
+                resourceQuantity: { hasNumericalValue: 3, hasUnit: 'each' },
+                atLocation: 'loc:FarmA',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+            planStore.addIntent({
+                action: 'produce',
+                outputOf: processId,
+                resourceConformsTo: 'spec:yarn',
+                resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+                atLocation: 'loc:FactoryB',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+
+            const netter = new PlanNetter(planStore);
+            const result = netter.netDemand('spec:yarn', 5); // no atLocation
+
+            expect(result.remaining).toBe(0);
+        });
+
+        // 5. netSupply: consumption at different location → NOT absorbed; no atLocation → absorbed
+        test('netSupply: consumption at different location NOT absorbed; no atLocation → absorbed', () => {
+            // Consumption intent at FactoryB
+            planStore.addIntent({
+                action: 'consume',
+                inputOf: processId,
+                resourceConformsTo: 'spec:yarn',
+                resourceQuantity: { hasNumericalValue: 3, hasUnit: 'each' },
+                atLocation: 'loc:FactoryB',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+            // Consumption intent with no atLocation
+            planStore.addIntent({
+                action: 'consume',
+                inputOf: processId,
+                resourceConformsTo: 'spec:yarn',
+                resourceQuantity: { hasNumericalValue: 2, hasUnit: 'each' },
+                plannedWithin: plan.id,
+                finished: false,
+            });
+
+            const netter = new PlanNetter(planStore);
+            // Supply is at FarmA
+            const remaining = netter.netSupply('spec:yarn', 5, undefined, 'loc:FarmA');
+
+            // FactoryB consumption not absorbed; unlocated one is absorbed
+            expect(remaining).toBe(3);
+        });
+
+        // 6. netAvailableQty with atLocation: cross-location output excluded; cross-location consumption NOT deducted
+        test('netAvailableQty with atLocation filters outputs and consumptions by location', () => {
+            // Output at FactoryB (should be counted)
+            planStore.addIntent({
+                action: 'produce',
+                outputOf: processId,
+                resourceConformsTo: 'spec:fabric',
+                resourceQuantity: { hasNumericalValue: 10, hasUnit: 'm' },
+                atLocation: 'loc:FactoryB',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+            // Output at FarmA (should NOT be counted)
+            planStore.addIntent({
+                action: 'produce',
+                outputOf: processId,
+                resourceConformsTo: 'spec:fabric',
+                resourceQuantity: { hasNumericalValue: 5, hasUnit: 'm' },
+                atLocation: 'loc:FarmA',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+            // Consumption at FactoryB (should be deducted)
+            planStore.addIntent({
+                action: 'consume',
+                inputOf: processId,
+                resourceConformsTo: 'spec:fabric',
+                resourceQuantity: { hasNumericalValue: 3, hasUnit: 'm' },
+                atLocation: 'loc:FactoryB',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+            // Consumption at FarmA (should NOT be deducted)
+            planStore.addIntent({
+                action: 'consume',
+                inputOf: processId,
+                resourceConformsTo: 'spec:fabric',
+                resourceQuantity: { hasNumericalValue: 4, hasUnit: 'm' },
+                atLocation: 'loc:FarmA',
+                plannedWithin: plan.id,
+                finished: false,
+            });
+
+            const netter = new PlanNetter(planStore);
+            const qty = netter.netAvailableQty('spec:fabric', { atLocation: 'loc:FactoryB' });
+
+            // 10 (FactoryB output) - 3 (FactoryB consumption) = 7
+            expect(qty).toBe(7);
+        });
+    });
+
+    // ── Containment guards ─────────────────────────────────────────────────
+
+    describe('containment guards', () => {
+        // 7. netDemand: resource with containedIn set → NOT absorbed
+        test('netDemand: resource with containedIn is NOT absorbed from inventory', () => {
+            const contained = makeResource({ conformsTo: 'spec:flour', quantity: 5, containedIn: 'resource:bowl' });
+            observer.seedResource(contained);
+
+            const netter = new PlanNetter(planStore, observer);
+            const result = netter.netDemand('spec:flour', 5);
+
+            expect(result.remaining).toBe(5);
+            expect(result.inventoryAllocated).toHaveLength(0);
+        });
+
+        // 8. netDemand: resource with containedIn: undefined → absorbed normally
+        test('netDemand: resource without containedIn IS absorbed normally', () => {
+            const free = makeResource({ conformsTo: 'spec:flour', quantity: 5 });
+            observer.seedResource(free);
+
+            const netter = new PlanNetter(planStore, observer);
+            const result = netter.netDemand('spec:flour', 5);
+
+            expect(result.remaining).toBe(0);
+            expect(result.inventoryAllocated).toHaveLength(1);
+        });
+
+        // 9. netAvailableQty: contained resource excluded from inventory total
+        test('netAvailableQty: contained resource is excluded from inventory total', () => {
+            const contained = makeResource({ conformsTo: 'spec:sugar', quantity: 10, containedIn: 'resource:jar' });
+            const free = makeResource({ conformsTo: 'spec:sugar', quantity: 3 });
+            observer.seedResource(contained);
+            observer.seedResource(free);
+
+            const netter = new PlanNetter(planStore, observer);
+            const qty = netter.netAvailableQty('spec:sugar');
+
+            // Only the free resource counts
+            expect(qty).toBe(3);
+        });
+    });
+
     // ── 9. netAvailableQty — does not mutate allocated ─────────────────────
 
     test('netAvailableQty does not mutate allocated Set', () => {
