@@ -35,6 +35,15 @@
 - Maintains an index of ⭐ distribution over time:
   - Time -> { 🟢⭐1, 👤⭐2, 🟢⭐3 }
 
+## 📐 Resource Value Calculation
+
+- **Total Recursive SNLT**: The full labor cost of a 🟦 is the sum of living and dead labor.
+  - `Total SNLT = Living Labor + Dead Labor`
+  - **Living Labor (👤 slot)**: SNLT assigned to the current 🟢 process.
+  - **Dead Labor (🟦 slots)**: SNLT embodied in inputs used up by the 🟢 process.
+- **SNLT per unit**: Distributed across the fungible quantity of outputs.
+  - `SNLT_per_unit = Total_Recursive_SNLT / Total_Social_Output_of_🟦`
+
 # 🟢: Process
 
 - Governed by 👤/🏛️/🟢
@@ -82,7 +91,7 @@
 ## 🟦⭐ -> 👤/🟢 Matching
 
 - 🏛️ can only grant 🟦⭐ where 🟢 satisfies **🟦⭐ holding conditions**, where 🟦⭐ -> 🟢 matching is **physically coherent**, and where the resulting ⭐ distribution is a valid ⭐ combination at that given time.
-- Matching bounactualds 🏛️: the 7 dimensions are a physical floor on governance
+- Matching bounds 🏛️: the 7 dimensions are a physical floor on governance
 - ⭐ bounds matching: feasible is not yet permitted — ⭐ is a social filter on the feasible
 
 ## 🏛️ Planning Constraints
@@ -100,7 +109,6 @@
 
 - The social plan is 🏛️ choosing a distribution of 🟦⭐ that is maximally coherent:
 - Given a distribution of 👤 space-time availability and quantity, try to achieve production of desired 🟦/🌀/🔺 via 🟢, allocating 👤 time to 🟢 slots, and distributing 🟦⭐ to 🟢, and composing 🟢, in such a way that that satisfied demand for 🟦/🔺 while minimizing total-labor-time (max free-time) and respecting Max Working-Day per 👤
-- Project Network? Critical Path?
 - There might be many valid plans, 🏛️ can choose any of them, making decisions on the valid set, which constrain suggestions, while clearly showing which possible plans are not possible given those decisions.
 - **Social Working Day** = sum of individual hours of work.
 
@@ -114,69 +122,94 @@
 - 🟢🏛️ validation records the `gross_labor_credited`, which is then processed by the `communal_deduction_rate` to grant `net_claim_capacity`.
 - This `net_claim_capacity` can be used by 👤 to claim 🟦 from the **🟦 Individual Consumption Pool**.
 
----
+## 📐 Capacity & Claim Equations
 
-## 1. Is it the cost divided across the quantity of outputs?
-
-Yes. If a 🟢 process has a total SNLT of 10 hours and produces 100 apples, the labor cost per apple is 10 / 100 = 0.1 hours. The **SNLT per unit** _(Total Social Labor / Total Social Output of 🟦)_ is always distributed across the fungible quantity of outputs.
-
-## 2. Do we count all dependent processes prior to the final process?
-
-Yes, absolutely. You must count the entire upstream chain, but the math is handled elegantly as "Dead Labor" being transferred. In Marxist terms, the total labor cost of an output 🟦 is made of two things:
-
-**Living Labor (👤 slot)**: The SNLT assigned to the current 🟢 process.
-**Dead Labor (🟦 slots)**: The labor hours already embodied in the inputs used up by the 🟢 process. These are the SNLT costs from all upstream dependent processes.
-
-If your apple orchard 🟢 has a total SNLT of 2 hours for human labor (👤), but also uses fertilizer (🟦) that carries 1 hour of SNLT produced in a previous 🟢 process, the total labor cost to produce the apples is 3 hours. If it produces 30 apples, the SNLT per unit is 3 / 30 = 0.1 hours. Every 🟦 passing through the economy essentially "carries" its accumulated labor-time history with it into the next 🟢.
-
-## 3. If deductions already happen for all that (communal consumption, etc.), how does this balance?
-
-This is the brilliant part of Marx's Critique of the Gotha Programme and your intuition is spot on. You do not lower the "price" of the consumer goods, nor do you double-count.
-
-Here is how the math balances across the whole society:
-
-Let's imagine a micro-economy of 1,000 workers. They each perform labor that yields 8 hours of `gross_labor_credited` today. Total `gross_labor_credited` = 8,000 hours.
-
-**Society uses those 8,000 hours doing three different types of 🟢 processes:**
-Means of Production (making tractors, fertilizer to replace what was used up today): 2,000 hours
-Communal Needs (hospitals, schools, overhead for 🏛️): 2,000 hours
-Individual Consumption Goods (apples, chairs, for the 🟦 Individual Consumption Pool): 4,000 hours
-
-The Capacity Side (Income): The workers received 8,000 hours of `gross_labor_credited` total. But 🏛️ knows 4,000 hours went to non-individual consumption. So, a `communal_deduction_rate` of 50% (0.5) is dynamically fetched from the current 🏛️ social plan ratio.
-
-**Each worker's `gross_labor_credited` of 8 hours yields a derived `net_claim_capacity` of 4 hours.**
-Total `net_claim_capacity` of all workers = 4,000 hours.
-
-The Production Side (Prices): The aggregate labor cost of the apples, chairs, etc., that go into the 🟦 Individual Consumption Pool is exactly the amount of SNLT that went into making them (including the "dead labor" transferred from the means of production used up to make them).
-
-**Total "price" of all goods in the 🟦 Individual Consumption Pool = 4,000 hours.**
-
-The Exchange: The workers use their 4,000 hours of `net_claim_capacity` to claim the 4,000 hours worth of consumption goods (which increases their `claimed_capacity` and reduces their `current_claim_capacity`). The goods produced for non-individual consumption never enter the 🟦 Individual Consumption Pool, so workers never have to claim them with their capacity. Those 🟦 are managed and routed directly by the 🏛️ (e.g., tractors are sent straight to farms, hospitals are free at point of use).
-
-## Summary
-
-The "cost" of a 🟦 in the Individual Consumption Pool is the Full Recursive SNLT per unit (Living Labor + Dead Labor) of the 🟢 that produced it (Total Social Labor / Total Social Output of 🟦).
-
-Because 🏛️ derives the `net_claim_capacity` based on the `communal_deduction_rate`, the total claim capacity circulating will perfectly equal the total labor-cost of the goods placed in the 🟦 Individual Consumption Pool. You don't need to do any special discounting on the goods themselves — their price is exactly their honest labor cost!
+- **Net Claim Capacity**: Derived from gross labor after communal deductions.
+  - `net_claim_capacity = gross_labor_credited * (1 - communal_deduction_rate)`
+- **Current Potential Claims**: Remaining capacity after claims are made.
+  - `current_potential_claim_capacity = net_claim_capacity - claimed_capacity`
+- **Social Share**: The individual's portion of total outstanding claims.
+  - `current_share_of_claims = current_potential_claim_capacity / social_total_potential_claims`
+- **Actual Claim Capacity**: The real-world purchasing power relative to the available consumption pool.
+  - `current_actual_claim_capacity = current_share_of_claims * current_consumption_pool`
 
 ---
 
-# Local Variables
+# Planning Loop
 
-`gross_labor_credited`: 8.0 hours
-`communal_deduction_rate`: 0.5 (from current 🏛️ plan)
-`net_claim_capacity`: 4.0 hours = gross_labor_credited x (1 - communal_deduction_rate)
-`claimed_capacity`: 2.0 hours
-`current_potential_claim_capacity`: 2.0 hours (net - claimed)
+The integrated planning engine operates as a multi-resolution search over H3 spatial cells, driving a 3-phase pipeline to reconcile social needs with material and labor feasibility.
 
-# The Global Variables
+## 👥 Demand Categories (D-Series)
 
-`social_total_potential_claims`: 4000h (Sum of EVERYONE'S current_potential_claim_capacity)
-`current_consumption_pool`: 2000h (Sum of SNLT of all 🟦 currently sitting in the pool)
+**Dependent Demand**
+_magnitude is to be determined according to available means and forces, and partly by computation of probabilities_
 
-# The Elastic Derivation
+- **D1 (Replace Used up Means of Production)**: Structural reproduction of the tools and machines required by the catalog.
+  - **Determination**: Usage during planning period.
+    // But only replace those we _want_ to keep having
 
-`current_share_of_claims`: 2.0 / 4000.0 = 0.0005 (You hold 0.05% of the world's outstanding claims)
-`current_actual_claim_capacity`: 0.0005 \* 2000h = 1.0 hour
+- **D2 (Deficits)**: Not a demand category, but an expansion signal emitted when `needed > feasible`.
+  - **Determination**: Residual signal returned by the backward pass whenever intent quantity exceeds feasible capacity (bounded by material and labor).
 
----
+- **D3 (Insurance)**: A dynamic safety buffer (percentage-based) applied on top of final output requirements.
+
+- **D4 (Administration)**: Operational overhead and governance requirements, not related to production, but to the functioning of the 🏛️, and enforcement of ⭐ distribution.
+
+**Independent Demand (Means of Consumption)**
+
+- **D5 (Communal Satisfaction of Needs)**
+  - ecology, schools, health services, etc.
+- **D6 (Individual Consumption)**
+  - Individual Consumption Pool
+  - A portion is deducted for those unable to work.
+
+## Usage:
+
+🟦: {
+lifespan_remaining: (uses_remaining | time_remaining),
+maintenance_history: [🟢repair1, 🟢repair2],
+efficiency_factor: 0.95 // after 100 uses, 5% less efficient
+}
+
+- Keep track of use, life-span of economic-resource, like in stock.book
+- We can then see what processes extend life-span? Number of uses? How did stockbook keep track?
+- Cuz then we see whether we should do processes to repair/maintain/extend life-span of economic-resource
+  or produce more of it to make u for those used?
+
+## 🔄 The 3-Phase Leaf Pipeline
+
+For every H3 leaf cell, the planner runs a localized search:
+
+1. **Phase 1: Forward Pass (Feasibility)**
+   - Computes "feasibility envelopes" for every recipe in the catalog.
+   - Bounded by current **Inventory** (depleting materials and durable tools) and **Labor Capacity** (available skills and hours in the cell).
+   - Recipes are sorted by **SNLT Efficiency** (least labor-time per output unit).
+
+2. **Phase 2: Backward Pass (D-Series Loop)**
+   - Resolves supply chains in order of criticality (D1 → Intermediate → D3 → D4 → D5 → D6).
+   - Recursively expands dependencies: if a recipe requires an input that is not in inventory, it generates a new intermediate demand.
+   - Selects the most efficient feasible recipes first to minimize total social labor-time.
+
+3. **Phase 3: Instantiation**
+   - Pure, in-memory generation of the **Recipe Graph** (VF Processes and Commitments).
+   - No side effects are written to the database during this phase.
+
+## 🌐 Multi-Resolution Merge Search
+
+To find the global optimum, the planner performs a bottom-up merge:
+
+- **Leaf Resolution**: High-fidelity local planning (~0.1 km²).
+- **Merge Frontier**: Scenarios are merged from leaf cells up to regional root cells.
+- **Pareto Pruning**: At each merge step, "inferior" plans are discarded. The engine keeps a **Pareto Front** of non-dominated scenarios, balancing:
+  - **Coverage**: How much demand was satisfied?
+  - **Effort**: How much labor-time was required?
+- **Promotion**: The winning scenario is selected (either manually or by policy) and promoted to a committed **Plan**, where it is finally persisted as actualized VF processes.
+
+# Antifragility (Robust Heuristics for Planning)
+
+- convexity-first: prioritize improving payoff structure over knowledge acquisition
+- diversification: spread resources across many small trials rather than few large ones
+- barbell-strategy: 90% capacity directed to robust/stable progress, 10% spread across antifragile experimentation
+- serial-optionality: maintain flexibility with short-term plans and frequent exit points
+- negative-knowledge: learn from failures and document what doesn't work
+- opportunistic-adaptation: invest in agents who can pivot and exploit opportunities

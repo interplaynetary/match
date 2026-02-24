@@ -33,6 +33,7 @@ import type {
     Process,
     Commitment,
     Intent,
+    Recipe,
     RecipeFlow,
 } from '../schemas';
 import { ACTION_DEFINITIONS } from '../schemas';
@@ -233,13 +234,45 @@ function processDemand(
 
     if (remaining <= 0) return; // Fully covered by inventory / scheduled Intents
 
+    // --- Step 1.5: location mismatch → try transport before production ---
+    // When a resource is needed at location B but only exists at location A,
+    // find a transport recipe (pickup/dropoff pair) and generate a transport
+    // sub-task with split atLocation values rather than falling back to purchase.
+    let transportLocations: { from: string; to: string } | undefined;
+    let transportRecipe: Recipe | undefined;
+
+    if (demand.atLocation && params.observer) {
+        const candidateLocations = new Map<string, number>();
+        for (const r of params.observer.allResources()) {
+            if (r.conformsTo !== demand.specId) continue;
+            if (r.containedIn) continue;                         // not free to transport
+            if (!r.currentLocation || r.currentLocation === demand.atLocation) continue;
+            const avail = netter.netAvailableQty(demand.specId, { atLocation: r.currentLocation });
+            if (avail > 0) candidateLocations.set(r.currentLocation, avail);
+        }
+        if (candidateLocations.size > 0) {
+            const tCandidates = recipeStore.recipesForTransport(demand.specId);
+            if (tCandidates.length > 0) {
+                // Prefer origin with most available quantity
+                const [fromLocation] = [...candidateLocations.entries()]
+                    .sort((a, b) => b[1] - a[1])[0];
+                transportRecipe = tCandidates
+                    .map(r => ({ recipe: r, snlt: computeSnlt(recipeStore, r.id, demand.specId) }))
+                    .sort((a, b) => a.snlt - b.snlt)[0].recipe;
+                transportLocations = { from: fromLocation, to: demand.atLocation };
+            }
+        }
+    }
+
     // --- Step 2: Find most SNLT-efficient recipe that produces this spec ---
-    const candidates = recipeStore.recipesForOutput(demand.specId);
-    const recipe = candidates.length === 0
-        ? undefined
-        : candidates
-              .map(r => ({ recipe: r, snlt: computeSnlt(recipeStore, r.id, demand.specId) }))
-              .sort((a, b) => a.snlt - b.snlt)[0].recipe;
+    // Transport takes priority over production when a location mismatch is detected.
+    const recipe: Recipe | undefined = transportRecipe ?? (() => {
+        const candidates = recipeStore.recipesForOutput(demand.specId);
+        if (candidates.length === 0) return undefined;
+        return candidates
+            .map(r => ({ recipe: r, snlt: computeSnlt(recipeStore, r.id, demand.specId) }))
+            .sort((a, b) => a.snlt - b.snlt)[0].recipe;
+    })();
 
     if (!recipe) {
         // No recipe — create a purchase Intent for external sourcing
@@ -317,7 +350,7 @@ function processDemand(
         const { inputs, outputs } = recipeStore.flowsForProcess(rp.id);
 
         for (const flow of outputs) {
-            const record = createFlowRecord(flow, process.id, 'output', scaleFactor, processEnd, planId, agents, planStore, demand.atLocation);
+            const record = createFlowRecord(flow, process.id, 'output', scaleFactor, processEnd, planId, agents, planStore, demand.atLocation, transportLocations);
             if (hasAgents) {
                 result.commitments.push(record as Commitment);
             } else {
@@ -326,7 +359,7 @@ function processDemand(
         }
 
         for (const flow of inputs) {
-            const record = createFlowRecord(flow, process.id, 'input', scaleFactor, processBegin, planId, agents, planStore, demand.atLocation);
+            const record = createFlowRecord(flow, process.id, 'input', scaleFactor, processBegin, planId, agents, planStore, demand.atLocation, transportLocations);
             if (hasAgents) {
                 result.commitments.push(record as Commitment);
             } else {
@@ -357,9 +390,9 @@ function processDemand(
                         // VF spec: resources.md §Stage and state.
                         stage: flow.stage,
                         state: flow.state,
-                        // Propagate location: sub-processes in the same recipe chain
-                        // run at the same location as the parent demand.
-                        atLocation: demand.atLocation,
+                        // Propagate location: for transport recipes, inputs are at the
+                        // origin (from); for production recipes, same as parent demand.
+                        atLocation: transportLocations?.from ?? demand.atLocation,
                     });
                 }
             }
@@ -384,6 +417,7 @@ function createFlowRecord(
     agents: { provider?: string; receiver?: string } | undefined,
     planStore: PlanStore,
     atLocation?: string,
+    transportLocations?: { from: string; to: string },
 ): Commitment | Intent {
     // Validate action direction against VF spec
     const def = ACTION_DEFINITIONS[flow.action];
@@ -399,6 +433,27 @@ function createFlowRecord(
                 `Action '${flow.action}' (inputOutput='${def.inputOutput}') ` +
                 `cannot be used as a process output.`
             );
+        }
+    }
+
+    // For transport recipes, assign locations by action semantics:
+    //   pickup   → origin (from)       — where cargo is loaded
+    //   dropoff  → destination (to)    — where cargo is delivered
+    //   use/work → origin (from)       — equipment and labour start at origin
+    //   produce/lower → no location    — byproducts (CO2, waste) are atmospheric/
+    //                                    global; not tied to a specific point on the route.
+    //                                    Callers that need emissions attributed to a
+    //                                    specific agent do so via provider/receiver, not location.
+    let effectiveLocation = atLocation;
+    if (transportLocations) {
+        if (flow.action === 'pickup') {
+            effectiveLocation = transportLocations.from;
+        } else if (flow.action === 'dropoff') {
+            effectiveLocation = transportLocations.to;
+        } else if (flow.action === 'produce' || flow.action === 'lower') {
+            effectiveLocation = undefined;  // byproducts: no specific location
+        } else {
+            effectiveLocation = transportLocations.from;  // use/consume/work → origin
         }
     }
 
@@ -428,7 +483,7 @@ function createFlowRecord(
             due: dueDate.toISOString(),
             created: new Date().toISOString(),
             plannedWithin: planId,
-            atLocation,
+            atLocation: effectiveLocation,
             finished: false,
         });
     }
@@ -447,7 +502,7 @@ function createFlowRecord(
         receiver,
         due: dueDate.toISOString(),
         plannedWithin: planId,
-        atLocation,
+        atLocation: effectiveLocation,
         finished: false,
     });
 }

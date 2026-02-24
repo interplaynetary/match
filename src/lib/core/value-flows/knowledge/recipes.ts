@@ -266,6 +266,27 @@ export class RecipeStore {
     }
 
     /**
+     * Find all recipes that transport a resource spec — recipes that have both a
+     * `pickup specId` input and a `dropoff specId` output in their process chain.
+     *
+     * Location comes from the planning task, not the recipe (recipes stay abstract).
+     * Used by dependentDemand() to resolve spatial displacement sub-tasks.
+     */
+    recipesForTransport(specId: string): Recipe[] {
+        const pickupProcessIds = new Set<string>();
+        const dropoffProcessIds = new Set<string>();
+        for (const flow of this.recipeFlows.values()) {
+            if (flow.resourceConformsTo !== specId) continue;
+            if (flow.action === 'pickup'  && flow.recipeInputOf)  pickupProcessIds.add(flow.recipeInputOf);
+            if (flow.action === 'dropoff' && flow.recipeOutputOf) dropoffProcessIds.add(flow.recipeOutputOf);
+        }
+        return Array.from(this.recipes.values()).filter(r =>
+            r.recipeProcesses?.some(pId => pickupProcessIds.has(pId)) &&
+            r.recipeProcesses?.some(pId => dropoffProcessIds.has(pId)),
+        );
+    }
+
+    /**
      * Get the process chain for a recipe in topological order
      * (dependencies first, final output process last).
      *

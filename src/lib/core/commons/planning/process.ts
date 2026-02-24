@@ -92,6 +92,7 @@ export const Resource = z.object({
     max_participation: z.number().int().positive().optional(),
     max_concurrency: z.number().int().positive().optional(),
     min_calendar_duration: z.number().positive().optional(),
+    
     required_skills: z.array(SkillSchema).optional(),
     filter_rule: z.any().optional(),
     mutual_agreement_required: z.boolean().optional(),
