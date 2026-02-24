@@ -17,6 +17,8 @@
 
 import type { PlanStore } from './planning';
 import type { Observer } from '../observation/observer';
+import type { ScheduleBook } from './schedule-book';
+import { isWithinTemporalExpression } from '../utils/time';
 
 // =============================================================================
 // TYPES
@@ -43,6 +45,7 @@ export class PlanNetter {
     constructor(
         private readonly planStore: PlanStore,
         private readonly observer?: Observer,
+        private readonly scheduleBook?: ScheduleBook,
     ) {}
 
     /**
@@ -202,6 +205,14 @@ export class PlanNetter {
                 if (r.containedIn !== undefined) continue;
                 // Location guard: only count inventory at the queried location
                 if (opts?.atLocation && r.currentLocation && r.currentLocation !== opts.atLocation) continue;
+                // Availability guard: delegate to scheduleBook when available, else inline check
+                if (opts?.asOf) {
+                    if (this.scheduleBook) {
+                        if (!this.scheduleBook.isResourceAvailable(r.id, opts.asOf)) continue;
+                    } else if (r.availability_window) {
+                        if (!isWithinTemporalExpression(opts.asOf, r.availability_window)) continue;
+                    }
+                }
                 total += r.accountingQuantity?.hasNumericalValue ?? 0;
             }
         }

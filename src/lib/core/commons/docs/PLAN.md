@@ -137,7 +137,7 @@
 
 # Planning Loop
 
-The integrated planning engine operates as a multi-resolution search over H3 spatial cells, driving a 3-phase pipeline to reconcile social needs with material and labor feasibility.
+We are aiming to define an integrated planning engine that uses some combination of forward/backwards passes with spatio-temporal optimizations to reconcile social needs with material and labor feasibility.
 
 ## 👥 Demand Categories (D-Series)
 
@@ -175,35 +175,6 @@ efficiency_factor: 0.95 // after 100 uses, 5% less efficient
 - We can then see what processes extend life-span? Number of uses? How did stockbook keep track?
 - Cuz then we see whether we should do processes to repair/maintain/extend life-span of economic-resource
   or produce more of it to make u for those used?
-
-## 🔄 The 3-Phase Leaf Pipeline
-
-For every H3 leaf cell, the planner runs a localized search:
-
-1. **Phase 1: Forward Pass (Feasibility)**
-   - Computes "feasibility envelopes" for every recipe in the catalog.
-   - Bounded by current **Inventory** (depleting materials and durable tools) and **Labor Capacity** (available skills and hours in the cell).
-   - Recipes are sorted by **SNLT Efficiency** (least labor-time per output unit).
-
-2. **Phase 2: Backward Pass (D-Series Loop)**
-   - Resolves supply chains in order of criticality (D1 → Intermediate → D3 → D4 → D5 → D6).
-   - Recursively expands dependencies: if a recipe requires an input that is not in inventory, it generates a new intermediate demand.
-   - Selects the most efficient feasible recipes first to minimize total social labor-time.
-
-3. **Phase 3: Instantiation**
-   - Pure, in-memory generation of the **Recipe Graph** (VF Processes and Commitments).
-   - No side effects are written to the database during this phase.
-
-## 🌐 Multi-Resolution Merge Search
-
-To find the global optimum, the planner performs a bottom-up merge:
-
-- **Leaf Resolution**: High-fidelity local planning (~0.1 km²).
-- **Merge Frontier**: Scenarios are merged from leaf cells up to regional root cells.
-- **Pareto Pruning**: At each merge step, "inferior" plans are discarded. The engine keeps a **Pareto Front** of non-dominated scenarios, balancing:
-  - **Coverage**: How much demand was satisfied?
-  - **Effort**: How much labor-time was required?
-- **Promotion**: The winning scenario is selected (either manually or by policy) and promoted to a committed **Plan**, where it is finally persisted as actualized VF processes.
 
 # Antifragility (Robust Heuristics for Planning)
 

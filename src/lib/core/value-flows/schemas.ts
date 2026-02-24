@@ -452,6 +452,7 @@ export const AgentSchema = z.object({
     image: z.string().optional(),
     primaryLocation: z.string().optional(), // SpatialThing ID or inline
     classifiedAs: z.array(z.string()).optional(),
+    availability_window: TemporalExpressionSchema.optional(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
 
@@ -648,6 +649,9 @@ export const EconomicResourceSchema = z.object({
 
     // Track/trace breadcrumb (set by Observer on event recording)
     previousEvent: z.string().optional(),                  // EconomicEvent ID
+
+    // Persistent availability (machine operating hours, person's schedule, etc.)
+    availability_window: TemporalExpressionSchema.optional(),
 });
 export type EconomicResource = z.infer<typeof EconomicResourceSchema>;
 

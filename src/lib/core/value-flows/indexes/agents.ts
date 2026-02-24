@@ -19,13 +19,13 @@
  */
 
 import {
-    createHexIndex, addItemToHexIndex, queryHexIndexRadius,
+    createHexIndex, addItemToHexIndex, queryHexIndexRadius, queryHexOnDate,
     type HexIndex, type HexNode,
 } from '../utils/space-time-index';
 import { getSpaceTimeSignature, intentToSpaceTimeContext } from '../utils/space-time-keys';
-import type { TemporalExpression } from '../utils/time';
+import { hoursInWindowOnDate, type TemporalExpression } from '../utils/time';
 import { spatialThingToH3 } from '../utils/space';
-import type { Agent, Intent, SpatialThing } from '../schemas';
+import type { Agent, Intent, SpatialThing, Commitment } from '../schemas';
 
 // =============================================================================
 // TYPES
@@ -81,6 +81,25 @@ export interface AgentCapacity {
      */
     start_date?: string | null;
     end_date?: string | null;
+
+    /**
+     * Full temporal pattern for this capacity node.
+     * Set when the contributing Intent carries an availability_window.
+     * Null/absent for one-off intents (use start_date/end_date instead).
+     *
+     * Callers MUST check this (or start_date/end_date) before summing total_hours
+     * across nodes — never aggregate without verifying window compatibility.
+     */
+    availability_window?: TemporalExpression;
+
+    /**
+     * Effort hours already committed (work Commitments where provider === agent_id
+     * overlapping this capacity's [start_date, end_date]).
+     * 0 when buildAgentIndex is called without commitments.
+     */
+    committed_hours: number;
+    /** Remaining available = max(0, total_hours - committed_hours). */
+    remaining_hours: number;
 }
 
 /**
@@ -130,6 +149,39 @@ function addTo(map: Map<string, Set<string>>, key: string, id: string): void {
 }
 
 /**
+ * Returns true if commitment `c` temporally overlaps the capacity window
+ * [capStart, capEnd) (both are nullable ISO strings).
+ *
+ * Rules:
+ *   - If capacity has no dates → accept all (unbounded capacity window)
+ *   - If commitment has no dates → accept it (conservative: could be anytime)
+ *   - Non-overlap: cEnd <= capStart || cStart >= capEnd → false
+ */
+function commitmentOverlapsCapacity(
+    c: Commitment,
+    capStart: string | null | undefined,
+    capEnd: string | null | undefined,
+): boolean {
+    // Unbounded capacity window — always overlaps
+    if (!capStart && !capEnd) return true;
+
+    const cStart = c.hasBeginning ?? c.hasPointInTime ?? c.due ?? null;
+    const cEnd = c.hasEnd ?? c.hasPointInTime ?? c.due ?? null;
+
+    // Commitment has no temporal anchors — conservative: accept
+    if (!cStart && !cEnd) return true;
+
+    const capS = capStart ? new Date(capStart).getTime() : -Infinity;
+    const capE = capEnd ? new Date(capEnd).getTime() : Infinity;
+    const cs = cStart ? new Date(cStart).getTime() : -Infinity;
+    const ce = cEnd ? new Date(cEnd).getTime() : Infinity;
+
+    // Non-overlap check (half-open intervals)
+    if (ce <= capS || cs >= capE) return false;
+    return true;
+}
+
+/**
  * Build an AgentIndex from a set of Intents and Agents.
  *
  * Only `work` Intents contribute capacity nodes. Other actions are ignored
@@ -145,6 +197,7 @@ export function buildAgentIndex(
     agents: Agent[],
     locations: Map<string, SpatialThing>,
     h3Resolution: number = 7,
+    commitments: Commitment[] = [],
 ): AgentIndex {
     const index: AgentIndex = {
         agents: new Map(agents.map(a => [a.id, a])),
@@ -201,9 +254,29 @@ export function buildAgentIndex(
         }
     }
 
+    // Pre-index work commitments by provider for O(1) lookup below
+    const workCommitmentsByProvider = new Map<string, Commitment[]>();
+    for (const c of commitments) {
+        if (c.action !== 'work' || !c.provider) continue;
+        const existing = workCommitmentsByProvider.get(c.provider);
+        if (existing) {
+            existing.push(c);
+        } else {
+            workCommitmentsByProvider.set(c.provider, [c]);
+        }
+    }
+
     // Commit accumulator → AgentCapacity records and build all indexes
     for (const [capacityId, acc] of accumulator) {
         const h3Cell = acc.st ? spatialThingToH3(acc.st, h3Resolution) : undefined;
+
+        // Tally committed effort hours for this capacity window
+        let committed_hours = 0;
+        for (const c of workCommitmentsByProvider.get(acc.agent_id) ?? []) {
+            if (!commitmentOverlapsCapacity(c, acc.start_date, acc.end_date)) continue;
+            committed_hours += c.effortQuantity?.hasNumericalValue ?? 0;
+        }
+        const remaining_hours = Math.max(0, acc.max_hours - committed_hours);
 
         const capacity: AgentCapacity = {
             id: capacityId,
@@ -219,6 +292,9 @@ export function buildAgentIndex(
             } : undefined,
             start_date: acc.start_date,
             end_date: acc.end_date,
+            availability_window: acc.availability_window,
+            committed_hours,
+            remaining_hours,
         };
 
         index.agent_capacities.set(capacityId, capacity);
@@ -245,6 +321,36 @@ export function buildAgentIndex(
     }
 
     return index;
+}
+
+// =============================================================================
+// TEMPORAL PREDICATE — extracted and named so it is usable from ScheduleBook
+// =============================================================================
+
+/**
+ * Returns true if the capacity node covers the given calendar date.
+ *
+ * Priority (mirrors blockOverlapsDate in ScheduleBook, applied to AgentCapacity fields):
+ *   1. availability_window → `hoursInWindowOnDate(window, dt) > 0`
+ *   2. start_date present → calendar-day equality on the ISO date
+ *   3. end_date present (due-based intent) → calendar-day equality
+ *   4. No temporal info → true (conservative: could be any time)
+ *
+ * This is the single canonical day-coverage check used by `netEffortHours`
+ * and `getTotalAgentHours`.
+ */
+export function nodeCoversDay(capacity: AgentCapacity, dt: Date): boolean {
+    if (capacity.availability_window) {
+        return hoursInWindowOnDate(capacity.availability_window, dt) > 0;
+    }
+    const isoDate = dt.toISOString().split('T')[0];
+    if (capacity.start_date) {
+        return capacity.start_date.slice(0, 10) === isoDate;
+    }
+    if (capacity.end_date) {
+        return capacity.end_date.slice(0, 10) === isoDate;
+    }
+    return true; // no temporal anchor → conservative
 }
 
 // =============================================================================
@@ -305,7 +411,45 @@ export function queryAgentsByHex(index: AgentIndex, cell: string): HexNode<Agent
  * Sum total_hours across capacity nodes.
  * Safe — each node is deduplicated to one agent per space-time context.
  * Analogous to getTotalHours in LaborIndex.
+ *
+ * When `dt` is provided, only nodes whose window covers that calendar date
+ * (per `nodeCoversDay`) contribute to the sum. This prevents mixing hours
+ * from different temporal contexts (e.g. recurring Mon-only nodes counted
+ * on a Tuesday query).
  */
-export function getTotalAgentHours(capacities: AgentCapacity[]): number {
-    return capacities.reduce((sum, c) => sum + c.total_hours, 0);
+export function getTotalAgentHours(capacities: AgentCapacity[], dt?: Date): number {
+    const filtered = dt ? capacities.filter(c => nodeCoversDay(c, dt)) : capacities;
+    return filtered.reduce((sum, c) => sum + c.total_hours, 0);
+}
+
+/**
+ * Net remaining effort hours for `agentId` on calendar date `dt`.
+ *
+ * Filters capacity nodes by `agent_id === agentId` and `nodeCoversDay(node, dt)`,
+ * then sums `remaining_hours` (already net of committed hours from `buildAgentIndex`).
+ *
+ * When `location` is provided, additionally restricts to nodes whose spatial
+ * context falls within `radius_km` of `(lat, lon)` via `queryHexOnDate` on
+ * the index's `spatial_hierarchy`.
+ */
+export function netEffortHours(
+    agentId: string,
+    dt: Date,
+    index: AgentIndex,
+    location?: { lat: number; lon: number; radius_km?: number },
+): number {
+    let candidates = [...index.agent_capacities.values()]
+        .filter(c => c.agent_id === agentId && nodeCoversDay(c, dt));
+
+    if (location) {
+        const isoDate = dt.toISOString().split('T')[0];
+        const spatialIds = queryHexOnDate(
+            index.spatial_hierarchy,
+            { latitude: location.lat, longitude: location.lon, radius_km: location.radius_km },
+            isoDate,
+        );
+        candidates = candidates.filter(c => spatialIds.has(c.id));
+    }
+
+    return candidates.reduce((sum, c) => sum + c.remaining_hours, 0);
 }

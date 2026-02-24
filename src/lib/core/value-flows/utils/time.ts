@@ -185,3 +185,195 @@ export type TemporalExpression = z.infer<typeof TemporalExpressionSchema>;
 export function isSpecificDateWindow(t: TemporalExpression): t is SpecificDateWindow {
     return 'specific_dates' in t;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// TEMPORAL MATCHING — check whether a Date falls inside a window
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Returns true if the HH:MM string `time` falls within any of `ranges`.
+ * End-exclusive: start_time <= time < end_time.
+ */
+export function isTimeInRanges(time: string, ranges: TimeRange[]): boolean {
+    return ranges.some(r => time >= r.start_time && time < r.end_time);
+}
+
+/**
+ * Extract day-of-week, week-of-month, and month from a Date object using UTC.
+ * Mirrors the logic of `calendarComponents` in space-time-keys.ts (inlined to
+ * avoid a circular import: space-time-keys imports from time.ts).
+ */
+function utcDateComponents(dt: Date): { day: DayOfWeek; week: number; month: number } {
+    const DAY_NAMES: DayOfWeek[] = [
+        'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+    ];
+    return {
+        day:   DAY_NAMES[dt.getUTCDay()],
+        week:  Math.ceil(dt.getUTCDate() / 7),
+        month: dt.getUTCMonth() + 1,
+    };
+}
+
+/**
+ * Returns true if `dt` falls within the given TemporalExpression.
+ *
+ * SpecificDateWindow: the UTC date must be in specific_dates, and if
+ * time_ranges are present the UTC HH:MM must fall inside one of them.
+ *
+ * AvailabilityWindow: walks the priority hierarchy
+ *   month_schedules > week_schedules > day_schedules > time_ranges.
+ * All comparisons use UTC to match calendarComponents conventions.
+ */
+export function isWithinTemporalExpression(dt: Date, window: TemporalExpression): boolean {
+    const isoDate = dt.toISOString().split('T')[0];          // YYYY-MM-DD (UTC)
+    const time    = dt.toISOString().split('T')[1].slice(0, 5); // HH:MM (UTC)
+
+    if (isSpecificDateWindow(window)) {
+        if (!window.specific_dates.includes(isoDate)) return false;
+        if (window.time_ranges && window.time_ranges.length > 0) {
+            return isTimeInRanges(time, window.time_ranges);
+        }
+        return true;
+    }
+
+    // AvailabilityWindow — hierarchical priority
+    const { day, week, month } = utcDateComponents(dt);
+
+    if (window.month_schedules && window.month_schedules.length > 0) {
+        for (const ms of window.month_schedules) {
+            if (ms.month !== month) continue;
+            if (ms.week_schedules && ms.week_schedules.length > 0) {
+                for (const ws of ms.week_schedules) {
+                    if (!ws.weeks.includes(week)) continue;
+                    for (const ds of ws.day_schedules) {
+                        if (!ds.days.includes(day)) continue;
+                        if (isTimeInRanges(time, ds.time_ranges)) return true;
+                    }
+                }
+            } else if (ms.day_schedules && ms.day_schedules.length > 0) {
+                for (const ds of ms.day_schedules) {
+                    if (!ds.days.includes(day)) continue;
+                    if (isTimeInRanges(time, ds.time_ranges)) return true;
+                }
+            } else if (ms.time_ranges && ms.time_ranges.length > 0) {
+                if (isTimeInRanges(time, ms.time_ranges)) return true;
+            }
+        }
+        return false;
+    }
+
+    if (window.week_schedules && window.week_schedules.length > 0) {
+        for (const ws of window.week_schedules) {
+            if (!ws.weeks.includes(week)) continue;
+            for (const ds of ws.day_schedules) {
+                if (!ds.days.includes(day)) continue;
+                if (isTimeInRanges(time, ds.time_ranges)) return true;
+            }
+        }
+        return false;
+    }
+
+    if (window.day_schedules && window.day_schedules.length > 0) {
+        for (const ds of window.day_schedules) {
+            if (!ds.days.includes(day)) continue;
+            if (isTimeInRanges(time, ds.time_ranges)) return true;
+        }
+        return false;
+    }
+
+    if (window.time_ranges && window.time_ranges.length > 0) {
+        return isTimeInRanges(time, window.time_ranges);
+    }
+
+    return false;
+}
+
+// =============================================================================
+// HOURS CALCULATION — how many hours a window grants on a specific date
+// =============================================================================
+
+/**
+ * Sum the total hours covered by an array of TimeRanges.
+ * Each range is treated as [start_time, end_time); negative spans → 0.
+ */
+function sumTimeRangeHours(ranges: TimeRange[]): number {
+    return ranges.reduce((sum, r) => {
+        const [sh, sm = 0] = r.start_time.split(':').map(Number);
+        const [eh, em = 0] = r.end_time.split(':').map(Number);
+        return sum + Math.max(0, (eh + em / 60) - (sh + sm / 60));
+    }, 0);
+}
+
+/**
+ * Returns the number of hours that `window` grants on the UTC calendar date
+ * represented by `dt`.
+ *
+ * Mirrors the traversal hierarchy of isWithinTemporalExpression exactly
+ * (month_schedules → week_schedules → day_schedules → time_ranges) but
+ * accumulates hours rather than returning a boolean.
+ *
+ * Returns 0 when the window does not apply to the given date.
+ * Returns 24 when the window applies but specifies no time_ranges (all-day).
+ */
+export function hoursInWindowOnDate(window: TemporalExpression, dt: Date): number {
+    const isoDate = dt.toISOString().split('T')[0]; // YYYY-MM-DD (UTC)
+
+    if (isSpecificDateWindow(window)) {
+        if (!window.specific_dates.includes(isoDate)) return 0;
+        if (window.time_ranges && window.time_ranges.length > 0) {
+            return sumTimeRangeHours(window.time_ranges);
+        }
+        return 24;
+    }
+
+    // AvailabilityWindow — hierarchical priority
+    const { day, week, month } = utcDateComponents(dt);
+
+    if (window.month_schedules && window.month_schedules.length > 0) {
+        for (const ms of window.month_schedules) {
+            if (ms.month !== month) continue;
+            if (ms.week_schedules && ms.week_schedules.length > 0) {
+                for (const ws of ms.week_schedules) {
+                    if (!ws.weeks.includes(week)) continue;
+                    for (const ds of ws.day_schedules) {
+                        if (!ds.days.includes(day)) continue;
+                        return sumTimeRangeHours(ds.time_ranges);
+                    }
+                }
+            } else if (ms.day_schedules && ms.day_schedules.length > 0) {
+                for (const ds of ms.day_schedules) {
+                    if (!ds.days.includes(day)) continue;
+                    return sumTimeRangeHours(ds.time_ranges);
+                }
+            } else if (ms.time_ranges && ms.time_ranges.length > 0) {
+                return sumTimeRangeHours(ms.time_ranges);
+            }
+        }
+        return 0;
+    }
+
+    if (window.week_schedules && window.week_schedules.length > 0) {
+        for (const ws of window.week_schedules) {
+            if (!ws.weeks.includes(week)) continue;
+            for (const ds of ws.day_schedules) {
+                if (!ds.days.includes(day)) continue;
+                return sumTimeRangeHours(ds.time_ranges);
+            }
+        }
+        return 0;
+    }
+
+    if (window.day_schedules && window.day_schedules.length > 0) {
+        for (const ds of window.day_schedules) {
+            if (!ds.days.includes(day)) continue;
+            return sumTimeRangeHours(ds.time_ranges);
+        }
+        return 0;
+    }
+
+    if (window.time_ranges && window.time_ranges.length > 0) {
+        return sumTimeRangeHours(window.time_ranges);
+    }
+
+    return 0;
+}

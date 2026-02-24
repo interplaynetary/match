@@ -854,6 +854,32 @@ export class Observer {
     }
 
     // =========================================================================
+    // QUERIES — Skills
+    // =========================================================================
+
+    /**
+     * All EconomicResources whose primaryAccountable is agentId.
+     * Each resource represents one skill instance held by the agent.
+     * Skill type convention: resource.conformsTo points to a ResourceSpecification
+     * tagged with resourceClassifiedAs: ['skill'].
+     */
+    skillsOf(agentId: string): EconomicResource[] {
+        return this.allResources().filter(r => r.primaryAccountable === agentId);
+    }
+
+    /**
+     * Agent IDs that hold an EconomicResource conforming to the given skill spec.
+     * Returns unique agent IDs (an agent may hold multiple resources of the same spec).
+     */
+    agentsWithSkill(specId: string): string[] {
+        return [...new Set(
+            this.allResources()
+                .filter(r => r.conformsTo === specId && r.primaryAccountable)
+                .map(r => r.primaryAccountable!),
+        )];
+    }
+
+    // =========================================================================
     // QUERIES — Track / Trace
     // =========================================================================
 
