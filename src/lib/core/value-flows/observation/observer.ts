@@ -42,8 +42,10 @@ export type ObserverEvent =
     | { type: 'resource_updated'; resource: EconomicResource; event: EconomicEvent; changes: string[] }
     | { type: 'batch_created'; batch: BatchLotRecord; resource: EconomicResource; event: EconomicEvent }
     | { type: 'fulfilled'; event: EconomicEvent; commitmentId: string }
+    | { type: 'over_fulfilled'; event: EconomicEvent; commitmentId: string; overage: number }
     | { type: 'satisfied'; event: EconomicEvent; intentId: string }
     | { type: 'claim_settled'; event: EconomicEvent; claimId: string }
+    | { type: 'process_completed'; processId: string }
     | { type: 'error'; eventId: string; error: string };
 
 export type ObserverListener = (event: ObserverEvent) => void | Promise<void>;
@@ -58,6 +60,7 @@ export interface FulfillmentState {
     totalFulfilled: Measure;
     fulfillingEvents: string[];
     finished: boolean;
+    overFulfilled: boolean;
 }
 
 export interface SatisfactionState {
@@ -110,6 +113,14 @@ export class Observer {
     private fulfillments = new Map<string, FulfillmentState>();
     private satisfactions = new Map<string, SatisfactionState>();
     private claimStates = new Map<string, ClaimState>();
+
+    // Entity stores (Claims and Agreements registered externally)
+    private claims = new Map<string, Claim>();
+    private agreements = new Map<string, Agreement>();
+
+    // Extra indexes
+    private commitmentsByAgreementMap = new Map<string, string[]>();
+    private eventsByAgreementMap = new Map<string, string[]>();
 
     // Indexes
     private eventsByResource = new Map<string, string[]>();
@@ -220,7 +231,21 @@ export class Observer {
             totalFulfilled: { hasNumericalValue: 0, hasUnit: qty.hasUnit },
             fulfillingEvents: [],
             finished: false,
+            overFulfilled: false,
         });
+        // Link commitment to its satisfaction intent (I3)
+        if (commitment.satisfies) {
+            const sat = this.satisfactions.get(commitment.satisfies);
+            if (sat && !sat.satisfyingCommitments.includes(commitment.id)) {
+                sat.satisfyingCommitments.push(commitment.id);
+            }
+        }
+        // Index commitment by its agreement (G3)
+        if (commitment.clauseOf) {
+            const list = this.commitmentsByAgreementMap.get(commitment.clauseOf) ?? [];
+            list.push(commitment.id);
+            this.commitmentsByAgreementMap.set(commitment.clauseOf, list);
+        }
     }
 
     registerIntent(intent: Intent): void {
@@ -239,6 +264,8 @@ export class Observer {
     registerClaim(claim: Claim): void {
         const qty = claim.resourceQuantity ?? claim.effortQuantity;
         if (!qty) return;
+        // Store raw claim so it can be queried later (C1)
+        this.claims.set(claim.id, claim);
         this.claimStates.set(claim.id, {
             claimId: claim.id,
             totalClaimed: { ...qty },
@@ -265,6 +292,17 @@ export class Observer {
     // =========================================================================
 
     private applyEffects(event: EconomicEvent): EconomicResource[] {
+        // Guard: same resource cannot be both source and destination (J2)
+        if (
+            event.resourceInventoriedAs &&
+            event.toResourceInventoriedAs &&
+            event.resourceInventoriedAs === event.toResourceInventoriedAs
+        ) {
+            this.emit({ type: 'error', eventId: event.id,
+                error: `resourceInventoriedAs and toResourceInventoriedAs cannot be the same resource` });
+            return [];
+        }
+
         const def = ACTION_DEFINITIONS[event.action];
         const affected: EconomicResource[] = [];
         const affectedIds = new Set<string>();
@@ -418,9 +456,10 @@ export class Observer {
 
     private createResource(event: EconomicEvent, id: string): EconomicResource {
         const unit = event.resourceQuantity?.hasUnit ?? 'each';
+        const conformsTo = event.resourceConformsTo ?? '';
         const resource: EconomicResource = {
             id,
-            conformsTo: event.resourceConformsTo ?? '',
+            conformsTo,
             classifiedAs: event.resourceClassifiedAs,
             accountingQuantity: { hasNumericalValue: 0, hasUnit: unit },
             onhandQuantity: { hasNumericalValue: 0, hasUnit: unit },
@@ -429,6 +468,11 @@ export class Observer {
             state: event.state,
         };
         this.resources.set(id, resource);
+        // Warn when no spec is provided — resource will be unclassifiable (J3)
+        if (!conformsTo) {
+            this.emit({ type: 'error', eventId: event.id,
+                error: `auto-created resource '${id}' has no conformsTo; set resourceConformsTo on the event` });
+        }
         return resource;
     }
 
@@ -561,6 +605,12 @@ export class Observer {
         }
         state.fulfillingEvents.push(event.id);
         state.finished = state.totalFulfilled.hasNumericalValue >= state.totalCommitted.hasNumericalValue;
+        // Over-fulfillment detection (I1)
+        if (state.totalFulfilled.hasNumericalValue > state.totalCommitted.hasNumericalValue) {
+            const overage = state.totalFulfilled.hasNumericalValue - state.totalCommitted.hasNumericalValue;
+            state.overFulfilled = true;
+            this.emit({ type: 'over_fulfilled', event, commitmentId, overage });
+        }
         this.emit({ type: 'fulfilled', event, commitmentId });
     }
 
@@ -639,18 +689,27 @@ export class Observer {
     /**
      * Get inventory view — all resources grouped with quantities and batches.
      * This IS the stockbook: "what do we have?"
+     *
+     * By default, depleted resources (both accounting and onhand qty ≤ 0) are excluded.
+     * Pass `{ includeEmpty: true }` to include them (e.g. for audit / tracing).
      */
-    inventory(): InventoryEntry[] {
-        return this.allResources().map(r => ({
-            resource: r,
-            spec: r.conformsTo,
-            accountingQty: r.accountingQuantity?.hasNumericalValue ?? 0,
-            onhandQty: r.onhandQuantity?.hasNumericalValue ?? 0,
-            unit: r.accountingQuantity?.hasUnit ?? r.onhandQuantity?.hasUnit ?? 'each',
-            location: r.currentLocation,
-            accountable: r.primaryAccountable,
-            batches: this.batchesForResource(r.id),
-        }));
+    inventory(opts?: { includeEmpty?: boolean }): InventoryEntry[] {
+        return this.allResources()
+            .filter(r =>
+                opts?.includeEmpty ||
+                (r.accountingQuantity?.hasNumericalValue ?? 0) > 0 ||
+                (r.onhandQuantity?.hasNumericalValue ?? 0) > 0,
+            )
+            .map(r => ({
+                resource: r,
+                spec: r.conformsTo,
+                accountingQty: r.accountingQuantity?.hasNumericalValue ?? 0,
+                onhandQty: r.onhandQuantity?.hasNumericalValue ?? 0,
+                unit: r.accountingQuantity?.hasUnit ?? r.onhandQuantity?.hasUnit ?? 'each',
+                location: r.currentLocation,
+                accountable: r.primaryAccountable,
+                batches: this.batchesForResource(r.id),
+            }));
     }
 
     /**
@@ -738,6 +797,95 @@ export class Observer {
         return this.eventsForProcess(processId).filter(e => !e.fulfills);
     }
 
+    // =========================================================================
+    // QUERIES — Agreements and Claims
+    // =========================================================================
+
+    /**
+     * Register an Agreement so it can be retrieved by ID.
+     */
+    registerAgreement(agreement: Agreement): void {
+        this.agreements.set(agreement.id, agreement);
+    }
+
+    getAgreement(id: string): Agreement | undefined {
+        return this.agreements.get(id);
+    }
+
+    /**
+     * Get all economic events that realize a given Agreement.
+     */
+    eventsForAgreement(agreementId: string): EconomicEvent[] {
+        return (this.eventsByAgreementMap.get(agreementId) ?? [])
+            .map(id => this.eventsById.get(id)!)
+            .filter(Boolean);
+    }
+
+    /**
+     * Get all Claims that were triggered by a given EconomicEvent ID.
+     */
+    claimsTriggeredBy(eventId: string): Claim[] {
+        return Array.from(this.claims.values()).filter(c => c.triggeredBy === eventId);
+    }
+
+    /**
+     * Get all registered Claims.
+     */
+    allClaims(): Claim[] {
+        return Array.from(this.claims.values());
+    }
+
+    // =========================================================================
+    // QUERIES — Resource filters
+    // =========================================================================
+
+    /**
+     * Get all resources physically contained in a given container resource.
+     */
+    resourcesContainedIn(containerId: string): EconomicResource[] {
+        return this.allResources().filter(r => r.containedIn === containerId);
+    }
+
+    /**
+     * Get all resources with a given state value.
+     */
+    resourcesByState(state: string): EconomicResource[] {
+        return this.allResources().filter(r => r.state === state);
+    }
+
+    // =========================================================================
+    // QUERIES — Track / Trace
+    // =========================================================================
+
+    /**
+     * Get events for a resource excluding those overridden by a correction.
+     * An event is "corrected" when another event has `corrects === event.id`.
+     */
+    activeEventsForResource(resourceId: string): EconomicEvent[] {
+        const all = this.eventsForResource(resourceId);
+        const correctedIds = new Set(all.filter(e => e.corrects).map(e => e.corrects!));
+        return all.filter(e => !correctedIds.has(e.id));
+    }
+
+    /**
+     * Walk the previousEvent chain for a resource, returning events in
+     * chronological order (oldest first).
+     */
+    traceResource(resourceId: string): EconomicEvent[] {
+        const result: EconomicEvent[] = [];
+        const resource = this.getResource(resourceId);
+        let eventId: string | undefined = resource?.previousEvent;
+        const seen = new Set<string>();
+        while (eventId && !seen.has(eventId)) {
+            seen.add(eventId);
+            const event = this.eventsById.get(eventId);
+            if (!event) break;
+            result.unshift(event);
+            eventId = event.previousEvent;
+        }
+        return result;
+    }
+
     /**
      * Record an exchange — two or more reciprocal events tied to an Agreement.
      * Supports bilateral (2 events) and multilateral (3+ events in a cycle).
@@ -752,6 +900,8 @@ export class Observer {
         agreement: Agreement;
         events: EconomicEvent[];
     }): EconomicResource[][] {
+        // Auto-register agreement so it's queryable (G3 / M3)
+        this.agreements.set(params.agreement.id, params.agreement);
         for (const event of params.events) {
             const def = ACTION_DEFINITIONS[event.action];
             if (!def.eligibleForExchange) {
@@ -789,6 +939,7 @@ export class Observer {
 
         if (trackedOutputFulfillments.length > 0 && trackedOutputFulfillments.every(f => f.finished)) {
             this.processes.markFinished(processId);
+            this.emit({ type: 'process_completed', processId });
         }
     }
 
@@ -836,7 +987,11 @@ export class Observer {
     private applyCorrection(correctionEvent: EconomicEvent): void {
         const originalId = correctionEvent.corrects!;
         const original = this.eventsById.get(originalId);
-        if (!original) return;
+        if (!original) {
+            this.emit({ type: 'error', eventId: correctionEvent.id,
+                error: `correction target '${originalId}' not found` });
+            return;
+        }
 
         // Negate the original event's effects on resources
         const def = ACTION_DEFINITIONS[original.action];
@@ -902,6 +1057,9 @@ export class Observer {
         this.appendIndex(this.eventsByAgent, event.provider, event.id);
         this.appendIndex(this.eventsByAgent, event.receiver, event.id);
         this.appendIndex(this.eventsByAction, event.action, event.id);
+        if (event.realizationOf) {
+            this.appendIndex(this.eventsByAgreementMap, event.realizationOf, event.id);
+        }
     }
 
     private appendIndex<K>(map: Map<K, string[]>, key: K, value: string): void {
@@ -937,6 +1095,10 @@ export class Observer {
         this.fulfillments.clear();
         this.satisfactions.clear();
         this.claimStates.clear();
+        this.claims.clear();
+        this.agreements.clear();
+        this.commitmentsByAgreementMap.clear();
+        this.eventsByAgreementMap.clear();
         this.eventsByResource.clear();
         this.eventsByProcess.clear();
         this.eventsByAgent.clear();
