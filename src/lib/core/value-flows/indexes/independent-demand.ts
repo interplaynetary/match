@@ -17,7 +17,8 @@
  *   - "Which open demands are near this location?" (spatial_hierarchy, radius query)
  *
  * Contrast with IntentIndex: IntentIndex holds ALL Intents (for discovery/matching).
- * IndependentDemandIndex holds only UNSATISFIED demand — the planning frontier.
+ * IndependentDemandIndex holds all non-finished Intents (open and fulfilled alike).
+ * Use queryOpenDemands() to get only the open planning frontier.
  */
 
 import {
@@ -33,11 +34,14 @@ import type { Intent, Commitment, EconomicEvent, SpatialThing } from '../schemas
 // =============================================================================
 
 /**
- * An open (unsatisfied) demand slot.
+ * A demand slot — one per non-finished Intent.
  *
  * Wraps the Intent with derived demand metadata useful for planning:
- *   - remaining quantity (how much is still needed after partial satisfaction)
+ *   - fulfilled/remaining quantities (partial-fulfillment tracking)
  *   - h3Cell canonical address at the planning resolution
+ *
+ * Fully-satisfied slots (remaining=0) ARE present in the index.
+ * Use queryOpenDemands() to filter down to the open planning frontier.
  */
 export interface DemandSlot {
     intent_id: string;
@@ -48,11 +52,15 @@ export interface DemandSlot {
     /** VF action that would satisfy this demand (e.g. 'transfer', 'produce', 'work') */
     action: string;
 
-    /** Quantity still needed */
+    /** How much has already been fulfilled (sum of satisfying Commitments + Events) */
+    fulfilled_quantity: number;
+    fulfilled_hours: number;
+
+    /** Quantity still needed = max(0, required - fulfilled) */
     remaining_quantity: number;
     remaining_hours: number;
 
-    /** Original committed quantities from the Intent */
+    /** Original required quantities from the Intent */
     required_quantity: number;
     required_hours: number;
 
@@ -69,10 +77,11 @@ export interface DemandSlot {
 
 export interface IndependentDemandIndex {
     /**
-     * Open demand slots — one per unsatisfied Intent.
-     * Source of truth. Only Intents with no satisfying Commitment/Event appear here.
+     * ALL non-finished demand slots — one per non-finished Intent.
+     * Fully-satisfied slots (remaining=0) ARE present.
+     * Use queryOpenDemands() to filter down to the open planning frontier.
      */
-    open_demands: Map<string, DemandSlot>;
+    demands: Map<string, DemandSlot>;
 
     /**
      * Cell index — maps H3 cell (at build resolution) → Set<intentId>.
@@ -112,7 +121,7 @@ export interface IndependentDemandIndex {
     /**
      * Spatial hierarchy over open DemandSlots.
      * Enables radius queries: "what demand exists within 5km of this cell?"
-     * HexNode.items contains intentIds; resolve via open_demands.
+     * HexNode.items contains intentIds; resolve via demands.
      */
     spatial_hierarchy: HexIndex<DemandSlot>;
 }
@@ -130,14 +139,12 @@ function addTo(map: Map<string, Set<string>>, key: string | undefined, id: strin
 /**
  * Build the IndependentDemandIndex from Intents, Commitments, and observed Events.
  *
- * An Intent is considered satisfied when:
- *   - Any Commitment has `satisfies === intent.id`, OR
- *   - Any EconomicEvent has `satisfies === intent.id`, OR
- *   - The Intent itself has `finished === true`
+ * All non-finished Intents are included — both open and fully-satisfied.
+ * Use queryOpenDemands() to get only the open planning frontier.
  *
  * @param intents     All Intents in scope (offers and requests both included)
- * @param commitments All Commitments (used to check which Intents have been satisfied)
- * @param events      All EconomicEvents (used to check which Intents have been observed-satisfied)
+ * @param commitments All Commitments (used to compute fulfilled quantities)
+ * @param events      All EconomicEvents (used to compute fulfilled quantities)
  * @param locations   SpatialThing lookup for H3 indexing
  * @param h3Resolution H3 resolution for spatial bucketing (default 7 ≈ 1km²)
  */
@@ -149,7 +156,7 @@ export function buildIndependentDemandIndex(
     h3Resolution: number = 7,
 ): IndependentDemandIndex {
     const index: IndependentDemandIndex = {
-        open_demands: new Map(),
+        demands: new Map(),
         cell_index: new Map(),
         spec_index: new Map(),
         action_index: new Map(),
@@ -158,15 +165,7 @@ export function buildIndependentDemandIndex(
         spatial_hierarchy: createHexIndex<DemandSlot>(),
     };
 
-    // --- Phase 1: determine which Intents are already satisfied ---
-
-    // Build satisfaction sets — O(n) passes, no nested loops
-    const satisfiedByCommitment = new Set<string>(
-        commitments.filter(c => c.satisfies).map(c => c.satisfies!),
-    );
-    const satisfiedByEvent = new Set<string>(
-        events.filter(e => e.satisfies).map(e => e.satisfies!),
-    );
+    // --- Phase 1: compute fulfilled quantities per Intent ---
 
     // Partial fulfillment: sum quantities satisfied so far
     const fulfilledQty = new Map<string, number>();
@@ -186,13 +185,12 @@ export function buildIndependentDemandIndex(
         fulfilledHours.set(e.satisfies, prevH + (e.effortQuantity?.hasNumericalValue ?? 0));
     }
 
-    // --- Phase 2: build open demand slots from unsatisfied Intents ---
+    // --- Phase 2: build demand slots from all non-finished Intents ---
 
     for (const intent of intents) {
-        // Skip finished Intents
+        // Skip finished Intents only
         if (intent.finished) continue;
 
-        // Skip if fully satisfied (both qty and hours)
         const requiredQty   = intent.resourceQuantity?.hasNumericalValue ?? 0;
         const requiredHours = intent.effortQuantity?.hasNumericalValue   ?? 0;
         const doneQty   = fulfilledQty.get(intent.id)   ?? 0;
@@ -201,11 +199,6 @@ export function buildIndependentDemandIndex(
         const remainingQty   = Math.max(0, requiredQty   - doneQty);
         const remainingHours = Math.max(0, requiredHours - doneHours);
 
-        // Fully satisfied — not a demand
-        if (requiredQty > 0 && remainingQty <= 0 && requiredHours > 0 && remainingHours <= 0) continue;
-        if (requiredQty > 0 && remainingQty <= 0 && requiredHours === 0) continue;
-        if (requiredHours > 0 && remainingHours <= 0 && requiredQty === 0) continue;
-
         // Build the spatial context
         const st = intent.atLocation ? locations.get(intent.atLocation) : undefined;
         const ctx = intentToSpaceTimeContext(intent, st, h3Resolution);
@@ -213,20 +206,22 @@ export function buildIndependentDemandIndex(
         const h3Cell = st ? spatialThingToH3(st, h3Resolution) : undefined;
 
         const slot: DemandSlot = {
-            intent_id:          intent.id,
-            spec_id:            intent.resourceConformsTo,
-            action:             intent.action,
-            required_quantity:  requiredQty,
-            required_hours:     requiredHours,
-            remaining_quantity: remainingQty,
-            remaining_hours:    remainingHours,
-            h3_cell:            h3Cell,
-            due:                intent.due ?? intent.hasEnd ?? intent.hasPointInTime,
-            provider:           intent.provider,
-            receiver:           intent.receiver,
+            intent_id:           intent.id,
+            spec_id:             intent.resourceConformsTo,
+            action:              intent.action,
+            fulfilled_quantity:  doneQty,
+            fulfilled_hours:     doneHours,
+            required_quantity:   requiredQty,
+            required_hours:      requiredHours,
+            remaining_quantity:  remainingQty,
+            remaining_hours:     remainingHours,
+            h3_cell:             h3Cell,
+            due:                 intent.due ?? intent.hasEnd ?? intent.hasPointInTime,
+            provider:            intent.provider,
+            receiver:            intent.receiver,
         };
 
-        index.open_demands.set(intent.id, slot);
+        index.demands.set(intent.id, slot);
 
         addTo(index.cell_index,        h3Cell,                  intent.id);
         addTo(index.spec_index,        intent.resourceConformsTo, intent.id);
@@ -265,19 +260,20 @@ export function buildIndependentDemandIndex(
 // =============================================================================
 
 /**
- * Open demand slots for a given ResourceSpecification.
+ * Demand slots for a given ResourceSpecification.
  * Core planning question: "what demand exists for this type of resource?"
+ * Includes fully-satisfied slots; wrap with queryOpenDemands() if needed.
  */
 export function queryDemandBySpec(
     index: IndependentDemandIndex,
     specId: string,
 ): DemandSlot[] {
     const ids = index.spec_index.get(specId) ?? new Set<string>();
-    return [...ids].map(id => index.open_demands.get(id)!).filter(Boolean);
+    return [...ids].map(id => index.demands.get(id)!).filter(Boolean);
 }
 
 /**
- * Open demand slots by VF action.
+ * Demand slots by VF action.
  * E.g. "find all work demands" → queryDemandByAction(index, 'work')
  */
 export function queryDemandByAction(
@@ -285,11 +281,11 @@ export function queryDemandByAction(
     action: string,
 ): DemandSlot[] {
     const ids = index.action_index.get(action) ?? new Set<string>();
-    return [...ids].map(id => index.open_demands.get(id)!).filter(Boolean);
+    return [...ids].map(id => index.demands.get(id)!).filter(Boolean);
 }
 
 /**
- * Open demand slots near a location.
+ * Demand slots near a location.
  * Used during the leaf-level step: "what demands are in this H3 cell or nearby?"
  */
 export function queryDemandByLocation(
@@ -298,7 +294,7 @@ export function queryDemandByLocation(
 ): DemandSlot[] {
     if (!query.h3_index && query.latitude === undefined) return [];
     const ids = queryHexIndexRadius(index.spatial_hierarchy, query);
-    return [...ids].map(id => index.open_demands.get(id)!).filter(Boolean);
+    return [...ids].map(id => index.demands.get(id)!).filter(Boolean);
 }
 
 /**
@@ -315,7 +311,7 @@ export function queryDemandBySpecAndLocation(
     const spatialIds = queryHexIndexRadius(index.spatial_hierarchy, query);
     return [...specIds]
         .filter(id => spatialIds.has(id))
-        .map(id => index.open_demands.get(id)!)
+        .map(id => index.demands.get(id)!)
         .filter(Boolean);
 }
 
@@ -333,12 +329,32 @@ export function queryPlanDemands(
 /**
  * Raw HexNode for a cell — gives aggregated stats (count, sum quantity/hours)
  * and the full DemandSlot objects for that cell.
+ * Stats reflect remaining (not required) quantities, so fulfilled demand
+ * contributes zero to the aggregate.
  */
 export function queryDemandByHex(
     index: IndependentDemandIndex,
     cell: string,
 ): HexNode<DemandSlot> | null {
     return index.spatial_hierarchy.nodes.get(cell) ?? null;
+}
+
+/**
+ * Demand slots with outstanding requirements — the open planning frontier.
+ *
+ * A slot is open when at least one specified dimension has remaining > 0,
+ * OR when no quantity was specified (pure action demand).
+ *
+ * This is the equivalent of what was previously guaranteed by the index itself
+ * (only unsatisfied Intents appeared). Now the index is complete and this
+ * function provides the filtered view for callers that need it.
+ */
+export function queryOpenDemands(index: IndependentDemandIndex): DemandSlot[] {
+    return [...index.demands.values()].filter(s =>
+        s.remaining_quantity > 0 ||
+        s.remaining_hours > 0 ||
+        (s.required_quantity === 0 && s.required_hours === 0),
+    );
 }
 
 /**

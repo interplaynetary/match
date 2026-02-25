@@ -5,3 +5,4 @@ export * from './economic-events';
 export * from './economic-resources';
 export * from './proposals';
 export * from './independent-demand';
+export * from './independent-supply';

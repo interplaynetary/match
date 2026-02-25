@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { buildIndependentDemandIndex, queryDemandBySpecAndLocation, queryPlanDemands } from "../indexes/independent-demand";
+import { buildIndependentDemandIndex, queryDemandBySpecAndLocation, queryPlanDemands, queryOpenDemands } from "../indexes/independent-demand";
 import type { Intent, Commitment, EconomicEvent, SpatialThing } from "../schemas";
 
 describe("IndependentDemandIndex", () => {
@@ -58,15 +58,28 @@ describe("IndependentDemandIndex", () => {
 
         const index = buildIndependentDemandIndex(intents, commitments, events, locations, 7);
 
-        // intent1 is fully satisfied (100 = 40 + 60), intent3 is finished
-        // only intent2 should be an open demand
-        expect(index.open_demands.size).toBe(1);
-        
-        const openDemand = index.open_demands.get("intent2");
-        expect(openDemand).toBeDefined();
-        expect(openDemand?.required_quantity).toBe(50);
-        expect(openDemand?.remaining_quantity).toBe(40); // 50 - 10
-        expect(openDemand?.spec_id).toBe("spec:flour");
+        // intent3 is finished → excluded; intent1 fully satisfied + intent2 partially satisfied → both in demands
+        expect(index.demands.size).toBe(2);
+
+        // intent1: fully satisfied — still in demands, remaining=0
+        const slot1 = index.demands.get("intent1");
+        expect(slot1).toBeDefined();
+        expect(slot1?.required_quantity).toBe(100);
+        expect(slot1?.fulfilled_quantity).toBe(100);
+        expect(slot1?.remaining_quantity).toBe(0);
+
+        // intent2: partially satisfied — in demands with remaining quantity
+        const slot2 = index.demands.get("intent2");
+        expect(slot2).toBeDefined();
+        expect(slot2?.required_quantity).toBe(50);
+        expect(slot2?.fulfilled_quantity).toBe(10);
+        expect(slot2?.remaining_quantity).toBe(40); // 50 - 10
+        expect(slot2?.spec_id).toBe("spec:flour");
+
+        // queryOpenDemands returns only intent2 (intent1 is fully satisfied)
+        const open = queryOpenDemands(index);
+        expect(open).toHaveLength(1);
+        expect(open[0].intent_id).toBe("intent2");
 
         // Verify sub-indexes
         expect(index.spec_index.get("spec:flour")?.has("intent2")).toBe(true);
