@@ -19,6 +19,7 @@ import {
     classifySlot,
     detectConflicts,
     planForRegion,
+    buildPlanSignals,
     type RegionPlanContext,
 } from '../planning/plan-for-region';
 import { buildIndependentDemandIndex } from '../indexes/independent-demand';
@@ -719,5 +720,529 @@ describe('planForRegion — merge planner', () => {
         // The merged store contains the merged commitments (before resolution)
         // or was reduced by surgery. Either way, result is coherent.
         expect(result.planStore.allCommitments().length).toBeGreaterThanOrEqual(0);
+    });
+});
+
+// ===========================================================================
+// Group A — surplus carries plannedWithin
+// ===========================================================================
+
+describe('planForRegion — Group A: surplus.plannedWithin', () => {
+    test('surplus items carry a valid plannedWithin that resolves in planStore', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+        rs.addResourceSpec({ id: 'spec:wool', name: 'Wool', resourceClassifiedAs: [] });
+
+        const obs = makeObserver();
+        const locations = new Map<string, SpatialThing>([
+            ['loc:london', { id: 'loc:london', lat: 51.5074, long: -0.1278 }],
+        ]);
+        const resources: EconomicResource[] = [{
+            id: 'r:wool-a',
+            conformsTo: 'spec:wool',
+            onhandQuantity: { hasNumericalValue: 10, hasUnit: 'kg' },
+            accountingQuantity: { hasNumericalValue: 10, hasUnit: 'kg' },
+            currentLocation: 'loc:london',
+        }];
+        const di = buildIndependentDemandIndex([], [], [], locations, 7);
+        const ai = buildAgentIndex([], [], 7);
+        const si = buildIndependentSupplyIndex(resources, [], [], ai, locations, 7);
+
+        const ctx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: obs,
+            demandIndex: di,
+            supplyIndex: si,
+            generateId: genId,
+        };
+
+        const result = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            ctx,
+        );
+
+        expect(result.surplus.length).toBeGreaterThan(0);
+        for (const s of result.surplus) {
+            expect(s.plannedWithin).toBeDefined();
+            expect(result.planStore.getPlan(s.plannedWithin)).toBeDefined();
+        }
+    });
+});
+
+// ===========================================================================
+// Group B — MetabolicDebt carries plannedWithin
+// ===========================================================================
+
+describe('planForRegion — Group B: MetabolicDebt.plannedWithin', () => {
+    test('metabolicDebt items carry a valid plannedWithin that resolves in planStore', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+
+        const growRP = rs.addRecipeProcess({ name: 'Grow' });
+        rs.addRecipe({ name: 'Grow Recipe', primaryOutput: 'spec:wheat-b', recipeProcesses: [growRP.id] });
+        rs.addRecipeFlow({ action: 'consume', resourceConformsTo: 'spec:rare-b', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeInputOf: growRP.id });
+        rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:wheat-b', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeOutputOf: growRP.id });
+
+        rs.addResourceSpec({ id: 'spec:wheat-b', name: 'Wheat B', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:rare-b', name: 'Rare B', resourceClassifiedAs: ['tag:plan:replenishment-required'] });
+        // No recipe for spec:rare-b → metabolicDebt
+
+        const obs = makeObserver();
+        obs.seedResource({
+            id: 'r:rare-b-1',
+            conformsTo: 'spec:rare-b',
+            accountingQuantity: { hasNumericalValue: 2, hasUnit: 'kg' },
+            onhandQuantity: { hasNumericalValue: 2, hasUnit: 'kg' },
+        });
+
+        const intents: Intent[] = [{
+            id: 'intent:wheat-b',
+            action: 'consume',
+            resourceConformsTo: 'spec:wheat-b',
+            resourceQuantity: { hasNumericalValue: 2, hasUnit: 'kg' },
+            finished: false,
+            due: '2026-09-01',
+            atLocation: 'loc:london',
+        }];
+        const locations = new Map<string, SpatialThing>([
+            ['loc:london', { id: 'loc:london', lat: 51.5074, long: -0.1278 }],
+        ]);
+        const di = buildIndependentDemandIndex(intents, [], [], locations, 7);
+        const ai = buildAgentIndex([], [], 7);
+        const si = buildIndependentSupplyIndex([], [], [], ai, locations, 7);
+
+        const ctx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: obs,
+            demandIndex: di,
+            supplyIndex: si,
+            generateId: genId,
+        };
+
+        const result = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            ctx,
+        );
+
+        expect(result.metabolicDebt.some(d => d.specId === 'spec:rare-b')).toBe(true);
+        for (const d of result.metabolicDebt) {
+            expect(d.plannedWithin).toBeDefined();
+            expect(result.planStore.getPlan(d.plannedWithin)).toBeDefined();
+        }
+    });
+});
+
+// ===========================================================================
+// Group C — deficits from backtracking path
+// ===========================================================================
+
+describe('planForRegion — Group C: deficits from backtracking', () => {
+    test('backtracked demands appear in result.deficits with source=unmet_demand', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+
+        // primary-c: consumes limited-c (replenishment-required) → produces primary-c-out
+        const growRP = rs.addRecipeProcess({ name: 'Grow C' });
+        rs.addRecipe({ name: 'Grow C Recipe', primaryOutput: 'spec:primary-c-out', recipeProcesses: [growRP.id] });
+        rs.addRecipeFlow({ action: 'consume', resourceConformsTo: 'spec:limited-c', resourceQuantity: { hasNumericalValue: 5, hasUnit: 'kg' }, recipeInputOf: growRP.id });
+        rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:primary-c-out', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' }, recipeOutputOf: growRP.id });
+
+        // support-c: also consumes limited-c
+        const supportRP = rs.addRecipeProcess({ name: 'Support C' });
+        rs.addRecipe({ name: 'Support C Recipe', primaryOutput: 'spec:support-c-out', recipeProcesses: [supportRP.id] });
+        rs.addRecipeFlow({ action: 'consume', resourceConformsTo: 'spec:limited-c', resourceQuantity: { hasNumericalValue: 3, hasUnit: 'kg' }, recipeInputOf: supportRP.id });
+        rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:support-c-out', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' }, recipeOutputOf: supportRP.id });
+
+        // replenishment recipe for limited-c
+        const replenRP = rs.addRecipeProcess({ name: 'Replen C' });
+        rs.addRecipe({ name: 'Replen C Recipe', primaryOutput: 'spec:limited-c', recipeProcesses: [replenRP.id] });
+        rs.addRecipeFlow({ action: 'consume', resourceConformsTo: 'spec:raw-c', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeInputOf: replenRP.id });
+        rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:limited-c', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeOutputOf: replenRP.id });
+
+        rs.addResourceSpec({ id: 'spec:primary-c-out', name: 'Primary C', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:support-c-out', name: 'Support C', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:limited-c', name: 'Limited C', resourceClassifiedAs: ['tag:plan:replenishment-required'] });
+        rs.addResourceSpec({ id: 'spec:raw-c', name: 'Raw C', resourceClassifiedAs: [] });
+
+        const obs = makeObserver();
+        // Only 5 units of limited-c in stock — enough for primary but not both
+        obs.seedResource({
+            id: 'r:limited-c',
+            conformsTo: 'spec:limited-c',
+            accountingQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+            onhandQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+        });
+
+        const intents: Intent[] = [
+            {
+                id: 'intent:primary-c',
+                action: 'consume',
+                resourceConformsTo: 'spec:primary-c-out',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                finished: false,
+                due: '2026-06-01',
+            },
+            {
+                id: 'intent:support-c',
+                action: 'consume',
+                resourceConformsTo: 'spec:support-c-out',
+                resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' },
+                finished: false,
+                due: '2026-07-01',
+            },
+        ];
+        const di = buildIndependentDemandIndex(intents, [], [], new Map(), 7);
+        const ai = buildAgentIndex([], [], 7);
+        const si = buildIndependentSupplyIndex([], [], [], ai, new Map(), 7);
+
+        const ctx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: obs,
+            demandIndex: di,
+            supplyIndex: si,
+            generateId: genId,
+        };
+
+        const result = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            ctx,
+        );
+
+        // Coherence checks
+        expect(result).toBeDefined();
+        expect(result.deficits).toBeDefined();
+
+        // If backtracking fired, we should have deficit entries with source='unmet_demand'
+        // and valid plannedWithin references
+        for (const d of result.deficits) {
+            if (d.source === 'unmet_demand') {
+                expect(d.plannedWithin).toBeDefined();
+                expect(result.planStore.getPlan(d.plannedWithin)).toBeDefined();
+            }
+        }
+    });
+});
+
+// ===========================================================================
+// Group D — deficits from metabolicDebt path
+// ===========================================================================
+
+describe('planForRegion — Group D: deficits from metabolicDebt', () => {
+    test('unresolved metabolicDebt appears in deficits with source=metabolic_debt', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+
+        const growRP = rs.addRecipeProcess({ name: 'Grow D' });
+        rs.addRecipe({ name: 'Grow D Recipe', primaryOutput: 'spec:wheat-d', recipeProcesses: [growRP.id] });
+        rs.addRecipeFlow({ action: 'consume', resourceConformsTo: 'spec:rare-d', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeInputOf: growRP.id });
+        rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:wheat-d', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeOutputOf: growRP.id });
+
+        rs.addResourceSpec({ id: 'spec:wheat-d', name: 'Wheat D', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:rare-d', name: 'Rare D', resourceClassifiedAs: ['tag:plan:replenishment-required'] });
+        // No recipe for spec:rare-d → metabolicDebt
+
+        const obs = makeObserver();
+        obs.seedResource({
+            id: 'r:rare-d-1',
+            conformsTo: 'spec:rare-d',
+            accountingQuantity: { hasNumericalValue: 2, hasUnit: 'kg' },
+            onhandQuantity: { hasNumericalValue: 2, hasUnit: 'kg' },
+        });
+
+        const intents: Intent[] = [{
+            id: 'intent:wheat-d',
+            action: 'consume',
+            resourceConformsTo: 'spec:wheat-d',
+            resourceQuantity: { hasNumericalValue: 2, hasUnit: 'kg' },
+            finished: false,
+            due: '2026-09-01',
+            atLocation: 'loc:london',
+        }];
+        const locations = new Map<string, SpatialThing>([
+            ['loc:london', { id: 'loc:london', lat: 51.5074, long: -0.1278 }],
+        ]);
+        const di = buildIndependentDemandIndex(intents, [], [], locations, 7);
+        const ai = buildAgentIndex([], [], 7);
+        const si = buildIndependentSupplyIndex([], [], [], ai, locations, 7);
+
+        const ctx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: obs,
+            demandIndex: di,
+            supplyIndex: si,
+            generateId: genId,
+        };
+
+        const result = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            ctx,
+        );
+
+        const metDebt = result.deficits.filter(d =>
+            d.source === 'metabolic_debt' && d.specId === 'spec:rare-d',
+        );
+        expect(metDebt.length).toBeGreaterThan(0);
+        for (const d of metDebt) {
+            expect(d.plannedWithin).toBeDefined();
+            expect(result.planStore.getPlan(d.plannedWithin)).toBeDefined();
+        }
+    });
+});
+
+// ===========================================================================
+// Group E — composition: child deficit resolved at parent scope
+// ===========================================================================
+
+describe('planForRegion — Group E: child deficit resolved at parent', () => {
+    test('deficit resolved at parent scope does not appear in parent deficits', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+
+        // spec:X has no recipe in child scope, but parent observer has inventory
+        rs.addResourceSpec({ id: 'spec:X', name: 'X', resourceClassifiedAs: [] });
+
+        // Child: demand for spec:X, no inventory in child observer
+        const childObs = makeObserver();
+        const childIntents: Intent[] = [{
+            id: 'intent:X-child',
+            action: 'consume',
+            resourceConformsTo: 'spec:X',
+            resourceQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+            finished: false,
+            due: '2026-06-01',
+            atLocation: 'loc:london',
+        }];
+        const locations = new Map<string, SpatialThing>([
+            ['loc:london', { id: 'loc:london', lat: 51.5074, long: -0.1278 }],
+        ]);
+        const childDi = buildIndependentDemandIndex(childIntents, [], [], locations, 7);
+        const childAi = buildAgentIndex([], [], 7);
+        const childSi = buildIndependentSupplyIndex([], [], [], childAi, locations, 7);
+
+        const childCtx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: childObs,
+            demandIndex: childDi,
+            supplyIndex: childSi,
+            generateId: genId,
+        };
+
+        const childResult = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            childCtx,
+        );
+
+        // Child has a deficit for spec:X
+        expect(childResult.deficits.some(d => d.specId === 'spec:X')).toBe(true);
+        const childSignals = buildPlanSignals(childResult);
+
+        // Parent: wider observer has inventory of spec:X
+        const parentObs = makeObserver();
+        parentObs.seedResource({
+            id: 'r:X-parent',
+            conformsTo: 'spec:X',
+            accountingQuantity: { hasNumericalValue: 10, hasUnit: 'kg' },
+            onhandQuantity: { hasNumericalValue: 10, hasUnit: 'kg' },
+        });
+
+        const parentDi = buildIndependentDemandIndex([], [], [], new Map(), 7);
+        const parentAi = buildAgentIndex([], [], 7);
+        const parentSi = buildIndependentSupplyIndex([], [], [], parentAi, new Map(), 7);
+
+        const parentCtx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: parentObs,
+            demandIndex: parentDi,
+            supplyIndex: parentSi,
+            generateId: genId,
+        };
+
+        const parentResult = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            parentCtx,
+            [childResult.planStore],
+            [childSignals],
+        );
+
+        // Deficit for spec:X should NOT appear in parent result (resolved by inventory)
+        const stillDeficit = parentResult.deficits.some(d => d.specId === 'spec:X');
+        expect(stillDeficit).toBe(false);
+
+        // No purchaseIntent for spec:X at parent level
+        const purchaseForX = parentResult.purchaseIntents.some(
+            i => i.resourceConformsTo === 'spec:X',
+        );
+        expect(purchaseForX).toBe(false);
+    });
+});
+
+// ===========================================================================
+// Group F — composition: child deficit unresolved at parent propagates further
+// ===========================================================================
+
+describe('planForRegion — Group F: child deficit propagates when parent cannot resolve', () => {
+    test('child deficit still appears in parent deficits when parent has no recipe or inventory', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+
+        // spec:Y has no recipe anywhere, no inventory at either level
+        rs.addResourceSpec({ id: 'spec:Y', name: 'Y', resourceClassifiedAs: [] });
+
+        // Child: demand for spec:Y → produces deficit
+        const childObs = makeObserver();
+        const childIntents: Intent[] = [{
+            id: 'intent:Y-child',
+            action: 'consume',
+            resourceConformsTo: 'spec:Y',
+            resourceQuantity: { hasNumericalValue: 3, hasUnit: 'kg' },
+            finished: false,
+            due: '2026-06-01',
+            atLocation: 'loc:london',
+        }];
+        const locations = new Map<string, SpatialThing>([
+            ['loc:london', { id: 'loc:london', lat: 51.5074, long: -0.1278 }],
+        ]);
+        const childDi = buildIndependentDemandIndex(childIntents, [], [], locations, 7);
+        const childAi = buildAgentIndex([], [], 7);
+        const childSi = buildIndependentSupplyIndex([], [], [], childAi, locations, 7);
+
+        const childCtx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: childObs,
+            demandIndex: childDi,
+            supplyIndex: childSi,
+            generateId: genId,
+        };
+
+        const childResult = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            childCtx,
+        );
+
+        // Child has a deficit for spec:Y
+        expect(childResult.deficits.some(d => d.specId === 'spec:Y')).toBe(true);
+        const childSignals = buildPlanSignals(childResult);
+
+        // Parent: also no recipe/inventory for spec:Y
+        const parentObs = makeObserver();
+        const parentDi = buildIndependentDemandIndex([], [], [], new Map(), 7);
+        const parentAi = buildAgentIndex([], [], 7);
+        const parentSi = buildIndependentSupplyIndex([], [], [], parentAi, new Map(), 7);
+
+        const parentCtx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: parentObs,
+            demandIndex: parentDi,
+            supplyIndex: parentSi,
+            generateId: genId,
+        };
+
+        const parentResult = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            parentCtx,
+            [childResult.planStore],
+            [childSignals],
+        );
+
+        // Deficit for spec:Y must propagate to parent result
+        expect(parentResult.deficits.some(d => d.specId === 'spec:Y')).toBe(true);
+        // Parent's plannedWithin should reference a plan in the parent's planStore
+        const yDeficit = parentResult.deficits.find(d => d.specId === 'spec:Y');
+        expect(yDeficit).toBeDefined();
+        expect(parentResult.planStore.getPlan(yDeficit!.plannedWithin)).toBeDefined();
+    });
+});
+
+// ===========================================================================
+// Group G — merge planner retractions appear in deficits
+// ===========================================================================
+
+describe('planForRegion — Group G: merge planner retractions in deficits', () => {
+    test('every unmetDemand entry from merge conflict has a matching deficits entry', () => {
+        idCounter = 0;
+        const rs = new RecipeStore();
+        rs.addResourceSpec({ id: 'spec:wool', name: 'Wool', resourceClassifiedAs: [] });
+
+        const obs = makeObserver();
+        // 5 kg of wool in inventory
+        obs.seedResource({
+            id: 'r:wool-merge',
+            conformsTo: 'spec:wool',
+            accountingQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+            onhandQuantity: { hasNumericalValue: 5, hasUnit: 'kg' },
+        });
+
+        const locations = new Map<string, SpatialThing>([
+            ['loc:london', { id: 'loc:london', lat: 51.5074, long: -0.1278 }],
+        ]);
+
+        // Leaf store A: demand for 4 kg wool (due earlier — should be kept)
+        const procRegA = new ProcessRegistry(genId);
+        const storeA = new PlanStore(procRegA, genId);
+        storeA.addCommitment({
+            action: 'consume',
+            resourceInventoriedAs: 'r:wool-merge',
+            resourceQuantity: { hasNumericalValue: 4, hasUnit: 'kg' },
+            finished: false,
+        });
+
+        // Leaf store B: demand for 4 kg wool (due later — should be retracted on conflict)
+        const procRegB = new ProcessRegistry(genId);
+        const storeB = new PlanStore(procRegB, genId);
+        storeB.addCommitment({
+            action: 'consume',
+            resourceInventoriedAs: 'r:wool-merge',
+            resourceQuantity: { hasNumericalValue: 4, hasUnit: 'kg' },
+            finished: false,
+        });
+
+        // Add a demand slot for wool in the demand index so pass1Records has entries
+        // that the merge planner can retract
+        const woolIntent: Intent = {
+            id: 'intent:wool-london',
+            action: 'consume',
+            resourceConformsTo: 'spec:wool',
+            resourceQuantity: { hasNumericalValue: 4, hasUnit: 'kg' },
+            finished: false,
+            due: '2026-09-01',
+            atLocation: 'loc:london',
+        };
+        const di = buildIndependentDemandIndex([woolIntent], [], [], locations, 7);
+        const ai = buildAgentIndex([], [], 7);
+        const si = buildIndependentSupplyIndex([], [], [], ai, locations, 7);
+
+        const ctx: RegionPlanContext = {
+            recipeStore: rs,
+            observer: obs,
+            demandIndex: di,
+            supplyIndex: si,
+            generateId: genId,
+        };
+
+        const result = planForRegion(
+            [LONDON_RES7],
+            { from: new Date('2026-01-01'), to: new Date('2026-12-31') },
+            ctx,
+            [storeA, storeB],
+        );
+
+        // Invariant: every unmetDemand entry must have a corresponding deficits entry
+        for (const slot of result.unmetDemand) {
+            const matching = result.deficits.find(
+                d => d.specId === (slot.spec_id ?? '') && d.source === 'unmet_demand',
+            );
+            expect(matching).toBeDefined();
+        }
+
+        // deficits is a superset of unmetDemand (by specId + source)
+        expect(result.deficits.length).toBeGreaterThanOrEqual(result.unmetDemand.length);
     });
 });

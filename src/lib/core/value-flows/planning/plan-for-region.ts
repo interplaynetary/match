@@ -61,15 +61,47 @@ export interface RegionPlanContext {
 export interface MetabolicDebt {
     specId: string;
     shortfall: number;
+    plannedWithin: string;   // replenishment planId; intentsForPlan resolves purchaseIntents
+}
+
+export interface DeficitSignal {
+    /** Plan ID where this demand was attempted. After merging sub-stores,
+     *  planStore.intentsForPlan(plannedWithin) → purchaseIntents showing what was missing. */
+    plannedWithin: string;
+    /** Stable identifier for this deficit (original intent_id or synthetic key). */
+    intentId: string;
+    specId: string;
+    action: string;
+    shortfall: number;
+    due?: string;
+    h3_cell?: string;
+    source: 'unmet_demand' | 'metabolic_debt';
+}
+
+export interface SurplusSignal {
+    /** Plan ID of the supply plan that produced this surplus.
+     *  planStore.intentsForPlan(plannedWithin) → output flow intents for traceability. */
+    plannedWithin: string;
+    specId: string;
+    quantity: number;
+    availableFrom?: string;
+    atLocation?: string;
+}
+
+/** Signal bundle for composition: pass from a child planForRegion call into a parent. */
+export interface PlanSignals {
+    deficits: DeficitSignal[];
+    surplus: SurplusSignal[];
 }
 
 export interface RegionPlanResult {
     planStore: PlanStore;
     purchaseIntents: Intent[];
-    surplus: Array<{ specId: string; quantity: number }>;
+    surplus: SurplusSignal[];          // was { specId, quantity }[] — now with provenance
     unmetDemand: DemandSlot[];
     metabolicDebt: MetabolicDebt[];
     laborGaps: Intent[];
+    deficits: DeficitSignal[];         // unified deficit view for upward composition
 }
 
 export type DemandSlotClass =
@@ -294,16 +326,18 @@ function mergePlanStores(subStores: PlanStore[], generateId?: () => string): Pla
 /**
  * Top-level planning orchestrator for an H3 cell region.
  *
- * @param cells     H3 cell indices that define the region
- * @param horizon   Planning window (from/to dates)
- * @param ctx       Context (recipes, observer, indexes, etc.)
- * @param subStores Optional leaf sub-stores for the merge planner path
+ * @param cells        H3 cell indices that define the region
+ * @param horizon      Planning window (from/to dates)
+ * @param ctx          Context (recipes, observer, indexes, etc.)
+ * @param subStores    Optional leaf sub-stores for the merge planner path
+ * @param childSignals Optional signals from sub-planners for upward composition
  */
 export function planForRegion(
     cells: string[],
     horizon: { from: Date; to: Date },
     ctx: RegionPlanContext,
     subStores?: PlanStore[],
+    childSignals?: PlanSignals[],
 ): RegionPlanResult {
     const generateId = ctx.generateId ?? (() => nanoid());
 
@@ -321,6 +355,31 @@ export function planForRegion(
         ctx.demandIndex,
         ctx.supplyIndex,
     );
+
+    // Inject child deficit signals as demand slots (composable upward routing).
+    // Must happen BEFORE classification so injected demands are classified.
+    if (childSignals && childSignals.length > 0) {
+        const seenIntentId = new Set<string>();
+        for (const signals of childSignals) {
+            for (const deficit of signals.deficits) {
+                if (seenIntentId.has(deficit.intentId)) continue;  // same intent from two children
+                seenIntentId.add(deficit.intentId);
+                rawDemands.push({
+                    intent_id: deficit.intentId,
+                    spec_id: deficit.specId,
+                    action: deficit.action,
+                    fulfilled_quantity: 0,
+                    fulfilled_hours: 0,
+                    required_quantity: deficit.shortfall,
+                    required_hours: 0,
+                    remaining_quantity: deficit.shortfall,
+                    remaining_hours: 0,
+                    due: deficit.due,
+                    h3_cell: deficit.h3_cell,
+                });
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Phase 2 — Classify demand slots
@@ -347,7 +406,8 @@ export function planForRegion(
     const pass1Records: SlotRecord[] = [];
     const allPurchaseIntents: Intent[] = [];
     const unmetDemand: DemandSlot[] = [];
-    const metabolicDebt: MetabolicDebt[] = [];
+    const replenDebts: MetabolicDebt[] = [];
+    const allDeficits: DeficitSignal[] = [];
 
     // Sort: classification order → due date ascending
     const sortedSlots = [...classified].sort((a, b) => {
@@ -384,6 +444,28 @@ export function planForRegion(
         allPurchaseIntents.push(...result.purchaseIntents);
     }
 
+    // Emit DeficitSignals for all Pass 1 demands where the demand spec itself couldn't
+    // be sourced or produced (purchaseIntent for the demand spec means no recipe/inventory).
+    // Covers both injected deficits being re-propagated and regular demands that are
+    // unresolvable at this scope (external-dependency classification).
+    for (const record of pass1Records) {
+        const unresolved = record.result.purchaseIntents
+            .filter(i => i.resourceConformsTo === record.slot.spec_id)
+            .reduce((s, i) => s + (i.resourceQuantity?.hasNumericalValue ?? 0), 0);
+        if (unresolved > 1e-9) {
+            allDeficits.push({
+                plannedWithin: record.result.plan.id,
+                intentId: record.slot.intent_id,
+                specId: record.slot.spec_id ?? '',
+                action: record.slot.action,
+                shortfall: unresolved,
+                due: record.slot.due,
+                h3_cell: record.slot.h3_cell,
+                source: 'unmet_demand',
+            });
+        }
+    }
+
     // --- Compute derived replenishment demands ---
     const consumedBySpec = new Map<string, number>();
     for (const { result } of pass1Records) {
@@ -408,8 +490,6 @@ export function planForRegion(
     // The inventory was already consumed (or will be) by Pass 1 processes.
     const replenNetter = netter.fork({ observer: undefined });
 
-    const pass2Records: SlotRecord[] = [];
-
     for (const { specId, qty } of derivedDemands) {
         const replenPlanId = `replenish-${generateId()}`;
         planStore.addPlan({ id: replenPlanId, name: `Replenishment for ${specId}` });
@@ -427,23 +507,6 @@ export function planForRegion(
             generateId,
         });
 
-        const syntheticSlot: DemandSlot = {
-            intent_id: `synthetic:${specId}`,
-            spec_id: specId,
-            action: 'produce',
-            fulfilled_quantity: 0,
-            fulfilled_hours: 0,
-            required_quantity: qty,
-            required_hours: 0,
-            remaining_quantity: qty,
-            remaining_hours: 0,
-        };
-
-        pass2Records.push({
-            slot: syntheticSlot,
-            classifiedAs: ['tag:plan:replenishment-required'],
-            result,
-        });
         allPurchaseIntents.push(...result.purchaseIntents);
 
         // MetabolicDebt: the portion of the replenishment spec that could not be
@@ -456,19 +519,19 @@ export function planForRegion(
             .filter(i => i.resourceConformsTo === specId)
             .reduce((s, i) => s + (i.resourceQuantity?.hasNumericalValue ?? 0), 0);
         if (purchasedQty > 1e-9) {
-            metabolicDebt.push({ specId, shortfall: purchasedQty });
+            replenDebts.push({ specId, shortfall: purchasedQty, plannedWithin: replenPlanId });
         }
     }
 
-    // --- Backtracking: if metabolicDebt remains, retract low-criticality Pass 1 ---
-    if (metabolicDebt.length > 0) {
+    // --- Backtracking: if replenDebts remains, retract low-criticality Pass 1 ---
+    if (replenDebts.length > 0) {
         // Retract order: latest due date first
         const retractOrder = [...pass1Records].sort(
             (a, b) => new Date(b.slot.due ?? 0).getTime() - new Date(a.slot.due ?? 0).getTime(),
         );
 
         for (const candidate of retractOrder) {
-            if (metabolicDebt.length === 0) break;
+            if (replenDebts.length === 0) break;
 
             netter.retract(candidate.result);
 
@@ -479,7 +542,7 @@ export function planForRegion(
 
             // Re-run Pass 2 with freed capacity to see if debt is resolved
             const resolvedDebt: string[] = [];
-            for (const debt of metabolicDebt) {
+            for (const debt of replenDebts) {
                 const retryPlanId = `replenish-retry-${generateId()}`;
                 planStore.addPlan({ id: retryPlanId, name: `Retry replenishment for ${debt.specId}` });
                 const reResult = dependentDemand({
@@ -510,12 +573,23 @@ export function planForRegion(
             }
 
             // Remove resolved debts
-            metabolicDebt.splice(0, metabolicDebt.length, ...metabolicDebt.filter(
+            replenDebts.splice(0, replenDebts.length, ...replenDebts.filter(
                 d => !resolvedDebt.includes(d.specId),
             ));
 
             // Mark retracted demand as unmet
             unmetDemand.push(candidate.slot);
+
+            allDeficits.push({
+                plannedWithin: candidate.result.plan.id,
+                intentId: candidate.slot.intent_id,
+                specId: candidate.slot.spec_id ?? '',
+                action: candidate.slot.action,
+                shortfall: candidate.slot.remaining_quantity,
+                due: candidate.slot.due,
+                h3_cell: candidate.slot.h3_cell,
+                source: 'unmet_demand',
+            });
 
             // Remove from pass1Records so we don't re-retract
             const idx = pass1Records.indexOf(candidate);
@@ -523,10 +597,22 @@ export function planForRegion(
         }
     }
 
+    // Emit DeficitSignals for unresolved replenDebts (resolved entries were spliced out)
+    for (const debt of replenDebts) {
+        allDeficits.push({
+            plannedWithin: debt.plannedWithin,
+            intentId: `synthetic:debt:${debt.plannedWithin}:${debt.specId}`,
+            specId: debt.specId,
+            action: 'produce',
+            shortfall: debt.shortfall,
+            source: 'metabolic_debt',
+        });
+    }
+
     // -------------------------------------------------------------------------
     // Phase B — Forward-schedule unabsorbed supply
     // -------------------------------------------------------------------------
-    const allSurplus: Array<{ specId: string; quantity: number }> = [];
+    const allSurplus: SurplusSignal[] = [];
 
     for (const supplySlot of extractedSupply) {
         if (!supplySlot.spec_id) continue;
@@ -550,7 +636,15 @@ export function planForRegion(
             generateId,
         });
 
-        allSurplus.push(...result.surplus);
+        for (const s of result.surplus) {
+            allSurplus.push({
+                specId: s.specId,
+                quantity: s.quantity,
+                plannedWithin: supplyPlanId,
+                availableFrom: supplySlot.available_from,
+                atLocation: supplySlot.h3_cell,
+            });
+        }
         allPurchaseIntents.push(...result.purchaseIntents);
     }
 
@@ -588,6 +682,16 @@ export function planForRegion(
                     if (!record) continue;
                     netter.retract(record.result);
                     unmetDemand.push(record.slot);
+                    allDeficits.push({
+                        plannedWithin: record.result.plan.id,
+                        intentId: record.slot.intent_id,
+                        specId: record.slot.spec_id ?? '',
+                        action: record.slot.action,
+                        shortfall: record.slot.remaining_quantity,
+                        due: record.slot.due,
+                        h3_cell: record.slot.h3_cell,
+                        source: 'unmet_demand',
+                    });
 
                     // Re-explode at merge scope
                     const { slot } = record;
@@ -630,6 +734,11 @@ export function planForRegion(
         i => i.action === 'work' && i.provider === undefined,
     );
 
+    // Derive metabolicDebt as a typed projection of allDeficits (deficits is the single source of truth)
+    const metabolicDebt: MetabolicDebt[] = allDeficits
+        .filter(d => d.source === 'metabolic_debt')
+        .map(d => ({ specId: d.specId, shortfall: d.shortfall, plannedWithin: d.plannedWithin }));
+
     return {
         planStore,
         purchaseIntents: allPurchaseIntents,
@@ -637,5 +746,15 @@ export function planForRegion(
         unmetDemand,
         metabolicDebt,
         laborGaps,
+        deficits: allDeficits,
     };
+}
+
+// =============================================================================
+// SIGNAL HELPERS
+// =============================================================================
+
+/** Extract PlanSignals from a completed RegionPlanResult for passing to a parent planner. */
+export function buildPlanSignals(result: RegionPlanResult): PlanSignals {
+    return { deficits: result.deficits, surplus: result.surplus };
 }
