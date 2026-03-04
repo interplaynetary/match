@@ -12,15 +12,16 @@ and elegance issues. Concrete suggestions follow each finding.
 
 The codebase contains two separate planners:
 
-| File | Approach | Status |
-|------|----------|--------|
-| `plan-for-region.ts` | Two-pass MRP (`planForRegion`) | Active, 26 tests, correct |
+| File                    | Approach                             | Status                                   |
+| ----------------------- | ------------------------------------ | ---------------------------------------- |
+| `plan-for-region.ts`    | Two-pass MRP (`planForRegion`)       | Active, 26 tests, correct                |
 | `integrated-planner.ts` | Scenario/Pareto-front generator loop | Older approach, disconnected from Pass 2 |
 
 `new.md` describes a single `planForRegion(cells, horizon, ctx, subStores?)` function. It does not
 describe scenarios, Pareto fronts, or a generator loop.
 
 `integrated-planner.ts` implements a fundamentally different model:
+
 - It runs a forward feasibility pass (`buildVfFeasibleRecipes`) then a backward selection pass
   (`vfPlanFromNeeds`) within a single H3 leaf cell.
 - It builds in-memory `Scenario` objects, scores them, and prunes a Pareto front.
@@ -37,38 +38,9 @@ for pre-planning feasibility analysis and `promoteToPlan` as a promotion pattern
 as small utilities if needed later. The Scenario/Pareto machinery belongs to a different optimization
 paradigm and should not be maintained alongside the MRP planner.
 
----
-
-### 1.2 Retraction uses graph traversal; design calls for provenance stamps
-
-`new.md` specifies retraction by provenance ID:
-
-> *Retraction unit = process subgraph (by provenanceId). Retract: `planStore.removeWhere(provenanceId)`
-> on merged store.*
-
-The current implementation uses `findRetractableSubgraph(result, planStore)` — a BFS over
-`inputOf`/`outputOf` links, filtering upstream processes by whether all their output flows are
-"internal" to the subtree being retracted.
-
-This BFS has a correctness flaw: `findProducingProcess` and `findConsumingProcess` match by
-`resourceConformsTo` across **all flows in the planStore**. If two independent processes both
-produce `spec:flour`, they will be incorrectly linked as if one feeds the other. The BFS can
-pull in unrelated processes from entirely different demand explosions.
-
-The design intent — stamp a `planId` or `provenanceId` on every record created by a single
-`dependentDemand` call, retract by that tag — is cleaner, faster (O(n) scan vs BFS + set
-membership), and immune to the spec-matching false-link problem.
-
-**Suggestion:** Add `provenanceId: string` to `Intent`, `Commitment`, and `Process` (stamped by
-`dependentDemand` with the `planId`). Replace `findRetractableSubgraph` with:
-```typescript
-planStore.removeRecords({
-    intentIds:     planStore.allIntents().filter(i => i.provenanceId === planId).map(i => i.id),
-    commitmentIds: planStore.allCommitments().filter(c => c.provenanceId === planId).map(c => c.id),
-    processIds:    planStore.allProcesses().filter(p => p.provenanceId === planId).map(p => p.id),
-});
-```
-`DependentDemandResult` should carry the `planId` it was stamped with. No BFS needed.
+**Status: Analysis complete** — see `docs/integrated-planner-analysis.md`. No immediate extractions
+needed. `buildVfFeasibleRecipes` and `promoteToPlan` are candidates if use-cases arise. All D-series
+demand bucketing and Scenario/Pareto machinery archived with the file.
 
 ---
 
@@ -76,8 +48,8 @@ planStore.removeRecords({
 
 `new.md` states:
 
-> *Merge Planner: Same planForRegion with subStores provided. Merges sub-PlanStores; runs Phase 3
-> Formulate treating **leaf unmetDemand[] + metabolicDebt[] signals as new demand inputs**.*
+> _Merge Planner: Same planForRegion with subStores provided. Merges sub-PlanStores; runs Phase 3
+> Formulate treating **leaf unmetDemand[] + metabolicDebt[] signals as new demand inputs**._
 
 The current merge planner path (in `planForRegion` when `subStores` is provided) does not extract
 `unmetDemand[]` or `metabolicDebt[]` from the sub-stores and re-inject them as demand slots. It
@@ -99,7 +71,7 @@ demand slots in Pass 1/Pass 2 with appropriate criticality (metabolicDebt at ele
 `RegionPlanContext.config.insuranceFactor` is described in a comment as "currently unused —
 placeholder". `new.md` names Reserve/Buffer satisfaction as an explicit planning constraint:
 
-> *Satisfy Reserve/Buffers demands (ranked by criticality)*
+> _Satisfy Reserve/Buffers demands (ranked by criticality)_
 
 The integrated planner did implement an insurance pass (10% buffer over all primary selections),
 but `planForRegion` omits it entirely. This means the metabolic sustainability loop handles
@@ -141,7 +113,7 @@ labor component (SNLT). Full SNE (including embodied labor in inputs) requires t
 
 `new.md`:
 
-> *Plan re-classifies resources according to their mode-of-consumption `<communal | individual-claimable>`.*
+> _Plan re-classifies resources according to their mode-of-consumption `<communal | individual-claimable>`._
 
 This is one of the more politically significant features — it determines which produced resources
 flow into the commons and which into individual claim accounts. It is not modeled anywhere in the
@@ -215,9 +187,9 @@ If that resolves the metabolicDebt, the retracted slot goes to `unmetDemand` and
 
 But `new.md` says:
 
-> *Re-explode retracted demands against newly freed capacity — their shortfall becomes
+> _Re-explode retracted demands against newly freed capacity — their shortfall becomes
 > `unmetDemand[]`. If metabolicDebt persists after exhausting all lower-priority retractable
-> allocations, escalate to merge hierarchy.*
+> allocations, escalate to merge hierarchy._
 
 "Re-explode" means: after retracting a support-tier demand, try to satisfy it again at the merge
 level (where inter-region supply may be available). The current implementation simply discards it
@@ -238,6 +210,10 @@ for records that were retracted.
 **Suggestion:** After backtracking completes, rebuild the main `netter` from the post-backtracking
 planStore state before entering Phase B.
 
+**Status: Resolved** — `PlanNetter.pruneStale()` is called on the main `netter` after each
+retraction, replacing the 10-line `newNetter`/`stillAllocated` block. Phase B receives the
+correctly pruned netter.
+
 ---
 
 ### 2.5 `Pass 2 replenNetter` copies from `netter.allocated` but not from backtracking `newNetter`
@@ -248,6 +224,10 @@ iterations occur, each iteration builds a fresh `newNetter` but the outer `reple
 was built once before backtracking) is never updated. Subsequent retry iterations may double-count
 or miss allocations.
 
+**Status: Resolved** — same fix as §2.4. `netter.pruneStale()` keeps the main netter consistent
+across all backtracking iterations; `retryReplenNetter` is built from the already-pruned
+`netter.allocated` at the start of each iteration.
+
 ---
 
 ## Part 3 — Elegance Issues
@@ -255,6 +235,7 @@ or miss allocations.
 ### 3.1 `planForRegion` is doing too much in one function
 
 The function currently handles:
+
 - Cell normalization
 - Slot extraction and classification
 - Pass 1 demand explosion
@@ -273,14 +254,14 @@ make it hard to reason about invariants.
 were a named internal function:
 
 ```typescript
-const canonical    = normalizePhase(cells);
-const slots        = extractPhase(canonical, horizon, ctx);
-const classified   = classifyPhase(slots, canonical, ctx);
-const pass1        = formulatePass1(classified, planStore, netter, ctx);
-const derived      = deriveReplenishment(pass1, ctx);
-const pass2        = formulatePass2(derived, planStore, replenNetter, ctx);
-const afterBT      = backtrack(pass2, pass1, planStore, ctx);
-const phaseB       = supplyPhase(slots.supply, planStore, netter, ctx);
+const canonical = normalizePhase(cells);
+const slots = extractPhase(canonical, horizon, ctx);
+const classified = classifyPhase(slots, canonical, ctx);
+const pass1 = formulatePass1(classified, planStore, netter, ctx);
+const derived = deriveReplenishment(pass1, ctx);
+const pass2 = formulatePass2(derived, planStore, replenNetter, ctx);
+const afterBT = backtrack(pass2, pass1, planStore, ctx);
+const phaseB = supplyPhase(slots.supply, planStore, netter, ctx);
 return collectPhase(planStore, pass1, afterBT, phaseB);
 ```
 
@@ -337,24 +318,41 @@ replenishment" — there is no need for a synthetic slot wrapper.
 
 ---
 
+---
+
+## Design Decisions (not bugs)
+
+### Criticality/priority system removed
+
+The D-category ranking (`MeansOfProduction=0`, `Administration=1`, `Consumption=2`, `Support=3`)
+was removed by design decision. Ordering planning by externally-assigned political classification
+entangles the planner with categorisation decisions that belong to the community, not the algorithm.
+
+The simplified sort order — class order (locally-satisfiable first) → due date ascending — is
+sufficient for correct MRP behaviour and leaves priority questions to the demand-side (people
+express priority via due dates). The `tag:plan:replenishment-required` tag is retained as it is
+structural (not political), and retraction order is now purely latest-due-first.
+
+---
+
 ## Summary
 
-| Issue | Severity | Root Cause |
-|-------|----------|------------|
-| Two competing planners | High | `integrated-planner.ts` not retired when `plan-for-region.ts` became primary |
-| Retraction by BFS vs. provenance ID | High | `provenanceId` not stamped on records; new.md spec not followed |
-| Leaf signals not routed upward | High | Local/global inversion half-implemented; `unmetDemand`/`metabolicDebt` not passed to merge |
-| Insurance/buffer absent | Medium | `insuranceFactor` stubbed out |
-| SNE not tracked as output | Medium | Objective stated in new.md not computed |
-| Sort order: class before criticality | Medium | Heuristic optimization overrides political priority |
-| Stale netter after backtracking in Phase B | Medium | Netter not rebuilt after backtracking loop |
-| Capacity contention detection stub | Medium | `AgentIndex` not available in merge context |
-| `discoverInfrastructureSpecs` vs. explicit tags | Low | Two mechanisms for the same thing |
-| Pass 2 multi-iteration netter drift | Low | `retryReplenNetter` not updated across iterations |
-| Max effort time constraint | Low | Not started |
-| Mode-of-consumption classification | Low | Deferred; different architectural layer |
-| `syntheticSlot` in pass2Records | Low | Code smell; cleaner with dedicated type |
-| `planForRegion` monolith | Low | Functional but hard to reason about; no wrong behavior |
+| Issue                                           | Severity | Root Cause                                                                                 |
+| ----------------------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| Two competing planners                          | High     | `integrated-planner.ts` not retired when `plan-for-region.ts` became primary               |
+| Retraction by BFS vs. provenance ID             | High     | `provenanceId` not stamped on records; new.md spec not followed                            |
+| Leaf signals not routed upward                  | High     | Local/global inversion half-implemented; `unmetDemand`/`metabolicDebt` not passed to merge |
+| Insurance/buffer absent                         | Medium   | `insuranceFactor` stubbed out                                                              |
+| SNE not tracked as output                       | Medium   | Objective stated in new.md not computed                                                    |
+| Sort order: class before criticality            | Medium   | Heuristic optimization overrides political priority                                        |
+| Stale netter after backtracking in Phase B      | Medium   | Netter not rebuilt after backtracking loop                                                 |
+| Capacity contention detection stub              | Medium   | `AgentIndex` not available in merge context                                                |
+| `discoverInfrastructureSpecs` vs. explicit tags | Low      | Two mechanisms for the same thing                                                          |
+| Pass 2 multi-iteration netter drift             | Low      | `retryReplenNetter` not updated across iterations                                          |
+| Max effort time constraint                      | Low      | Not started                                                                                |
+| Mode-of-consumption classification              | Low      | Deferred; different architectural layer                                                    |
+| `syntheticSlot` in pass2Records                 | Low      | Code smell; cleaner with dedicated type                                                    |
+| `planForRegion` monolith                        | Low      | Functional but hard to reason about; no wrong behavior                                     |
 
 The core MRP engine (`dependentDemand`, `dependentSupply`, `PlanNetter`) is well-designed and
 closely matches the spec. The `planForRegion` orchestrator is the right approach. The two highest-

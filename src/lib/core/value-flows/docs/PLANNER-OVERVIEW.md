@@ -325,7 +325,7 @@ Each demand slot is assigned a `DemandSlotClass`:
 | `producible-with-imports` | a recipe exists to produce it |
 | `external-dependency` | no recipe and no supply anywhere |
 
-Slots are sorted for planning: class order (locally-satisfiable first) → criticality (MeansOfProduction first) → due date (earliest first).
+Slots are sorted for planning: class order (locally-satisfiable first) → due date (earliest first).
 
 ### Phase 3 — Formulate
 
@@ -333,11 +333,7 @@ Slots are sorted for planning: class order (locally-satisfiable first) → criti
 
 For each sorted demand slot, call `dependentDemand`. The shared `netter` accumulates allocations so later slots cannot claim the same inventory.
 
-```
-MeansOfProduction demand (crit=0) planned first → claims inventory
-Consumption demand (crit=2) planned next  → sees reduced inventory, may need recipe
-Support demand (crit=3) planned last  → whatever is left
-```
+Within the same classification class, slots with earlier due dates are planned first and claim inventory first.
 
 #### Derived Replenishment Demands
 
@@ -362,13 +358,12 @@ metabolicDebt.push({ specId: 'spec:rare-nutrients', shortfall: 3 })
 
 #### Backtracking
 
-If `metabolicDebt` is non-empty, the planner walks Pass 1 records in **reverse criticality order** (Support first, latest due date first within the same criticality) and retracts them:
+If `metabolicDebt` is non-empty, the planner walks Pass 1 records in **latest-due-first order** and retracts them:
 
-1. `findRetractableSubgraph(result, planStore)` — BFS upstream from retracted processes; includes upstream process Q only if ALL of Q's outputs are consumed exclusively within this subtree
-2. `planStore.removeRecords(subgraph)` — removes processes, intents, commitments
-3. Retry replenishment with freed capacity (production-only netter — no observer)
-4. If debt resolved → retracted demand goes to `unmetDemand`; loop stops
-5. If not resolved → continue to next candidate
+1. `planStore.removeRecords({ processIds, commitmentIds, intentIds })` — removes the exact records accumulated in `DependentDemandResult` (no BFS needed; the result already contains every record the explosion created)
+2. Retry replenishment with freed capacity (production-only netter — no observer)
+3. If debt resolved → retracted demand goes to `unmetDemand`; loop stops
+4. If not resolved → continue to next candidate
 
 ### Phase B — Forward Supply
 
@@ -394,21 +389,6 @@ return {
 
 ---
 
-## Criticality and Priority
-
-The planning priority tag on a `ResourceSpecification` controls planning order:
-
-| tag | criticality | meaning |
-|-----|-------------|---------|
-| `tag:plan:MeansOfProduction` | 0 (highest) | tools, machines, infrastructure |
-| `tag:plan:Administration` | 1 | coordination overhead |
-| *(default)* | 2 | general consumption |
-| `tag:plan:Support` | 3 (lowest) | nice-to-have, retracted first |
-
-Lower criticality number = planned **first** (claims inventory first) = retracted **last** (survives backtracking).
-
----
-
 ## Merge Planner (Hierarchical Planning)
 
 When `subStores` are provided, `planForRegion` operates as a **merge planner** rather than a leaf planner:
@@ -428,7 +408,7 @@ Region B (leaf)  →  planStore_B
 5. **Conflict detection** after Phase B:
    - *Inventory overclaim:* sum of committed quantities for a resource > its `onhandQuantity`
    - *Capacity contention:* multiple processes competing for the same agent's time
-6. **Surgical resolution:** retract lowest-criticality competing process subgraph → re-explode at merge scope → repeat until no conflicts
+6. **Surgical resolution:** retract latest-due competing process subgraph → re-explode at merge scope → repeat until no conflicts
 
 This is recursive: a merge planner can itself be merged with other planners at a higher H3 resolution level, bounded by the H3 hierarchy depth.
 
@@ -488,7 +468,7 @@ All tests live in `value-flows/tests/`.
 
 | file | tests | covers |
 |------|-------|--------|
-| `plan-for-region.test.ts` | 26 | orchestrator phases, metabolicDebt, backtracking, Phase B, merge planner |
+| `plan-for-region.test.ts` | 20 | orchestrator phases, metabolicDebt, backtracking, Phase B, merge planner |
 | `dependent-demand.test.ts` | ~40 | backward MRP, use/cite/work handling, transport |
 | `dependent-supply.test.ts` | ~30 | forward supply, Mode C, surplus |
 | `observer-actions.test.ts` | 301 | all 19 VF actions, split-custody, corrections |

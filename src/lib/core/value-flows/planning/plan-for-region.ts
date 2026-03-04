@@ -8,10 +8,10 @@
  *   Phase 1: Extract demand/supply slots for the canonical cell cover
  *   Phase 2: Classify each demand slot
  *   Phase 3: Formulate
- *     Pass 1: Explode primary independent demands (highest-priority first)
+ *     Pass 1: Explode primary independent demands (class order → due date)
  *     Derived: Compute replenishment demands from Pass 1 allocations
  *     Pass 2: Explode derived replenishment demands; collect metabolicDebt
- *     Backtrack: Retract low-criticality Pass 1 demands to free capacity
+ *     Backtrack: Retract latest-due Pass 1 demands to free capacity
  *   Phase B: Forward-schedule unabsorbed supply (dependentSupply)
  *   Phase 4: Collect result
  *
@@ -22,7 +22,7 @@
 import * as h3 from 'h3-js';
 import { nanoid } from 'nanoid';
 
-import type { Intent, Commitment, Process } from '../schemas';
+import type { Intent, Process } from '../schemas';
 import type { RecipeStore } from '../knowledge/recipes';
 import type { Observer } from '../observation/observer';
 import { PlanStore } from './planning';
@@ -88,7 +88,6 @@ export interface Conflict {
 // Internal record for per-slot tracking across passes
 interface SlotRecord {
     slot: DemandSlot;
-    classifiedAs: string[];
     result: DependentDemandResult;
 }
 
@@ -102,17 +101,6 @@ const CLASS_ORDER: Record<DemandSlotClass, number> = {
     'producible-with-imports': 2,
     'external-dependency':     3,
 };
-
-/**
- * Criticality: lower number = higher priority = planned first, retracted last.
- * Derived from resourceClassifiedAs tags on the demand's ResourceSpecification.
- */
-export function criticality(classifiedAs: string[]): number {
-    if (classifiedAs.includes('tag:plan:MeansOfProduction')) return 0;
-    if (classifiedAs.includes('tag:plan:Administration')) return 1;
-    if (classifiedAs.includes('tag:plan:Support')) return 3;
-    return 2; // Consumption default
-}
 
 // =============================================================================
 // PHASE 0 — NORMALISE CELLS
@@ -199,149 +187,6 @@ export function classifySlot(
     if (recipes.length > 0) return 'producible-with-imports';
 
     return 'external-dependency';
-}
-
-// =============================================================================
-// RETRACTION — findRetractableSubgraph
-// =============================================================================
-
-/**
- * Given a DependentDemandResult, find the full process sub-DAG that can be
- * safely retracted without affecting any other processes in the planStore.
- *
- * Start from result.processes. For each process P, traverse inputOf links on
- * Commitments/Intents to find upstream processes whose outputs are consumed
- * exclusively within this subtree (i.e. no other processes in the planStore
- * depend on their output flows outside this subtree).
- *
- * Returns the IDs of all processes, commitments, and intents in the subgraph.
- */
-export function findRetractableSubgraph(
-    result: DependentDemandResult,
-    planStore: PlanStore,
-): { processIds: string[]; commitmentIds: string[]; intentIds: string[] } {
-    const subgraphProcessIds = new Set<string>(result.processes.map(p => p.id));
-    const allCommitments = planStore.allCommitments();
-    const allIntents = planStore.allIntents();
-
-    // BFS: expand upstream until we find processes with external consumers
-    const queue = [...result.processes.map(p => p.id)];
-    while (queue.length > 0) {
-        const procId = queue.shift()!;
-
-        // Find all input flows for this process
-        const inputFlows = [
-            ...allCommitments.filter(c => c.inputOf === procId),
-            ...allIntents.filter(i => i.inputOf === procId),
-        ];
-
-        for (const flow of inputFlows) {
-            // Find the upstream process that produces this input (outputOf)
-            const producingProc = findProducingProcess(flow, allCommitments, allIntents);
-            if (!producingProc || subgraphProcessIds.has(producingProc)) continue;
-
-            // Include this upstream process only if ALL its output flows are
-            // consumed exclusively within our subgraph (or are the root output)
-            const outputFlows = [
-                ...allCommitments.filter(c => c.outputOf === producingProc),
-                ...allIntents.filter(i => i.outputOf === producingProc),
-            ];
-
-            const allOutputsInternal = outputFlows.every(outFlow => {
-                // The consuming process for this output flow
-                const consumer = findConsumingProcess(outFlow, allCommitments, allIntents);
-                return consumer === undefined || subgraphProcessIds.has(consumer);
-            });
-
-            if (allOutputsInternal) {
-                subgraphProcessIds.add(producingProc);
-                queue.push(producingProc);
-            }
-        }
-    }
-
-    // Collect all commitments and intents belonging to subgraph processes
-    const subgraphCommitmentIds = new Set<string>();
-    const subgraphIntentIds = new Set<string>();
-
-    for (const c of allCommitments) {
-        if (
-            (c.inputOf && subgraphProcessIds.has(c.inputOf)) ||
-            (c.outputOf && subgraphProcessIds.has(c.outputOf))
-        ) {
-            subgraphCommitmentIds.add(c.id);
-        }
-    }
-    for (const i of allIntents) {
-        if (
-            (i.inputOf && subgraphProcessIds.has(i.inputOf)) ||
-            (i.outputOf && subgraphProcessIds.has(i.outputOf))
-        ) {
-            subgraphIntentIds.add(i.id);
-        }
-    }
-
-    // Also include purchase intents from the result (they have no process link)
-    for (const pi of result.purchaseIntents) {
-        subgraphIntentIds.add(pi.id);
-    }
-
-    return {
-        processIds: [...subgraphProcessIds],
-        commitmentIds: [...subgraphCommitmentIds],
-        intentIds: [...subgraphIntentIds],
-    };
-}
-
-/**
- * Find the process ID that produces the given flow (i.e. another flow's outputOf
- * produces the resource that this flow consumes). We look for a flow whose
- * outputOf = some process, where that output flow's resourceConformsTo matches
- * this input flow's resourceConformsTo.
- *
- * Simplified: we look for a process P such that some outputOf:P flow has the
- * same resourceConformsTo as this input flow, AND P feeds into the consuming
- * process. Actually, we just look at what process the input flow comes from by
- * finding a matching output flow.
- */
-function findProducingProcess(
-    inputFlow: Commitment | Intent,
-    allCommitments: Commitment[],
-    allIntents: Intent[],
-): string | undefined {
-    const specId = inputFlow.resourceConformsTo;
-    if (!specId) return undefined;
-
-    // Find an output flow with the same spec that feeds into the same process context
-    for (const c of allCommitments) {
-        if (c.outputOf && c.resourceConformsTo === specId) return c.outputOf;
-    }
-    for (const i of allIntents) {
-        if (i.outputOf && i.resourceConformsTo === specId) return i.outputOf;
-    }
-    return undefined;
-}
-
-/**
- * Find the consuming process of an output flow.
- * An output flow (outputOf=P) is consumed by a process Q when another flow
- * has inputOf=Q and the same resourceConformsTo.
- */
-function findConsumingProcess(
-    outputFlow: Commitment | Intent,
-    allCommitments: Commitment[],
-    allIntents: Intent[],
-): string | undefined {
-    const specId = outputFlow.resourceConformsTo;
-    if (!specId) return undefined;
-
-    for (const c of allCommitments) {
-        if (c.inputOf && c.resourceConformsTo === specId) return c.inputOf;
-    }
-    for (const i of allIntents) {
-        if (i.inputOf && i.resourceConformsTo === specId) return i.inputOf;
-    }
-    return undefined;
 }
 
 // =============================================================================
@@ -504,14 +349,10 @@ export function planForRegion(
     const unmetDemand: DemandSlot[] = [];
     const metabolicDebt: MetabolicDebt[] = [];
 
-    // Sort: classification order → criticality (ascending) → due date ascending
+    // Sort: classification order → due date ascending
     const sortedSlots = [...classified].sort((a, b) => {
         const classDiff = CLASS_ORDER[a.slotClass] - CLASS_ORDER[b.slotClass];
         if (classDiff !== 0) return classDiff;
-        const specA = ctx.recipeStore.getResourceSpec(a.slot.spec_id ?? '')?.resourceClassifiedAs ?? [];
-        const specB = ctx.recipeStore.getResourceSpec(b.slot.spec_id ?? '')?.resourceClassifiedAs ?? [];
-        const critDiff = criticality(specA) - criticality(specB);
-        if (critDiff !== 0) return critDiff;
         const dueA = new Date(a.slot.due ?? 0).getTime();
         const dueB = new Date(b.slot.due ?? 0).getTime();
         return dueA - dueB;
@@ -520,9 +361,6 @@ export function planForRegion(
     // --- Pass 1: primary independent demands ---
     for (const { slot } of sortedSlots) {
         if (!slot.spec_id) continue;
-
-        const specClassifiedAs =
-            ctx.recipeStore.getResourceSpec(slot.spec_id)?.resourceClassifiedAs ?? [];
 
         const planId = `plan-${generateId()}`;
         planStore.addPlan({ id: planId, name: `Demand plan for ${slot.spec_id}` });
@@ -542,7 +380,7 @@ export function planForRegion(
             generateId,
         });
 
-        pass1Records.push({ slot, classifiedAs: specClassifiedAs, result });
+        pass1Records.push({ slot, result });
         allPurchaseIntents.push(...result.purchaseIntents);
     }
 
@@ -568,9 +406,7 @@ export function planForRegion(
     // Use a production-only netter (no observer) so replenishment demands trigger
     // recipe production rather than re-sourcing from existing inventory.
     // The inventory was already consumed (or will be) by Pass 1 processes.
-    const replenNetter = new PlanNetter(planStore, undefined);
-    // Copy allocated scheduled flows from Pass 1 so we don't double-book
-    for (const id of netter.allocated) replenNetter.allocated.add(id);
+    const replenNetter = netter.fork({ observer: undefined });
 
     const pass2Records: SlotRecord[] = [];
 
@@ -626,35 +462,20 @@ export function planForRegion(
 
     // --- Backtracking: if metabolicDebt remains, retract low-criticality Pass 1 ---
     if (metabolicDebt.length > 0) {
-        // Retract order: lowest criticality first (highest weight), latest due date first
+        // Retract order: latest due date first
         const retractOrder = [...pass1Records].sort(
-            (a, b) =>
-                criticality(b.classifiedAs) - criticality(a.classifiedAs) ||
-                new Date(b.slot.due ?? 0).getTime() - new Date(a.slot.due ?? 0).getTime(),
+            (a, b) => new Date(b.slot.due ?? 0).getTime() - new Date(a.slot.due ?? 0).getTime(),
         );
 
         for (const candidate of retractOrder) {
             if (metabolicDebt.length === 0) break;
 
-            // Find and retract the process subgraph
-            const subgraph = findRetractableSubgraph(candidate.result, planStore);
-            planStore.removeRecords(subgraph);
-
-            // Rebuild netter from updated planStore
-            const newNetter = new PlanNetter(planStore, ctx.observer);
-            // Copy over existing allocations that are still valid (flows still in planStore)
-            const stillAllocated = [...netter.allocated].filter(id => {
-                // Keep if the flow still exists in planStore
-                return planStore.allIntents().some(i => i.id === id) ||
-                    planStore.allCommitments().some(c => c.id === id);
-            });
-            for (const id of stillAllocated) newNetter.allocated.add(id);
+            netter.retract(candidate.result);
 
             // Production-only netter for the replenishment retry: no observer so we
             // do not re-net from inventory (the replenishment question is whether a
             // production recipe exists, not whether inventory happens to still be around).
-            const retryReplenNetter = new PlanNetter(planStore, undefined);
-            for (const id of newNetter.allocated) retryReplenNetter.allocated.add(id);
+            const retryReplenNetter = netter.fork({ observer: undefined });
 
             // Re-run Pass 2 with freed capacity to see if debt is resolved
             const resolvedDebt: string[] = [];
@@ -751,24 +572,21 @@ export function planForRegion(
                 // Retract the lowest-criticality, latest-due candidate processes
                 const competingProcessIds = conflict.candidates.filter(Boolean);
 
-                // Score each competing process by its classification tags
-                // (proxy: scan Pass 1 records for a matching process)
+                // Score each competing process by due date
                 const scored = competingProcessIds.map(procId => {
                     const record = pass1Records.find(r =>
                         r.result.processes.some(p => p.id === procId),
                     );
-                    const crit = record ? criticality(record.classifiedAs) : 2;
                     const due = record?.slot.due ? new Date(record.slot.due).getTime() : 0;
-                    return { procId, crit, due, record };
+                    return { procId, due, record };
                 });
 
-                // Sort: highest criticality number = retract first, latest due first
-                scored.sort((a, b) => b.crit - a.crit || b.due - a.due);
+                // Sort: latest due first
+                scored.sort((a, b) => b.due - a.due);
 
                 for (const { record } of scored) {
                     if (!record) continue;
-                    const subgraph = findRetractableSubgraph(record.result, planStore);
-                    planStore.removeRecords(subgraph);
+                    netter.retract(record.result);
                     unmetDemand.push(record.slot);
 
                     // Re-explode at merge scope

@@ -58,6 +58,9 @@ export class PlanNetter {
      */
     private readonly useReservations: Map<string, Array<{ from: Date; to: Date }>> = new Map();
 
+    /** Per-plan attribution: planId → set of flow IDs claimed by that plan's explosion. */
+    private readonly claimedByPlan: Map<string, Set<string>> = new Map();
+
     constructor(
         private readonly planStore: PlanStore,
         private readonly observer?: Observer,
@@ -75,6 +78,7 @@ export class PlanNetter {
         specId: string,
         qty: number,
         opts?: { stage?: string; state?: string; neededBy?: Date; atLocation?: string },
+        planId?: string,
     ): NetDemandResult {
         let remaining = qty;
         const inventoryAllocated: DemandAllocation[] = [];
@@ -119,6 +123,10 @@ export class PlanNetter {
                     if (opts?.atLocation && intent.atLocation && intent.atLocation !== opts.atLocation) continue;
                     const take = Math.min(intent.resourceQuantity!.hasNumericalValue, remaining);
                     this.allocated.add(intent.id);
+                    if (planId) {
+                        if (!this.claimedByPlan.has(planId)) this.claimedByPlan.set(planId, new Set());
+                        this.claimedByPlan.get(planId)!.add(intent.id);
+                    }
                     remaining -= take;
                 }
             }
@@ -141,6 +149,10 @@ export class PlanNetter {
                     if (opts?.atLocation && commitment.atLocation && commitment.atLocation !== opts.atLocation) continue;
                     const take = Math.min(commitment.resourceQuantity!.hasNumericalValue, remaining);
                     this.allocated.add(commitment.id);
+                    if (planId) {
+                        if (!this.claimedByPlan.has(planId)) this.claimedByPlan.set(planId, new Set());
+                        this.claimedByPlan.get(planId)!.add(commitment.id);
+                    }
                     remaining -= take;
                 }
             }
@@ -219,7 +231,7 @@ export class PlanNetter {
      * On success: records the reservation and adds a namespaced key to `allocated`.
      * Returns false (without mutating) on any conflict.
      */
-    netUse(resourceId: string, from: Date, to: Date): boolean {
+    netUse(resourceId: string, from: Date, to: Date, planId?: string): boolean {
         // 1. Within-session conflict
         const existing = this.useReservations.get(resourceId);
         if (existing) {
@@ -235,8 +247,83 @@ export class PlanNetter {
         } else {
             this.useReservations.set(resourceId, [{ from, to }]);
         }
-        this.allocated.add(`use:${resourceId}:${from.toISOString()}`);
+        const useKey = `use:${resourceId}:${from.toISOString()}`;
+        this.allocated.add(useKey);
+        if (planId) {
+            if (!this.claimedByPlan.has(planId)) this.claimedByPlan.set(planId, new Set());
+            this.claimedByPlan.get(planId)!.add(useKey);
+        }
         return true;
+    }
+
+    /**
+     * Remove from `allocated` any flow IDs that no longer exist in the planStore.
+     * Called after planStore.removeRecords() to keep the allocated set consistent.
+     *
+     * use:* entries (time-slot reservations) are left intact — they are position-based
+     * keys, not flow IDs, and freeing them requires knowing which scheduling intent they
+     * belonged to (handled separately if needed).
+     */
+    pruneStale(): void {
+        const validIds = new Set([
+            ...this.planStore.allIntents().map(i => i.id),
+            ...this.planStore.allCommitments().map(c => c.id),
+        ]);
+        for (const id of [...this.allocated]) {
+            if (id.startsWith('use:')) continue;
+            if (!validIds.has(id)) {
+                this.allocated.delete(id);
+                for (const set of this.claimedByPlan.values()) set.delete(id);
+            }
+        }
+    }
+
+    /**
+     * Release all soft-allocations that were attributed to the given planId.
+     * Does not remove planStore records — call removeRecordsForPlan() separately,
+     * or use retract() which does both.
+     */
+    releaseClaimsForPlan(planId: string): void {
+        const claimed = this.claimedByPlan.get(planId);
+        if (claimed) {
+            for (const id of claimed) this.allocated.delete(id);
+            this.claimedByPlan.delete(planId);
+        }
+    }
+
+    /**
+     * Retract a demand explosion result: release its claims, remove its planStore
+     * records, and prune any remaining stale allocations.
+     * Accepts any object with a plan.id, so no import of DependentDemandResult needed.
+     */
+    retract(result: { plan: { id: string } }): void {
+        this.releaseClaimsForPlan(result.plan.id);
+        this.planStore.removeRecordsForPlan(result.plan.id);
+        this.pruneStale();
+    }
+
+    /**
+     * Create a child netter that inherits the current allocated set.
+     * The child shares the same planStore and scheduleBook; observer can be
+     * overridden (pass { observer: undefined } for production-only netting).
+     */
+    fork(opts?: { observer?: Observer }): PlanNetter {
+        const child = new PlanNetter(
+            this.planStore,
+            opts ? opts.observer : this.observer,
+            this.scheduleBook,
+        );
+        for (const id of this.allocated) child.allocated.add(id);
+        return child;
+    }
+
+    /**
+     * Return the set of flow IDs (and use:* keys) that were attributed to planId
+     * during netDemand / netUse calls. Live reference — safe to read after BFS
+     * since each planId is unique per dependentDemand call.
+     */
+    claimedForPlan(planId: string): Set<string> {
+        return this.claimedByPlan.get(planId) ?? new Set();
     }
 
     /**

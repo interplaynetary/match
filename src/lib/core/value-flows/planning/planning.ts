@@ -107,6 +107,11 @@ export class PlanStore {
             .filter(c => c.clauseOf === agreementId);
     }
 
+    commitmentsForPlan(planId: string): Commitment[] {
+        return Array.from(this.commitments.values())
+            .filter(c => c.plannedWithin === planId);
+    }
+
     // =========================================================================
     // CRUD — Intents
     // =========================================================================
@@ -192,6 +197,12 @@ export class PlanStore {
         for (const id of ids.processIds ?? []) this.processes.unregister(id);
         for (const id of ids.commitmentIds ?? []) this.commitments.delete(id);
         for (const id of ids.intentIds ?? []) this.intents.delete(id);
+    }
+
+    removeRecordsForPlan(planId: string): void {
+        for (const p of this.processes.forPlan(planId)) this.processes.unregister(p.id);
+        for (const c of this.commitmentsForPlan(planId)) this.commitments.delete(c.id);
+        for (const i of this.intentsForPlan(planId)) this.intents.delete(i.id);
     }
 
     // =========================================================================

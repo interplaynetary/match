@@ -6,21 +6,18 @@
  *   - Phase 2: classifySlot
  *   - Pass 1 only: basic demand explosion
  *   - Derived demand computation + Pass 2 metabolicDebt
- *   - Backtracking: low-criticality retraction frees capacity
+ *   - Backtracking: latest-due retraction frees capacity
  *   - Phase B: surplus supply
  *   - Integration: two-pass Mode C (wheat/soil-nutrients)
  *   - Merge planner: conflict detection + retraction
  *   - PlanStore.merge + PlanStore.removeRecords
- *   - criticality() ordering
  */
 
 import { describe, expect, test, beforeEach } from 'bun:test';
 import {
     normalizeCells,
     classifySlot,
-    criticality,
     detectConflicts,
-    findRetractableSubgraph,
     planForRegion,
     type RegionPlanContext,
 } from '../planning/plan-for-region';
@@ -57,9 +54,9 @@ function makeRecipes() {
     rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:bread', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'each' }, recipeOutputOf: bakeRP.id });
 
     // Register specs
-    rs.addResourceSpec({ id: 'spec:bread', name: 'Bread', resourceClassifiedAs: ['tag:plan:Consumption'] });
-    rs.addResourceSpec({ id: 'spec:wheat', name: 'Wheat', resourceClassifiedAs: ['tag:plan:MeansOfProduction'] });
-    rs.addResourceSpec({ id: 'spec:soil-nutrients', name: 'Soil Nutrients', resourceClassifiedAs: ['tag:plan:replenishment-required', 'tag:plan:MeansOfProduction'] });
+    rs.addResourceSpec({ id: 'spec:bread', name: 'Bread', resourceClassifiedAs: [] });
+    rs.addResourceSpec({ id: 'spec:wheat', name: 'Wheat', resourceClassifiedAs: [] });
+    rs.addResourceSpec({ id: 'spec:soil-nutrients', name: 'Soil Nutrients', resourceClassifiedAs: ['tag:plan:replenishment-required'] });
 
     // compost → soil-nutrients (replenishment recipe)
     const compostRP = rs.addRecipeProcess({ name: 'Compost', hasDuration: { hasNumericalValue: 2, hasUnit: 'h' } });
@@ -192,29 +189,6 @@ describe('classifySlot', () => {
         const slot = makeDemandSlot('spec:unobtainium');
         const result = classifySlot(slot, [LONDON_RES7], si, rs);
         expect(result).toBe('external-dependency');
-    });
-});
-
-// ===========================================================================
-// criticality()
-// ===========================================================================
-
-describe('criticality', () => {
-    test('MeansOfProduction → 0 (highest priority)', () => {
-        expect(criticality(['tag:plan:MeansOfProduction'])).toBe(0);
-    });
-    test('Administration → 1', () => {
-        expect(criticality(['tag:plan:Administration'])).toBe(1);
-    });
-    test('Consumption (default) → 2', () => {
-        expect(criticality(['tag:plan:Consumption'])).toBe(2);
-        expect(criticality([])).toBe(2); // no tag → default
-    });
-    test('Support → 3 (lowest priority)', () => {
-        expect(criticality(['tag:plan:Support'])).toBe(3);
-    });
-    test('MeansOfProduction wins over Support when both present', () => {
-        expect(criticality(['tag:plan:Support', 'tag:plan:MeansOfProduction'])).toBe(0);
     });
 });
 
@@ -361,8 +335,8 @@ describe('planForRegion — two-pass integration (Mode C)', () => {
         rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:soil-nutrients', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeOutputOf: compostRP.id });
 
         // Register specs — soil-nutrients is replenishment-required
-        rs.addResourceSpec({ id: 'spec:wheat', name: 'Wheat', resourceClassifiedAs: ['tag:plan:Consumption'] });
-        rs.addResourceSpec({ id: 'spec:soil-nutrients', name: 'Soil Nutrients', resourceClassifiedAs: ['tag:plan:replenishment-required', 'tag:plan:MeansOfProduction'] });
+        rs.addResourceSpec({ id: 'spec:wheat', name: 'Wheat', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:soil-nutrients', name: 'Soil Nutrients', resourceClassifiedAs: ['tag:plan:replenishment-required'] });
         rs.addResourceSpec({ id: 'spec:compost-material', name: 'Compost Material', resourceClassifiedAs: [] });
 
         const obs = makeObserver();
@@ -493,7 +467,7 @@ describe('planForRegion — Phase B surplus supply', () => {
         const rs = new RecipeStore();
 
         // No demand for wool — it will stay as surplus
-        rs.addResourceSpec({ id: 'spec:wool', name: 'Wool', resourceClassifiedAs: ['tag:plan:MeansOfProduction'] });
+        rs.addResourceSpec({ id: 'spec:wool', name: 'Wool', resourceClassifiedAs: [] });
 
         const obs = makeObserver();
         const locations = new Map<string, SpatialThing>([
@@ -536,7 +510,7 @@ describe('planForRegion — Phase B surplus supply', () => {
 // ===========================================================================
 
 describe('planForRegion — backtracking', () => {
-    test('Support demand retracted when metabolicDebt remains', () => {
+    test('latest-due demand retracted when metabolicDebt remains', () => {
         idCounter = 0;
         const rs = new RecipeStore();
 
@@ -558,9 +532,9 @@ describe('planForRegion — backtracking', () => {
         rs.addRecipeFlow({ action: 'consume', resourceConformsTo: 'spec:raw-material', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeInputOf: replenRP.id });
         rs.addRecipeFlow({ action: 'produce', resourceConformsTo: 'spec:critical-resource', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, recipeOutputOf: replenRP.id });
 
-        rs.addResourceSpec({ id: 'spec:primary-output', name: 'Primary Output', resourceClassifiedAs: ['tag:plan:MeansOfProduction'] });
-        rs.addResourceSpec({ id: 'spec:support-output', name: 'Support Output', resourceClassifiedAs: ['tag:plan:Support'] });
-        rs.addResourceSpec({ id: 'spec:critical-resource', name: 'Critical Resource', resourceClassifiedAs: ['tag:plan:replenishment-required', 'tag:plan:MeansOfProduction'] });
+        rs.addResourceSpec({ id: 'spec:primary-output', name: 'Primary Output', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:support-output', name: 'Support Output', resourceClassifiedAs: [] });
+        rs.addResourceSpec({ id: 'spec:critical-resource', name: 'Critical Resource', resourceClassifiedAs: ['tag:plan:replenishment-required'] });
         rs.addResourceSpec({ id: 'spec:raw-material', name: 'Raw Material', resourceClassifiedAs: [] });
 
         const obs = makeObserver();
@@ -684,37 +658,6 @@ describe('detectConflicts', () => {
 });
 
 // ===========================================================================
-// findRetractableSubgraph
-// ===========================================================================
-
-describe('findRetractableSubgraph', () => {
-    test('returns process, commitment, and intent IDs of the demand result', () => {
-        const procReg = new ProcessRegistry(genId);
-        const store = new PlanStore(procReg, genId);
-
-        // Create a minimal process + flow
-        const proc = procReg.register({ name: 'Process A' });
-        const c = store.addCommitment({ action: 'produce', outputOf: proc.id, resourceConformsTo: 'spec:x', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, finished: false });
-        const i = store.addIntent({ action: 'consume', inputOf: proc.id, resourceConformsTo: 'spec:y', resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' }, receiver: 'agent:z', finished: false });
-
-        const fakeResult = {
-            plan: { id: 'plan-1', name: 'Test Plan' },
-            processes: [proc],
-            commitments: [c],
-            intents: [i],
-            purchaseIntents: [],
-            allocated: [],
-        };
-
-        const subgraph = findRetractableSubgraph(fakeResult, store);
-
-        expect(subgraph.processIds).toContain(proc.id);
-        expect(subgraph.commitmentIds).toContain(c.id);
-        expect(subgraph.intentIds).toContain(i.id);
-    });
-});
-
-// ===========================================================================
 // Merge planner path (subStores)
 // ===========================================================================
 
@@ -722,7 +665,7 @@ describe('planForRegion — merge planner', () => {
     test('merges two leaf PlanStores and detects/resolves inventory conflict', () => {
         idCounter = 0;
         const rs = new RecipeStore();
-        rs.addResourceSpec({ id: 'spec:wool', name: 'Wool', resourceClassifiedAs: ['tag:plan:Consumption'] });
+        rs.addResourceSpec({ id: 'spec:wool', name: 'Wool', resourceClassifiedAs: [] });
 
         const obs = makeObserver();
         // 5 kg of wool in inventory

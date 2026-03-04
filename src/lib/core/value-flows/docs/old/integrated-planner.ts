@@ -21,17 +21,17 @@
  */
 
 import { nanoid } from 'nanoid';
-import type { Intent, Plan, Process, Commitment, SpatialThing, Agent } from '../schemas';
-import { ACTION_DEFINITIONS } from '../schemas';
-import type { DemandSlot } from '../indexes/independent-demand';
-import { RecipeStore } from '../knowledge/recipes';
-import { Observer } from '../observation/observer';
+import type { Intent, Plan, Process, Commitment, SpatialThing, Agent } from '../../schemas';
+import { ACTION_DEFINITIONS } from '../../schemas';
+import type { DemandSlot } from '../../indexes/independent-demand';
+import { RecipeStore } from '../../knowledge/recipes';
+import { Observer } from '../../observation/observer';
 import {
     buildAgentIndex,
     queryAgentsBySpec,
     getTotalAgentHours,
     type AgentIndex,
-} from '../indexes/agents';
+} from '../../indexes/agents';
 import {
     type Scenario,
     type ScenarioIndex,
@@ -43,17 +43,14 @@ import {
     mergeFrontier,
     globalParetoFront,
     scenarioToPlan,
-} from '../utils/space-time-scenario';
-import { PlanStore } from './planning';
+} from '../../utils/space-time-scenario';
+import { PlanStore } from '../../planning/planning';
 
 // =============================================================================
-// PLANNING PRIORITY TAGS
+// INFRASTRUCTURE TAG
 // =============================================================================
 
 const TAG_INFRASTRUCTURE = 'tag:plan:MeansOfProduction';
-const TAG_ADMINISTRATION = 'tag:plan:Administration';
-const TAG_CONSUMPTION    = 'tag:plan:Consumption';
-const TAG_SUPPORT        = 'tag:plan:Support';
 
 // =============================================================================
 // CONFIG
@@ -91,7 +88,7 @@ export const DEFAULT_CONFIG: IntegratedPlannerConfig = {
  * Replaces planner.ts `FeasibleStrategy` — computed entirely from VF types.
  */
 interface VfFeasibleRecipe {
-    recipe: import('../schemas').Recipe;
+    recipe: import('../../schemas').Recipe;
     /** ResourceSpecification ID produced as primary output. */
     outputSpecId: string;
     /** Per-execution output quantity. */
@@ -112,14 +109,14 @@ interface VfFeasibleRecipe {
  * A recipe selected for execution during the backward pass.
  */
 interface VfSelectedRecipe {
-    recipe: import('../schemas').Recipe;
+    recipe: import('../../schemas').Recipe;
     executions: number;
     /** Total quantity produced in this selection. */
     quantity: number;
     /** Primary output spec. */
     outputSpecId: string;
     /** Which planning category drove this selection. */
-    purpose: 'infrastructure' | 'intermediate' | 'insurance' | 'administration' | 'consumption' | 'support';
+    purpose: 'infrastructure' | 'primary' | 'intermediate' | 'insurance';
     /**
      * The DemandSlot.intent_id this selection satisfies.
      * Set for D4/D5/D6 selections; undefined for D1, intermediate, and D3.
@@ -166,19 +163,6 @@ function isDepletingAction(action: string): boolean {
     return def.accountingEffect !== 'noEffect';
 }
 
-/**
- * Classify a spec's planning priority from its resourceClassifiedAs tags.
- * Returns 'infrastructure' | 'administration' | 'consumption' | 'support'.
- * Defaults to 'consumption'.
- */
-function planningPriority(recipeStore: RecipeStore, specId: string): 'infrastructure' | 'administration' | 'consumption' | 'support' {
-    const spec = recipeStore.getResourceSpec(specId);
-    const tags = spec?.resourceClassifiedAs ?? [];
-    if (tags.includes(TAG_INFRASTRUCTURE)) return 'infrastructure';
-    if (tags.includes(TAG_ADMINISTRATION)) return 'administration';
-    if (tags.includes(TAG_SUPPORT)) return 'support';
-    return 'consumption'; // Default: common need
-}
 
 // =============================================================================
 // INFRASTRUCTURE (MEANS OF PRODUCTION) AUTO-DISCOVERY
@@ -537,32 +521,13 @@ function vfPlanFromNeeds(
         selectFor(specId, qty, 'infrastructure', 0);
     }
 
-    // ── Classify demand slots by planning priority ────────────────────────────
-    const adminDemands:       DemandSlot[] = [];
-    const consumptionDemands: DemandSlot[] = [];
-    const supportDemands:     DemandSlot[] = [];
+    // ── Primary demands (sorted by due date) ─────────────────────────────────
+    const sortedDemands = demands
+        .filter(s => s.spec_id)
+        .sort((a, b) => new Date(a.due ?? 0).getTime() - new Date(b.due ?? 0).getTime());
 
-    for (const slot of demands) {
-        if (!slot.spec_id) continue;
-        const priority = planningPriority(recipeStore, slot.spec_id);
-        if      (priority === 'administration') adminDemands.push(slot);
-        else if (priority === 'support')        supportDemands.push(slot);
-        else                                    consumptionDemands.push(slot);
-    }
-
-    // ── Administration ────────────────────────────────────────────────────────
-    for (const slot of adminDemands) {
-        selectFor(slot.spec_id!, slot.remaining_quantity, 'administration', 0, slot.intent_id);
-    }
-
-    // ── Consumption: Common needs (the bulk of demand) ────────────────────────
-    for (const slot of consumptionDemands) {
-        selectFor(slot.spec_id!, slot.remaining_quantity, 'consumption', 0, slot.intent_id);
-    }
-
-    // ── Support ───────────────────────────────────────────────────────────────
-    for (const slot of supportDemands) {
-        selectFor(slot.spec_id!, slot.remaining_quantity, 'support', 0, slot.intent_id);
+    for (const slot of sortedDemands) {
+        selectFor(slot.spec_id!, slot.remaining_quantity, 'primary', 0, slot.intent_id);
     }
 
     // ── Insurance ─────────────────────────────────────────────────────────────
@@ -570,8 +535,7 @@ function vfPlanFromNeeds(
     // (quantity × insuranceFactor) as a safety buffer.
     if (config.insuranceFactor > 0) {
         const insuranceSnapshot = selectedRecipes.filter(
-            s => s.purpose === 'infrastructure' || s.purpose === 'administration' ||
-                 s.purpose === 'consumption'    || s.purpose === 'support',
+            s => s.purpose === 'infrastructure' || s.purpose === 'primary',
         );
         for (const sel of insuranceSnapshot) {
             const insuranceQty = sel.quantity * config.insuranceFactor;

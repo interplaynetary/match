@@ -14,7 +14,7 @@ import { PlanStore } from '../planning/planning';
 import { RecipeStore } from '../knowledge/recipes';
 import { ProcessRegistry } from '../process-registry';
 import { Observer } from '../observation/observer';
-import { promoteToPlan } from '../planning/integrated-planner';
+import { promoteToPlan } from '../docs/old/integrated-planner';
 import type { Scenario } from '../utils/space-time-scenario';
 import type { Commitment, Process, RecipeFlow } from '../schemas';
 

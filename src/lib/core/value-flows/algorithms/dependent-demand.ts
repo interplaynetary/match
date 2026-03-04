@@ -71,8 +71,15 @@ export interface DependentDemandResult {
     purchaseIntents: Intent[];
     allocated: DemandAllocation[];
     /**
-     * IDs of pre-existing scheduled outputs (Intents OR Commitments with outputOf set)
-     * that were soft-allocated to satisfy demand during the explosion.
+     * IDs of pre-existing scheduled outputs (Intents OR Commitments with outputOf set,
+     * plus any use:* time-slot keys) that were soft-allocated by THIS explosion via
+     * netter.netDemand / netter.netUse. Computed as the delta of netter.allocated
+     * before vs after the BFS — so it includes only what this call added, not
+     * accumulations from prior calls on the same netter.
+     *
+     * Used during retraction: deleting these from netter.allocated releases claims
+     * on flows owned by OTHER explosions (orphaned claims that pruneStale() cannot
+     * detect, since those flows still exist in the planStore).
      */
     allocatedScheduledIds: Set<string>;
 }
@@ -175,7 +182,7 @@ export function dependentDemand(params: {
         intents: [],
         purchaseIntents: [],
         allocated: [],
-        allocatedScheduledIds: netter.allocated,
+        allocatedScheduledIds: new Set(), // populated after BFS
     };
 
     // Prevent infinite recursion (circular recipes)
@@ -194,6 +201,9 @@ export function dependentDemand(params: {
         const demand = queue.shift()!;
         processDemand(demand, visited, queue, result, params, netter);
     }
+
+    // Populate from netter's per-plan attribution (filled during BFS via planId).
+    result.allocatedScheduledIds = netter.claimedForPlan(planId);
 
     return result;
 }
@@ -229,7 +239,7 @@ function processDemand(
                         return true;
                     });
                 for (const r of candidates) {
-                    if (netter.netUse(r.id, slotFrom, slotTo)) {
+                    if (netter.netUse(r.id, slotFrom, slotTo, planId)) {
                         const intent = planStore.addIntent({
                             action: 'use',
                             resourceInventoriedAs: r.id,
@@ -300,6 +310,7 @@ function processDemand(
         demand.specId,
         demand.quantity,
         { stage: demand.stage, state: demand.state, neededBy: demand.neededBy, atLocation: demand.atLocation },
+        planId,
     );
     for (const alloc of inventoryAllocated) {
         result.allocated.push({ specId: demand.specId, resourceId: alloc.resourceId, quantity: alloc.quantity });
