@@ -163,6 +163,38 @@ export class PlanStore {
     }
 
     // =========================================================================
+    // BULK OPERATIONS — merge / retract
+    // =========================================================================
+
+    /** All processes registered in the shared ProcessRegistry. */
+    allProcesses(): Process[] { return this.processes.all(); }
+
+    /**
+     * Import all records from a sub-PlanStore into this one.
+     * Caller is responsible for ensuring disjoint IDs.
+     */
+    merge(sub: PlanStore): void {
+        for (const proc of sub.allProcesses()) this.processes.register(proc);
+        for (const c of sub.allCommitments()) this.commitments.set(c.id, c);
+        for (const i of sub.allIntents()) this.intents.set(i.id, i);
+        for (const p of sub.allPlans()) this.plans.set(p.id, p);
+    }
+
+    /**
+     * Batch-delete records by ID. Used by backtracking and surgical retraction.
+     * Missing IDs are silently ignored.
+     */
+    removeRecords(ids: {
+        processIds?: string[];
+        commitmentIds?: string[];
+        intentIds?: string[];
+    }): void {
+        for (const id of ids.processIds ?? []) this.processes.unregister(id);
+        for (const id of ids.commitmentIds ?? []) this.commitments.delete(id);
+        for (const id of ids.intentIds ?? []) this.intents.delete(id);
+    }
+
+    // =========================================================================
     // CRUD — Claims
     // =========================================================================
 

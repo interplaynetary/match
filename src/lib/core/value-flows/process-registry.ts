@@ -86,6 +86,14 @@ export class ProcessRegistry {
         return this.all().filter(p => p.basedOn === specId);
     }
 
+    /**
+     * Remove a process by ID. Used by backtracking / surgical retraction.
+     * Silently ignored if the ID is not found.
+     */
+    unregister(id: string): void {
+        this.processes.delete(id);
+    }
+
     clear(): void {
         this.processes.clear();
     }

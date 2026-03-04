@@ -560,6 +560,13 @@ export const RecipeProcessSchema = z.object({
     processConformsTo: z.string().optional(),              // ProcessSpecification ID
     processClassifiedAs: z.array(z.string()).optional(),
     hasDuration: DurationSchema.optional(),
+    /**
+     * Minimum lot size per run, in output units.
+     * When specified, a single run must produce at least this quantity.
+     * Demand below the minimum still triggers a full minimum-size run;
+     * excess output beyond demand becomes surplus inventory.
+     */
+    minimumBatchQuantity: MeasureSchema.optional(),
 });
 export type RecipeProcess = z.infer<typeof RecipeProcessSchema>;
 

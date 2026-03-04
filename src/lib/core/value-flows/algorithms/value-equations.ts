@@ -25,6 +25,7 @@ import type { EconomicEvent } from '../schemas';
 import type { Observer } from '../observation/observer';
 import type { ProcessRegistry } from '../process-registry';
 import { trace } from './track-trace';
+import type { SNEIndex } from './SNE';
 
 // =============================================================================
 // TYPES
@@ -120,6 +121,60 @@ export const hybridEquation: ValueEquation = {
         { name: 'resource', weight: 0.3, scorer: resourceScorer },
     ],
 };
+
+// =============================================================================
+// DEPRECIATION SCORER
+// =============================================================================
+
+/**
+ * Creates a ContributionScorer that weights `use` events by depreciation value:
+ *   score = (duration_used / lifespan) × SNE(tool_spec)
+ *
+ * This properly credits tool owners for the fraction of the tool's embodied
+ * labor consumed by a production run, rather than counting raw resource quantity.
+ *
+ * @param sneIndex   Pre-built SNE index (specId → effort hours/unit)
+ * @param lifespans  Map of specId → total lifespan in effort hours
+ * @param observer   Optional; used to look up resourceConformsTo when absent on event
+ */
+export function makeDepreciationScorer(
+    sneIndex: SNEIndex,
+    lifespans: Map<string, number>,
+    observer?: Observer,
+): ContributionScorer {
+    return (event: EconomicEvent) => {
+        if (event.action !== 'use') return 0;
+        const specId = event.resourceConformsTo
+            ?? (event.resourceInventoriedAs
+                ? observer?.getResource(event.resourceInventoriedAs)?.conformsTo
+                : undefined);
+        if (!specId) return 0;
+        const lifespan = lifespans.get(specId);
+        if (!lifespan || lifespan <= 0) return 0;
+        const duration = event.effortQuantity?.hasNumericalValue ?? 0;
+        const equipSNE = sneIndex.get(specId) ?? 0;
+        return (duration / lifespan) * equipSNE;
+    };
+}
+
+/**
+ * Convenience factory: 60% effort + 40% depreciation value equation.
+ * Balances direct labor contribution with tool owner compensation.
+ */
+export function makeHybridWithDepreciationEquation(
+    sneIndex: SNEIndex,
+    lifespans: Map<string, number>,
+    observer?: Observer,
+): ValueEquation {
+    return {
+        id: 'hybrid-with-depreciation',
+        name: 'Effort + Depreciation',
+        components: [
+            { name: 'labor', weight: 0.6, scorer: effortScorer },
+            { name: 'depreciation', weight: 0.4, scorer: makeDepreciationScorer(sneIndex, lifespans, observer) },
+        ],
+    };
+}
 
 // =============================================================================
 // DISTRIBUTE INCOME

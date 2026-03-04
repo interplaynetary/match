@@ -72,6 +72,23 @@ function blockOverlapsDate(block: ScheduleBlock, dt: Date): boolean {
     return true;
 }
 
+/**
+ * Returns true if `block` overlaps the half-open window [from, to).
+ * Used for use-slot conflict detection.
+ */
+function blockOverlapsWindow(block: ScheduleBlock, from: Date, to: Date): boolean {
+    if (block.hasBeginning && block.hasEnd) {
+        const begin = new Date(block.hasBeginning);
+        const end = new Date(block.hasEnd);
+        return begin < to && end > from;
+    }
+    if (block.due) {
+        const due = new Date(block.due);
+        return due >= from && due < to;
+    }
+    return true; // no temporal info — conservative: assume overlap
+}
+
 function intentToBlock(intent: Intent): ScheduleBlock {
     return {
         id: intent.id,
@@ -174,6 +191,19 @@ export class ScheduleBook {
         return this.blocksFor(agentId, { date: dt, actions: ['work'] })
             .filter(b => b.type === 'commitment')
             .reduce((sum, b) => sum + (b.effortQuantity?.hasNumericalValue ?? 0), 0);
+    }
+
+    /**
+     * Returns true if there is already a scheduled `use` flow for `resourceId`
+     * that overlaps the half-open window [from, to).
+     *
+     * Used by PlanNetter.netUse to detect time-slot conflicts against pre-existing
+     * commitments in the PlanStore (e.g. from a previous planning session or a
+     * merged leaf PlanStore).
+     */
+    hasUseConflict(resourceId: string, from: Date, to: Date): boolean {
+        const blocks = this.blocksFor(resourceId, { actions: ['use'] });
+        return blocks.some(b => blockOverlapsWindow(b, from, to));
     }
 
     /**

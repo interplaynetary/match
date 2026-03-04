@@ -47,13 +47,13 @@ import {
 import { PlanStore } from './planning';
 
 // =============================================================================
-// D-CATEGORY TAGS (from RESOURCE_CLASSIFICATION.md)
+// PLANNING PRIORITY TAGS
 // =============================================================================
 
-const TAG_D1 = 'tag:plan:D1-MeansOfProduction';
-const TAG_D4 = 'tag:plan:D4-Administration';
-const TAG_D5 = 'tag:plan:D5-Consumption';
-const TAG_D6 = 'tag:plan:D6-Support';
+const TAG_INFRASTRUCTURE = 'tag:plan:MeansOfProduction';
+const TAG_ADMINISTRATION = 'tag:plan:Administration';
+const TAG_CONSUMPTION    = 'tag:plan:Consumption';
+const TAG_SUPPORT        = 'tag:plan:Support';
 
 // =============================================================================
 // CONFIG
@@ -65,8 +65,8 @@ export interface IntegratedPlannerConfig {
     /** H3 resolution for root nodes (regional). Default 3. */
     rootResolution: number;
     /**
-     * Base insurance fraction (D3).
-     * Applied on top of D1/D4/D5/D6 totals.
+     * Base insurance fraction (buffer stock).
+     * Applied on top of all primary demand totals.
      * Per-recipe variance increases this when known. Default 0.10.
      */
     insuranceFactor: number;
@@ -118,8 +118,8 @@ interface VfSelectedRecipe {
     quantity: number;
     /** Primary output spec. */
     outputSpecId: string;
-    /** Which D-series need drove this selection. */
-    purpose: 'd1' | 'intermediate' | 'd3' | 'd4' | 'd5' | 'd6';
+    /** Which planning category drove this selection. */
+    purpose: 'infrastructure' | 'intermediate' | 'insurance' | 'administration' | 'consumption' | 'support';
     /**
      * The DemandSlot.intent_id this selection satisfies.
      * Set for D4/D5/D6 selections; undefined for D1, intermediate, and D3.
@@ -167,20 +167,21 @@ function isDepletingAction(action: string): boolean {
 }
 
 /**
- * Classify a spec's D-category from its resourceClassifiedAs tags.
- * Returns 'd1' | 'd4' | 'd5' | 'd6'.  Defaults to 'd5'.
+ * Classify a spec's planning priority from its resourceClassifiedAs tags.
+ * Returns 'infrastructure' | 'administration' | 'consumption' | 'support'.
+ * Defaults to 'consumption'.
  */
-function dCategory(recipeStore: RecipeStore, specId: string): 'd1' | 'd4' | 'd5' | 'd6' {
+function planningPriority(recipeStore: RecipeStore, specId: string): 'infrastructure' | 'administration' | 'consumption' | 'support' {
     const spec = recipeStore.getResourceSpec(specId);
     const tags = spec?.resourceClassifiedAs ?? [];
-    if (tags.includes(TAG_D1)) return 'd1';
-    if (tags.includes(TAG_D4)) return 'd4';
-    if (tags.includes(TAG_D6)) return 'd6';
-    return 'd5'; // Default: common need
+    if (tags.includes(TAG_INFRASTRUCTURE)) return 'infrastructure';
+    if (tags.includes(TAG_ADMINISTRATION)) return 'administration';
+    if (tags.includes(TAG_SUPPORT)) return 'support';
+    return 'consumption'; // Default: common need
 }
 
 // =============================================================================
-// D1 AUTO-DISCOVERY
+// INFRASTRUCTURE (MEANS OF PRODUCTION) AUTO-DISCOVERY
 // =============================================================================
 
 /**
@@ -192,43 +193,43 @@ function dCategory(recipeStore: RecipeStore, specId: string): 'd1' | 'd4' | 'd5'
  * (the minimum viable inventory to run at least one execution of the most demanding
  * recipe that uses this tool).
  */
-function discoverD1Specs(recipeStore: RecipeStore): Map<string, number> {
-    const d1Specs = new Map<string, number>();
+function discoverInfrastructureSpecs(recipeStore: RecipeStore): Map<string, number> {
+    const infraSpecs = new Map<string, number>();
     for (const recipe of recipeStore.allRecipes()) {
         const chain = recipeStore.getProcessChain(recipe.id);
         for (const rp of chain) {
             const { inputs } = recipeStore.flowsForProcess(rp.id);
             for (const flow of inputs) {
                 if (!flow.resourceConformsTo || flow.action === 'work') continue;
-                if (isDepletingAction(flow.action)) continue; // consumed, not D1
+                if (isDepletingAction(flow.action)) continue; // consumed, not infrastructure
                 const qty = flow.resourceQuantity?.hasNumericalValue ?? 0;
                 if (qty <= 0) continue;
-                const prev = d1Specs.get(flow.resourceConformsTo) ?? 0;
-                d1Specs.set(flow.resourceConformsTo, Math.max(prev, qty));
+                const prev = infraSpecs.get(flow.resourceConformsTo) ?? 0;
+                infraSpecs.set(flow.resourceConformsTo, Math.max(prev, qty));
             }
         }
     }
-    return d1Specs;
+    return infraSpecs;
 }
 
 /**
- * Compute D1 reproduction targets from the recipe graph and current Observer state.
+ * Compute infrastructure reproduction targets from the recipe graph and current Observer state.
  *
- * For each structurally-discovered D1 spec: if current inventory < the minimum
+ * For each structurally-discovered infrastructure spec: if current inventory < the minimum
  * quantity needed to run any recipe that uses it, the gap is a reproduction need.
  *
  * External `overrides` (e.g. depreciation-based targets from callers who have
  * lifespan data) are merged in and take precedence over auto-computed values.
  */
-function computeD1Targets(
+function computeInfrastructureTargets(
     recipeStore: RecipeStore,
     observer: Observer,
     overrides: Record<string, number> = {},
 ): Record<string, number> {
-    const d1Specs  = discoverD1Specs(recipeStore);
+    const infraSpecs = discoverInfrastructureSpecs(recipeStore);
     const targets: Record<string, number> = {};
 
-    for (const [specId, neededQty] of d1Specs) {
+    for (const [specId, neededQty] of infraSpecs) {
         const current = availableQtyForSpec(observer, specId);
         if (current < neededQty) {
             targets[specId] = neededQty - current;
@@ -401,24 +402,24 @@ const MAX_RECURSION_DEPTH = 10;
  * VF-native backward pass — implements the Generator loop from
  * PLANNING_SEARCH_ENGINE.md in VF terms.
  *
- * D-series processing order (criticality, highest first):
- *   D1 → intermediate supply chain → D3 insurance → D4 → D5 → D6
+ * Processing order (criticality, highest first):
+ *   Infrastructure → intermediate supply chain → Insurance → Administration → Consumption → Support
  *
  * For each demanded spec:
  *   1. Use remaining inventory first.
  *   2. Select the most SNLT-efficient feasible recipe(s).
  *   3. Recipe inputs become new intermediate demands (recursive).
- *   4. Emit D2 expansion signal when needed > feasible.
+ *   4. Emit expansion signal when needed > feasible.
  *
- * D3 is applied after D1/D4/D5/D6 are satisfied:
+ * Insurance is applied after all primary demands are satisfied:
  *   select an additional (total × insuranceFactor) of each spec.
  *
- * @param demands      Open demand slots (D4/D5/D6 final needs).
- * @param feasibleBySpec  Feasibility envelopes per spec (from buildVfFeasibleRecipes).
- * @param observer     For reading current inventory.
- * @param recipeStore  For reading recipe structure during recursion.
- * @param config       Planning parameters.
- * @param d1Targets    Optional explicit D1 reproduction targets (specId → quantity).
+ * @param demands               Open demand slots (final needs).
+ * @param feasibleBySpec        Feasibility envelopes per spec (from buildVfFeasibleRecipes).
+ * @param observer              For reading current inventory.
+ * @param recipeStore           For reading recipe structure during recursion.
+ * @param config                Planning parameters.
+ * @param infrastructureTargets Optional explicit infrastructure reproduction targets (specId → quantity).
  */
 function vfPlanFromNeeds(
     demands: DemandSlot[],
@@ -426,7 +427,7 @@ function vfPlanFromNeeds(
     observer: Observer,
     recipeStore: RecipeStore,
     config: IntegratedPlannerConfig,
-    d1Targets: Record<string, number> = {},
+    infrastructureTargets: Record<string, number> = {},
 ): VfProductionPlan {
     // Mutable remaining inventory (consumed as we plan)
     const remaining: Record<string, number> = {};
@@ -531,50 +532,50 @@ function vfPlanFromNeeds(
         }
     }
 
-    // ── D1: Reproduction needs ────────────────────────────────────────────────
-    for (const [specId, qty] of Object.entries(d1Targets)) {
-        selectFor(specId, qty, 'd1', 0);
+    // ── Infrastructure: Reproduction needs ───────────────────────────────────
+    for (const [specId, qty] of Object.entries(infrastructureTargets)) {
+        selectFor(specId, qty, 'infrastructure', 0);
     }
 
-    // ── Classify demand slots by D-category ──────────────────────────────────
-    const d4Demands: DemandSlot[] = [];
-    const d5Demands: DemandSlot[] = [];
-    const d6Demands: DemandSlot[] = [];
+    // ── Classify demand slots by planning priority ────────────────────────────
+    const adminDemands:       DemandSlot[] = [];
+    const consumptionDemands: DemandSlot[] = [];
+    const supportDemands:     DemandSlot[] = [];
 
     for (const slot of demands) {
         if (!slot.spec_id) continue;
-        const cat = dCategory(recipeStore, slot.spec_id);
-        if      (cat === 'd4') d4Demands.push(slot);
-        else if (cat === 'd6') d6Demands.push(slot);
-        else                   d5Demands.push(slot);
+        const priority = planningPriority(recipeStore, slot.spec_id);
+        if      (priority === 'administration') adminDemands.push(slot);
+        else if (priority === 'support')        supportDemands.push(slot);
+        else                                    consumptionDemands.push(slot);
     }
 
-    // ── D4: Administration ────────────────────────────────────────────────────
-    for (const slot of d4Demands) {
-        selectFor(slot.spec_id!, slot.remaining_quantity, 'd4', 0, slot.intent_id);
+    // ── Administration ────────────────────────────────────────────────────────
+    for (const slot of adminDemands) {
+        selectFor(slot.spec_id!, slot.remaining_quantity, 'administration', 0, slot.intent_id);
     }
 
-    // ── D5: Common needs (the bulk of demand) ─────────────────────────────────
-    for (const slot of d5Demands) {
-        selectFor(slot.spec_id!, slot.remaining_quantity, 'd5', 0, slot.intent_id);
+    // ── Consumption: Common needs (the bulk of demand) ────────────────────────
+    for (const slot of consumptionDemands) {
+        selectFor(slot.spec_id!, slot.remaining_quantity, 'consumption', 0, slot.intent_id);
     }
 
-    // ── D6: Support ───────────────────────────────────────────────────────────
-    for (const slot of d6Demands) {
-        selectFor(slot.spec_id!, slot.remaining_quantity, 'd6', 0, slot.intent_id);
+    // ── Support ───────────────────────────────────────────────────────────────
+    for (const slot of supportDemands) {
+        selectFor(slot.spec_id!, slot.remaining_quantity, 'support', 0, slot.intent_id);
     }
 
-    // ── D3: Insurance ─────────────────────────────────────────────────────────
-    // For every D1/D4/D5/D6 selection, additionally plan
+    // ── Insurance ─────────────────────────────────────────────────────────────
+    // For every primary selection, additionally plan
     // (quantity × insuranceFactor) as a safety buffer.
     if (config.insuranceFactor > 0) {
         const insuranceSnapshot = selectedRecipes.filter(
-            s => s.purpose === 'd1' || s.purpose === 'd4' ||
-                 s.purpose === 'd5' || s.purpose === 'd6',
+            s => s.purpose === 'infrastructure' || s.purpose === 'administration' ||
+                 s.purpose === 'consumption'    || s.purpose === 'support',
         );
         for (const sel of insuranceSnapshot) {
             const insuranceQty = sel.quantity * config.insuranceFactor;
-            selectFor(sel.outputSpecId, insuranceQty, 'd3', 0);
+            selectFor(sel.outputSpecId, insuranceQty, 'insurance', 0);
         }
     }
 
@@ -604,17 +605,17 @@ export interface LeafScenarioParams {
     locations: Map<string, SpatialThing>;
     config: IntegratedPlannerConfig;
     /**
-     * Optional D1 reproduction target overrides (specId → quantity).
+     * Optional infrastructure reproduction target overrides (specId → quantity).
      *
-     * The planner auto-discovers D1 specs from recipe graph structure (any
-     * resource that appears as a `use`/`cite` input) and computes their
+     * The planner auto-discovers infrastructure specs from recipe graph structure
+     * (any resource that appears as a `use`/`cite` input) and computes their
      * reproduction needs from the Observer. Values provided here are MERGED
      * with auto-computed targets, with explicit values winning.
      *
      * Use this for depreciation-based targets that require external lifespan
      * or wear data not available in the Observer.
      */
-    d1Targets?: Record<string, number>;
+    infrastructureTargets?: Record<string, number>;
 }
 
 /**
@@ -632,7 +633,7 @@ export function generateLeafScenario(params: LeafScenarioParams): Scenario | nul
     const {
         h3Cell, demands, observer, agents, workIntents,
         recipeStore, planStore, allIntents, locations, config,
-        d1Targets = {},
+        infrastructureTargets = {},
     } = params;
 
     if (demands.length === 0) return null;
@@ -649,11 +650,12 @@ export function generateLeafScenario(params: LeafScenarioParams): Scenario | nul
     }
 
     // ── Phase 2: backward pass ────────────────────────────────────────────────
-    // Auto-compute D1 targets from recipe structure + Observer; caller overrides
-    // (d1Targets) take precedence — useful when lifespan/depreciation data exists.
-    const d1TargetsFinal = computeD1Targets(recipeStore, observer, d1Targets);
+    // Auto-compute infrastructure targets from recipe structure + Observer;
+    // caller overrides (infrastructureTargets) take precedence — useful when
+    // lifespan/depreciation data exists.
+    const infraTargets = computeInfrastructureTargets(recipeStore, observer, infrastructureTargets);
     const productionPlan = vfPlanFromNeeds(
-        demands, feasibleBySpec, observer, recipeStore, config, d1TargetsFinal,
+        demands, feasibleBySpec, observer, recipeStore, config, infraTargets,
     );
 
     // ── Phase 3: build in-memory recipe graphs (no PlanStore writes) ──────────
@@ -770,10 +772,10 @@ export interface PlanningSearchParams {
     locations: Map<string, SpatialThing>;
     config?: Partial<IntegratedPlannerConfig>;
     /**
-     * Optional explicit D1 reproduction targets per cell.
+     * Optional explicit infrastructure reproduction targets per cell.
      * Key = h3Cell, value = { specId → quantity }.
      */
-    d1TargetsByCell?: Map<string, Record<string, number>>;
+    infrastructureTargetsByCell?: Map<string, Record<string, number>>;
 }
 
 /**
@@ -793,7 +795,7 @@ export function runPlanningSearch(params: PlanningSearchParams): {
     const config: IntegratedPlannerConfig = { ...DEFAULT_CONFIG, ...params.config };
     const {
         leafDemands, observer, agents, allIntents, recipeStore, planStore,
-        locations, d1TargetsByCell,
+        locations, infrastructureTargetsByCell,
     } = params;
 
     // Split allIntents: work Intents feed AgentIndex; all feed coverage scoring
@@ -816,7 +818,7 @@ export function runPlanningSearch(params: PlanningSearchParams): {
             allIntents,
             locations,
             config,
-            d1Targets: d1TargetsByCell?.get(h3Cell),
+            infrastructureTargets: infrastructureTargetsByCell?.get(h3Cell),
         });
         if (!scenario) continue;
         addScenarioToIndex(index, scenario, locations);

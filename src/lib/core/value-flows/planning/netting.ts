@@ -20,6 +20,14 @@ import type { Observer } from '../observation/observer';
 import type { ScheduleBook } from './schedule-book';
 import { isWithinTemporalExpression } from '../utils/time';
 
+/**
+ * Actions that record usage/effort but do NOT reduce resource inventory
+ * (onhandEffect = 'noEffect' in VF spec: use, work, cite, deliverService).
+ * Consumption loops must skip these to avoid counting tool reservations and
+ * labour records as inventory drawdowns.
+ */
+const NON_CONSUMING_ACTIONS = new Set(['use', 'work', 'cite', 'deliverService']);
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -41,6 +49,14 @@ export interface NetDemandResult {
 export class PlanNetter {
     /** Soft-allocated flow IDs (shared across all calls on this netter instance). */
     readonly allocated: Set<string> = new Set();
+
+    /**
+     * Within-session use-slot reservations.
+     * Keyed by resourceId → list of booked [from, to) windows.
+     * Separate from `allocated` because time-slot conflicts require interval
+     * arithmetic, not just Set membership.
+     */
+    private readonly useReservations: Map<string, Array<{ from: Date; to: Date }>> = new Map();
 
     constructor(
         private readonly planStore: PlanStore,
@@ -149,6 +165,7 @@ export class PlanNetter {
             if (
                 intent.resourceConformsTo === specId &&
                 intent.inputOf !== undefined &&
+                !NON_CONSUMING_ACTIONS.has(intent.action) &&
                 !intent.finished &&
                 !this.allocated.has(intent.id) &&
                 (intent.resourceQuantity?.hasNumericalValue ?? 0) > 0
@@ -169,6 +186,7 @@ export class PlanNetter {
             if (
                 commitment.resourceConformsTo === specId &&
                 commitment.inputOf !== undefined &&
+                !NON_CONSUMING_ACTIONS.has(commitment.action) &&
                 !commitment.finished &&
                 !this.allocated.has(commitment.id) &&
                 (commitment.resourceQuantity?.hasNumericalValue ?? 0) > 0
@@ -184,6 +202,41 @@ export class PlanNetter {
         }
 
         return remaining;
+    }
+
+    /**
+     * Attempt to book a `use`-type time slot [from, to) for a specific resource instance.
+     *
+     * Does NOT check inventory existence — caller is responsible for finding a
+     * conforming resource before calling this.
+     *
+     * Conflict checks (in order):
+     *   1. Within-session reservations (useReservations) — catches double-booking
+     *      within the same planning invocation before intents reach the PlanStore.
+     *   2. Pre-existing use-blocks in PlanStore via scheduleBook — catches conflicts
+     *      from merged leaf stores or prior planning sessions.
+     *
+     * On success: records the reservation and adds a namespaced key to `allocated`.
+     * Returns false (without mutating) on any conflict.
+     */
+    netUse(resourceId: string, from: Date, to: Date): boolean {
+        // 1. Within-session conflict
+        const existing = this.useReservations.get(resourceId);
+        if (existing) {
+            for (const r of existing) {
+                if (r.from < to && r.to > from) return false;
+            }
+        }
+        // 2. Pre-existing conflict in PlanStore
+        if (this.scheduleBook?.hasUseConflict(resourceId, from, to)) return false;
+        // 3. Claim
+        if (existing) {
+            existing.push({ from, to });
+        } else {
+            this.useReservations.set(resourceId, [{ from, to }]);
+        }
+        this.allocated.add(`use:${resourceId}:${from.toISOString()}`);
+        return true;
     }
 
     /**
@@ -249,11 +302,14 @@ export class PlanNetter {
             }
         }
 
-        // Subtract scheduled consumptions (not yet allocated)
+        // Subtract scheduled consumptions (not yet allocated).
+        // Skip non-consuming actions (use/work/cite/deliverService): they record usage
+        // but don't reduce inventory (onhandEffect = 'noEffect').
         for (const intent of this.planStore.allIntents()) {
             if (
                 intent.resourceConformsTo === specId &&
                 intent.inputOf !== undefined &&
+                !NON_CONSUMING_ACTIONS.has(intent.action) &&
                 !intent.finished &&
                 !this.allocated.has(intent.id) &&
                 (intent.resourceQuantity?.hasNumericalValue ?? 0) > 0
@@ -269,6 +325,7 @@ export class PlanNetter {
             if (
                 commitment.resourceConformsTo === specId &&
                 commitment.inputOf !== undefined &&
+                !NON_CONSUMING_ACTIONS.has(commitment.action) &&
                 !commitment.finished &&
                 !this.allocated.has(commitment.id) &&
                 (commitment.resourceQuantity?.hasNumericalValue ?? 0) > 0

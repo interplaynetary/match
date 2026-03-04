@@ -29,12 +29,23 @@ or a purchase intent covers each leaf.
 
 Start from an available resource and walk forward through recipes that consume it.
 
-```
+````
 have: raw cotton @ FarmA, qty 120kg, available 2026-02-01
   → gin recipe → produces cotton @ FarmA, qty 60kg, available 2026-02-03
     → no weave recipe registered for FarmA context
     → cotton becomes terminal product (not surplus) at FarmA
-```
+```dependentSupply` — forward explosion
+
+Start from an available resource and walk forward through recipes that consume it.
+
+````
+
+have: raw cotton @ FarmA, qty 120kg, available 2026-02-01
+→ gin recipe → produces cotton @ FarmA, qty 60kg, available 2026-02-03
+→ no weave recipe registered for FarmA context
+→ cotton becomes terminal product (not surplus) at FarmA
+
+````
 
 Outputs that no recipe absorbs become **terminal products** (if derived from a chain) or
 **surplus** (if the original supply goes unused). Complementary inputs missing from
@@ -61,10 +72,11 @@ Three methods:
 ```ts
 const netter = new PlanNetter(planStore, observer);
 dependentDemand({ planId, demandSpecId, demandQuantity, dueDate, ..., netter });
-```
+````
 
 Use when you have a known required output and want to find what must be produced/purchased.
 The plan will contain:
+
 - Processes back-scheduled to meet the due date.
 - Purchase intents for any leaf spec with no recipe.
 
@@ -77,6 +89,7 @@ dependentSupply({ planId, supplySpecId, supplyQuantity, availableFrom, ..., nett
 
 Use when you have a known available resource and want to route it forward into production.
 The plan will contain:
+
 - Processes forward-scheduled from `availableFrom`.
 - Surplus for supply that nothing can absorb.
 - Purchase intents for complementary inputs.
@@ -136,6 +149,7 @@ resource is globally available / the consumption is location-agnostic).
 
 Anything weaker — e.g. "absorb if within 50km" — would require geodesic computation and
 domain knowledge about delivery feasibility. Exact match is:
+
 - Decidable with string equality.
 - Symmetric with VF's own `atLocation` semantics.
 - Safe: it under-absorbs rather than over-absorbs (the plan will produce a purchase intent
@@ -164,6 +178,7 @@ separate index is required.
 ### 4.1 The problem
 
 After demand explosion for `yarn @ FactoryB`:
+
 - No local inventory at FactoryB.
 - No output intents at FactoryB (no weaving process scheduled yet).
 - `netDemand` returns `remaining = demandQuantity` (nothing absorbed).
@@ -174,6 +189,7 @@ After demand explosion for `yarn @ FactoryB`:
 - Result: **purchase intent** `transfer cotton to FactoryB qty N`.
 
 Meanwhile, the supply explosion for `raw cotton @ FarmA`:
+
 - Gin recipe → produces `cotton @ FarmA qty M`.
 - `netSupply` checks: is there a consumption intent for `cotton` at `loc:FarmA`?
 - The only cotton consumption intent has `atLocation: 'loc:FactoryB'` (from weave at FactoryB).
@@ -217,9 +233,9 @@ express "this input happens at origin, this output happens at destination."
 
 ```ts
 interface RecipeFlow {
-    // ... existing fields ...
-    atLocation?: string;   // where this flow happens (pickup location for input)
-    toLocation?: string;   // destination for flows that move resources
+  // ... existing fields ...
+  atLocation?: string; // where this flow happens (pickup location for input)
+  toLocation?: string; // destination for flows that move resources
 }
 ```
 
@@ -228,18 +244,18 @@ interface RecipeFlow {
 ```ts
 // Transport recipe: cotton from FarmA to FactoryB
 recipeStore.addRecipeFlow({
-    action: 'pickup',
-    resourceConformsTo: 'spec:cotton',
-    resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' },
-    atLocation: 'loc:FarmA',       // pickup happens at FarmA
-    inputOf: 'rp:truck-transport',
+  action: "pickup",
+  resourceConformsTo: "spec:cotton",
+  resourceQuantity: { hasNumericalValue: 1, hasUnit: "kg" },
+  atLocation: "loc:FarmA", // pickup happens at FarmA
+  inputOf: "rp:truck-transport",
 });
 recipeStore.addRecipeFlow({
-    action: 'dropoff',
-    resourceConformsTo: 'spec:cotton',
-    resourceQuantity: { hasNumericalValue: 1, hasUnit: 'kg' },
-    toLocation: 'loc:FactoryB',    // dropoff deposits at FactoryB
-    outputOf: 'rp:truck-transport',
+  action: "dropoff",
+  resourceConformsTo: "spec:cotton",
+  resourceQuantity: { hasNumericalValue: 1, hasUnit: "kg" },
+  toLocation: "loc:FactoryB", // dropoff deposits at FactoryB
+  outputOf: "rp:truck-transport",
 });
 ```
 
@@ -263,6 +279,7 @@ need: yarn @ FactoryB, qty 50kg
 ```
 
 The result:
+
 1. A gin process at FarmA (forward in time).
 2. A transport process FarmA→FactoryB (duration = transit time).
 3. A weave process at FactoryB (after transport arrives).
@@ -275,15 +292,15 @@ transport's consumption intent ALSO at FarmA — location matches — and absorb
 
 ## 5. Summary Table
 
-| Concern | Current behaviour | With transport recipes |
-|---------|------------------|----------------------|
-| `netDemand` spatial guard | exact match or skip | unchanged |
-| `netSupply` spatial guard | exact match or skip | unchanged |
-| Cross-location absorption | impossible (correct) | bridged by transport recipe |
-| Transport modelling | manual purchase intent | recipe-driven process chain |
-| `RecipeFlow.atLocation` | not present | needed (schema extension) |
-| `recipesForOutputAt()` | not present | needed (recipe store extension) |
-| Trajectory index | `netAvailableQty(spec, { atLocation, asOf })` | same |
+| Concern                   | Current behaviour                             | With transport recipes          |
+| ------------------------- | --------------------------------------------- | ------------------------------- |
+| `netDemand` spatial guard | exact match or skip                           | unchanged                       |
+| `netSupply` spatial guard | exact match or skip                           | unchanged                       |
+| Cross-location absorption | impossible (correct)                          | bridged by transport recipe     |
+| Transport modelling       | manual purchase intent                        | recipe-driven process chain     |
+| `RecipeFlow.atLocation`   | not present                                   | needed (schema extension)       |
+| `recipesForOutputAt()`    | not present                                   | needed (recipe store extension) |
+| Trajectory index          | `netAvailableQty(spec, { atLocation, asOf })` | same                            |
 
 ---
 

@@ -1,3 +1,7 @@
+// If recipes are indexed by output spec (hash map): O(1)
+
+
+
 /**
  * Dependent Demand — Recursive demand explosion from the VF spec.
  *
@@ -33,8 +37,10 @@ import type {
     Process,
     Commitment,
     Intent,
+    Measure,
     Recipe,
     RecipeFlow,
+    VfAction,
 } from '../schemas';
 import { ACTION_DEFINITIONS } from '../schemas';
 import type { RecipeStore } from '../knowledge/recipes';
@@ -42,6 +48,7 @@ import type { PlanStore } from '../planning/planning';
 import { PlanNetter } from '../planning/netting';
 import type { Observer } from '../observation/observer';
 import type { ProcessRegistry } from '../process-registry';
+import { computeSNEForRecipe, type SNEIndex } from './SNE';
 
 // =============================================================================
 // TYPES
@@ -79,10 +86,22 @@ interface DemandTask {
     /** Unit for quantities */
     unit: string;
     /**
-     * Durable inputs (use/cite — accountingEffect='noEffect').
-     * Existence gate only: does not deplete inventory, does not recurse.
+     * If set, this is a durable input (use/cite — accountingEffect='noEffect').
+     * Value is the VfAction so 'use' can be handled differently from 'cite'.
+     *   'use'  → time-slot scheduling + use-Intent created in plan
+     *   'cite' → existence gate only (no scheduling, no intent)
      */
-    isDurable?: boolean;
+    durableAction?: VfAction;
+    /**
+     * End time of the process requiring this durable input.
+     * Present when durableAction='use' to enable time-slot scheduling via netUse.
+     */
+    processEnd?: Date;
+    /**
+     * Effort quantity from the RecipeFlow (how long the tool is used per process run).
+     * Carried onto the use-Intent for SNE depreciation accounting.
+     */
+    useEffortQuantity?: Measure;
     /**
      * Required stage (ProcessSpecification ID) of a conforming resource.
      * VF spec (resources.md §Stage and state): dependent demand selects
@@ -124,6 +143,13 @@ export function dependentDemand(params: {
     generateId?: () => string;
     /** Optional shared netter — pass to share allocated state across algorithm calls (Mode C). */
     netter?: PlanNetter;
+    /**
+     * Optional pre-built SNE index (specId → effort hours/unit).
+     * When provided, recipes are ranked by SNE (embodied labor) instead of SNLT
+     * (direct labor only). Build via buildSNEIndex() from SNE.ts.
+     * When absent, falls back to the existing SNLT ranking.
+     */
+    sneIndex?: SNEIndex;
     /** SpatialThing ID — where the final output is needed. */
     atLocation?: string;
 }): DependentDemandResult {
@@ -186,10 +212,60 @@ function processDemand(
 ): void {
     const { recipeStore, planStore, processes, observer, agents, planId } = params;
 
-    // --- Durable inputs: existence gate only ---
-    // Actions with accountingEffect='noEffect' (use, cite) do not deplete
-    // resources — we only check that a conforming resource exists.
-    if (demand.isDurable) {
+    // --- Durable inputs (use / cite) ---
+    if (demand.durableAction) {
+        if (demand.durableAction === 'use') {
+            // 'use': schedule a time-slot reservation and create a use-Intent in the plan.
+            // Checks onhandQuantity (physical presence) rather than accountingQuantity (rights).
+            if (observer) {
+                const slotFrom = demand.neededBy;
+                const slotTo = demand.processEnd ?? demand.neededBy;
+                const candidates = observer.conformingResources(demand.specId)
+                    .filter(r => {
+                        if ((r.onhandQuantity?.hasNumericalValue ?? 0) <= 0) return false;
+                        if (demand.stage && r.stage !== demand.stage) return false;
+                        if (demand.state && r.state !== demand.state) return false;
+                        if (r.containedIn !== undefined) return false;
+                        return true;
+                    });
+                for (const r of candidates) {
+                    if (netter.netUse(r.id, slotFrom, slotTo)) {
+                        const intent = planStore.addIntent({
+                            action: 'use',
+                            resourceInventoriedAs: r.id,
+                            resourceConformsTo: demand.specId,
+                            hasBeginning: slotFrom.toISOString(),
+                            hasEnd: slotTo.toISOString(),
+                            inputOf: demand.forProcessId,
+                            effortQuantity: demand.useEffortQuantity,
+                            resourceQuantity: { hasNumericalValue: demand.quantity, hasUnit: demand.unit },
+                            plannedWithin: planId,
+                            atLocation: demand.atLocation,
+                            finished: false,
+                        });
+                        result.intents.push(intent);
+                        return;
+                    }
+                }
+            }
+            // No available / uncontested unit — signal sourcing gap
+            const intent = planStore.addIntent({
+                action: 'transfer',
+                receiver: agents?.receiver,
+                resourceConformsTo: demand.specId,
+                resourceQuantity: { hasNumericalValue: demand.quantity, hasUnit: demand.unit },
+                due: demand.neededBy.toISOString(),
+                plannedWithin: planId,
+                inputOf: demand.forProcessId,
+                atLocation: demand.atLocation,
+                note: `Use-slot conflict: no available unit of ${demand.specId} during scheduled process window`,
+                finished: false,
+            });
+            result.purchaseIntents.push(intent);
+            return;
+        }
+
+        // 'cite' and any other durable actions: existence gate only.
         if (observer) {
             const exists = observer.conformingResources(demand.specId)
                 .some(r => {
@@ -198,9 +274,8 @@ function processDemand(
                     if (demand.state && r.state !== demand.state) return false;
                     return true;
                 });
-            if (exists) return; // Present and accounted for
+            if (exists) return;
         }
-        // Not available — signal that this durable resource must be sourced
         const intent = planStore.addIntent({
             action: 'transfer',
             receiver: agents?.receiver,
@@ -241,6 +316,11 @@ function processDemand(
     let transportLocations: { from: string; to: string } | undefined;
     let transportRecipe: Recipe | undefined;
 
+    // Shared recipe scoring: SNE (embodied labor) when index provided, else SNLT (direct labor).
+    const recipeScore = (r: Recipe) => params.sneIndex
+        ? computeSNEForRecipe(r.id, demand.specId, recipeStore, params.sneIndex)
+        : computeSnlt(recipeStore, r.id, demand.specId);
+
     if (demand.atLocation && params.observer) {
         const candidateLocations = new Map<string, number>();
         for (const r of params.observer.allResources()) {
@@ -257,21 +337,21 @@ function processDemand(
                 const [fromLocation] = [...candidateLocations.entries()]
                     .sort((a, b) => b[1] - a[1])[0];
                 transportRecipe = tCandidates
-                    .map(r => ({ recipe: r, snlt: computeSnlt(recipeStore, r.id, demand.specId) }))
-                    .sort((a, b) => a.snlt - b.snlt)[0].recipe;
+                    .map(r => ({ recipe: r, score: recipeScore(r) }))
+                    .sort((a, b) => a.score - b.score)[0].recipe;
                 transportLocations = { from: fromLocation, to: demand.atLocation };
             }
         }
     }
 
-    // --- Step 2: Find most SNLT-efficient recipe that produces this spec ---
+    // --- Step 2: Find most efficient recipe that produces this spec ---
     // Transport takes priority over production when a location mismatch is detected.
     const recipe: Recipe | undefined = transportRecipe ?? (() => {
         const candidates = recipeStore.recipesForOutput(demand.specId);
         if (candidates.length === 0) return undefined;
         return candidates
-            .map(r => ({ recipe: r, snlt: computeSnlt(recipeStore, r.id, demand.specId) }))
-            .sort((a, b) => a.snlt - b.snlt)[0].recipe;
+            .map(r => ({ recipe: r, score: recipeScore(r) }))
+            .sort((a, b) => a.score - b.score)[0].recipe;
     })();
 
     if (!recipe) {
@@ -304,7 +384,19 @@ function processDemand(
     const { outputs: lastOutputs } = recipeStore.flowsForProcess(lastProcess.id);
     const primaryOutputFlow = lastOutputs.find(f => f.resourceConformsTo === demand.specId);
     const recipeOutputQty = primaryOutputFlow?.resourceQuantity?.hasNumericalValue ?? 1;
-    const scaleFactor = remaining / recipeOutputQty;
+    let scaleFactor = remaining / recipeOutputQty;
+
+    // Minimum batch: take the maximum minScaleFactor across all chain processes.
+    // A process with minimumBatchQuantity forces at least that many output units per run.
+    // Excess beyond `remaining` becomes surplus inventory visible to the caller.
+    for (const rp of chain) {
+        if (rp.minimumBatchQuantity) {
+            const minScaleFactor = rp.minimumBatchQuantity.hasNumericalValue / recipeOutputQty;
+            if (minScaleFactor > scaleFactor) {
+                scaleFactor = minScaleFactor;
+            }
+        }
+    }
 
     // --- Step 4: Back-schedule processes and create flow records ---
     // Collect specs produced internally by this chain (intermediate outputs).
@@ -384,7 +476,9 @@ function processDemand(
                         neededBy: processBegin,
                         forProcessId: process.id,
                         unit: flow.resourceQuantity?.hasUnit ?? 'each',
-                        isDurable,
+                        durableAction: isDurable ? flow.action : undefined,
+                        processEnd: flow.action === 'use' ? processEnd : undefined,
+                        useEffortQuantity: flow.action === 'use' ? flow.effortQuantity : undefined,
                         // Propagate stage/state requirements from the recipe flow so that
                         // inventory netting selects only correctly-staged resources.
                         // VF spec: resources.md §Stage and state.
